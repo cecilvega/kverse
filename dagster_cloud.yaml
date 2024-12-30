@@ -1,4 +1,4 @@
 locations:
 - code_source:
-    module_name: quickstart_etl.definitions
+    module_name: kdags.definitions
   location_name: kverse

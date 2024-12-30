@@ -6,6 +6,7 @@ from dagster import (
     link_code_references_to_git,
     load_assets_from_package_module,
     op,
+    asset,
     with_source_code_references,
     ExperimentalWarning,
 )
@@ -14,14 +15,28 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 from kdags.assets import quickstart
 from kdags.jobs import daily_refresh_schedule
 import warnings
-
+from kdags.resources.msgraph.auth import acquire_token_func
 
 warnings.filterwarnings("ignore", category=ExperimentalWarning)
 
 
+import os
+
+
+@asset
+def test_msgraph(context):
+    refresh_token = os.environ["MSGRAPH_TOKEN"]
+    token = acquire_token_func()
+    context.log.info(token)
+    context.log.info(refresh_token)
+    return token
+
+
 @op
 def foo_op():
-    return 5
+    refresh_token = os.environ["MSGRAPH_TOKEN"]
+
+    return refresh_token
 
 
 @graph_asset
@@ -35,6 +50,7 @@ hackernews_assets = load_assets_from_package_module(quickstart)  # , group_name=
 all_assets = with_source_code_references(
     [
         my_asset,
+        test_msgraph,
         *hackernews_assets,
     ]
 )
