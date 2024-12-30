@@ -1,0 +1,4 @@
+locations:
+- code_source:
+    module_name: quickstart_etl.definitions
+  location_name: kverse
