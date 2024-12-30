@@ -6,9 +6,10 @@ setup(
     install_requires=[
         "dagster",
         "dagster-cloud",
-        # "boto3",
         "pandas",
         "matplotlib",
+        "msal",
+        "Office365-REST-Python-Client",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )
