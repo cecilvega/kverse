@@ -2,7 +2,6 @@ import os
 from io import BytesIO
 
 import pandas as pd
-from azure.storage.blob import BlobServiceClient
 import unicodedata
 import re
 import openpyxl
