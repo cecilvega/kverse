@@ -10,6 +10,7 @@ setup(
         "matplotlib",
         "msal",
         "Office365-REST-Python-Client",
+        "openpyxl",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )
