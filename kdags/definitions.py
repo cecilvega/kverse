@@ -13,6 +13,8 @@ from dagster import (
 from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMapping
 
 from kdags.assets import quickstart
+from kdags.assets import planification
+from kdags.assets import maintenance
 from kdags.jobs import daily_refresh_schedule
 import warnings
 from kdags.resources.msgraph.auth import acquire_token_func
@@ -44,7 +46,9 @@ def my_asset():
     return foo_op()
 
 
-hackernews_assets = load_assets_from_package_module(quickstart)  # , group_name="hackernews"
+maintenance_assets = load_assets_from_package_module(maintenance, group_name="maintenance")
+planification_assets = load_assets_from_package_module(planification, group_name="planification")
+hackernews_assets = load_assets_from_package_module(quickstart)
 
 
 all_assets = with_source_code_references(
@@ -52,6 +56,8 @@ all_assets = with_source_code_references(
         my_asset,
         test_msgraph,
         *hackernews_assets,
+        *maintenance_assets,
+        *planification_assets,
     ]
 )
 
