@@ -11,6 +11,7 @@ setup(
         "msal",
         "Office365-REST-Python-Client",
         "openpyxl",
+        "plotly",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )
