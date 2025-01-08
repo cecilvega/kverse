@@ -12,6 +12,7 @@ setup(
         "Office365-REST-Python-Client",
         "openpyxl",
         "plotly",
+        "firebase-admin",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

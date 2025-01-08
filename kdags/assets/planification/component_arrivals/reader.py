@@ -133,7 +133,8 @@ def read_component_arrivals():
     data = BytesIO(content)
     workbook = openpyxl.load_workbook(data)
     frames = []
-    sheetnames = [c for c in workbook.sheetnames if c not in ["W01", "W02", "W03", "W04", "W05"]]
+    # sheetnames = [c for c in workbook.sheetnames if c not in ["W01", "W02", "W03", "W04", "W05"]]
+    sheetnames = workbook.sheetnames
     for sheet in sheetnames:
         # print(sheet)
         df = pd.read_excel(data, sheet_name=sheet, skiprows=1, engine="openpyxl", dtype="str")
@@ -147,7 +148,11 @@ def read_component_arrivals():
         # Por defecto la primera fila sólo debiese tener las semanas y el ffill no cambiará el hecho de que sea nula y se pueda sacar
         df = df.assign(
             Componente=df["Componente"].ffill(),
-            arrival_projection_week=get_previous_week(sheet),
+            arrival_projection_week=(
+                get_previous_week(sheet, 2025)
+                if sheet in ["W01", "W02", "W03", "W04", "W05"]
+                else get_previous_week(sheet, 2024)
+            ),
         )
         df = df.dropna(subset=["Componente", "N°"])
 
