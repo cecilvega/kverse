@@ -124,7 +124,7 @@ def read_component_arrivals():
 
     file = (
         site.drive.root.get_by_path(
-            "/3.-%20Solicitudes%20Soporte%20Componentes/1.-%20Escondida/1.-%20Entrega%20de%20componentes/CONSOLIDADO%20DE%20PLANES/Planilla%20de%20seguimiento%20de%20cumplimiento%20de%20entrega%20componentes%202024.xlsx"
+            "/3.-%20Solicitudes%20Soporte%20Componentes/1.-%20Escondida/1.-%20Entrega%20de%20componentes/CONSOLIDADO%20DE%20PLANES/2024/Planilla%20de%20seguimiento%20de%20cumplimiento%20de%20entrega%20componentes%202024.xlsx"
         )
         .get()
         .execute_query()
@@ -133,8 +133,9 @@ def read_component_arrivals():
     data = BytesIO(content)
     workbook = openpyxl.load_workbook(data)
     frames = []
-    # sheetnames = [c for c in workbook.sheetnames if c not in ["W01", "W02", "W03", "W04", "W05"]]
-    sheetnames = workbook.sheetnames
+    sheetnames = [c for c in workbook.sheetnames if c not in ["W01", "W02", "W03", "W04", "W05"]]
+
+    # sheetnames = workbook.sheetnames
     for sheet in sheetnames:
         # print(sheet)
         df = pd.read_excel(data, sheet_name=sheet, skiprows=1, engine="openpyxl", dtype="str")
