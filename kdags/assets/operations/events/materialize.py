@@ -1,14 +1,15 @@
+from io import BytesIO
+
+from dagster import asset
 from office365.graph_client import GraphClient
 
 from kdags.assets.maintenance.reader import get_attendances
-from kdags.resources.msgraph import acquire_token_func
 from kdags.resources.firebase import init_firebase
-from dagster import asset
-from io import BytesIO
+from kdags.resources.msgraph import acquire_token_func
 
 
 @asset
-def attendances():
+def events():
     init_firebase()
     df = get_attendances()
 

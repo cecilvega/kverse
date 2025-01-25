@@ -15,12 +15,11 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 from kdags.assets import quickstart
 from kdags.assets import planification
 from kdags.assets import maintenance
-from kdags.jobs import daily_refresh_schedule
+from kdags.jobs import daily_refresh_schedule, daily_attendances_job
 import warnings
 from kdags.resources.msgraph.auth import acquire_token_func
 
 warnings.filterwarnings("ignore", category=ExperimentalWarning)
-
 
 import os
 
@@ -73,5 +72,5 @@ all_assets = link_code_references_to_git(
 
 defs = Definitions(
     assets=all_assets,
-    schedules=[daily_refresh_schedule],
+    schedules=[daily_refresh_schedule, daily_attendances_job],
 )
