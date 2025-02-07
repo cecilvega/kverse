@@ -46,17 +46,17 @@ def clean_string(s):
 
 def read_cc():
 
-    # graph_client = GraphClient(acquire_token_func)
+    graph_client = GraphClient(acquire_token_func)
     # MEL
-    # site = graph_client.sites.get_by_url("https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022")
-    # file = (
-    #     site.drive.root.get_by_path(
-    #         "/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx"
-    #     )
-    #     .get()
-    #     .execute_query()
-    # )
-    # content = file.get_content().execute_query().value
+    site = graph_client.sites.get_by_url("https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022")
+    file = (
+        site.drive.root.get_by_path(
+            "/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx"
+        )
+        .get()
+        .execute_query()
+    )
+    content = file.get_content().execute_query().value
     # mel_df = pd.read_excel(BytesIO(content), usecols="A:AG", dtype={"MODÉLO": str}).dropna(subset=["FECHA DE CAMBIO"])
 
     # SPENCE
@@ -109,7 +109,8 @@ def read_cc():
     ]
     mel_df = (
         pd.read_excel(
-            "/home/cecilvega/Downloads/PILI/W4 PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+            BytesIO(content),
+            # "/home/cecilvega/Downloads/PILI/W4 PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
             sheet_name="Planilla Cambio Componente  960",
             dtype={"MODÉLO": str},
         )
@@ -118,7 +119,7 @@ def read_cc():
         .rename_axis("cc_index")
         .reset_index()
     )
-    print(mel_df.columns)
+    # print(mel_df.columns)
     spence_df = (
         pd.read_excel(
             "/home/cecilvega/Downloads/PILI/W4 NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx",
@@ -182,7 +183,7 @@ def read_cc():
     # .str.cat(x["changeout_week"].astype(int).astype(str), sep="-W"),
     # )
     # df = df.loc[df["MODÉLO"].str.contains("960")].reset_index(drop=True)
-    df = df.loc[df["changeout_date"].dt.year >= 2024].reset_index(drop=True)
+    # df = df.loc[df["changeout_date"].dt.year >= 2024].reset_index(drop=True)
 
     df = pd.merge(
         df,
