@@ -6,7 +6,7 @@ import unicodedata
 import re
 import openpyxl
 from office365.graph_client import GraphClient
-from kdags.resources.msgraph.auth import acquire_token_func
+from kdags.resources.msgraph.base import acquire_token_func
 
 openpyxl.reader.excel.warnings.simplefilter(action="ignore")
 
