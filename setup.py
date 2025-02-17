@@ -7,12 +7,15 @@ setup(
         "dagster",
         "dagster-cloud",
         "pandas",
+        "polars",
         "matplotlib",
         "msal",
         "Office365-REST-Python-Client",
         "openpyxl",
         "plotly",
         "firebase-admin",
+        "azure-storage-blob",
+        "azure-storage-file-datalake"
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

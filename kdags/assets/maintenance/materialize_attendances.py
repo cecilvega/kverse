@@ -1,7 +1,7 @@
 from office365.graph_client import GraphClient
 
 from kdags.assets.maintenance.reader import get_attendances
-from kdags.resources.msgraph import acquire_token_func
+from kdags.resources.msgraph import MSGraph
 from kdags.resources.firebase import init_firebase
 from dagster import asset
 from io import BytesIO
@@ -33,7 +33,7 @@ def attendances():
         .sort_values(["date", "turno", "nombre"], ascending=False)
     )
 
-    graph_client = GraphClient(acquire_token_func)
+    graph_client = MSGraph().client
     buffer = BytesIO()
     df.to_excel(buffer, engine="openpyxl", index=False)
     buffer.seek(0)

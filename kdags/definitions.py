@@ -17,7 +17,7 @@ from kdags.assets import planification
 from kdags.assets import maintenance
 from kdags.jobs import daily_refresh_schedule, daily_attendances_job
 import warnings
-from kdags.resources.msgraph.base import acquire_token_func
+from kdags.resources import MSGraph
 
 warnings.filterwarnings("ignore", category=ExperimentalWarning)
 
@@ -27,7 +27,7 @@ import os
 @asset
 def test_msgraph(context):
     refresh_token = os.environ["MSGRAPH_TOKEN"]
-    token = acquire_token_func()
+    token = MSGraph().acquire_token_func()
     context.log.info(token)
     context.log.info(refresh_token)
     return token
