@@ -4,6 +4,7 @@ import msal
 import pandas as pd
 from office365.graph_client import GraphClient
 import requests
+from io import BytesIO
 
 
 class MSGraph:
@@ -72,6 +73,70 @@ class MSGraph:
                 self._list_items_recursive(
                     item, items, base_path=f"{base_path}/{item.name}"
                 )
+
+    def download_file(self, site_url: str, file_path: str) -> bytes:
+        """
+        Download a file from SharePoint and return its content as bytes.
+
+        Args:
+            site_url (str): The SharePoint site URL
+            file_path (str): The relative path to the file within the site
+
+        Returns:
+            bytes: The raw content of the file
+
+        Raises:
+            Exception: If there's an error downloading the file
+        """
+        try:
+            site = self.client.sites.get_by_url(site_url)
+            file = site.drive.root.get_by_path(file_path).get().execute_query()
+            content = file.get_content().execute_query().value
+            return content
+        except Exception as e:
+            raise Exception(f"Error downloading file {file_path}: {str(e)}")
+
+    def read_tibble(self, content: bytes, file_type: None, **kwargs) -> pd.DataFrame:
+        """
+        Read tabular data from downloaded content. Automatically detects file type if not specified.
+
+        Args:
+            content (bytes): File content as bytes (from download_file)
+            file_type (str, optional): Force specific file type ('excel', 'csv', etc.).
+                                     If None, will try to detect from file extension
+            **kwargs: Additional arguments passed to the appropriate pandas read function
+
+        Returns:
+            pd.DataFrame: The contents of the file as a DataFrame
+
+        Raises:
+            ValueError: If file type cannot be determined or is not supported
+        """
+        try:
+            buffer = BytesIO(content)
+
+            if file_type == "excel" or (
+                file_type is None
+                and kwargs.get("filepath_or_buffer", "").endswith((".xlsx", ".xls"))
+            ):
+                return pd.read_excel(buffer, **kwargs)
+            elif file_type == "csv" or (
+                file_type is None
+                and kwargs.get("filepath_or_buffer", "").endswith(".csv")
+            ):
+                return pd.read_csv(buffer, **kwargs)
+            elif file_type == "parquet" or (
+                file_type is None
+                and kwargs.get("filepath_or_buffer", "").endswith(".parquet")
+            ):
+                return pd.read_parquet(buffer, **kwargs)
+            else:
+                raise ValueError(
+                    f"Unsupported or undetectable file type. Please specify file_type explicitly."
+                )
+
+        except Exception as e:
+            raise Exception(f"Error reading file content: {str(e)}")
 
     def upload_image_to_sharepoint(
         self,

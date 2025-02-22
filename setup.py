@@ -15,7 +15,9 @@ setup(
         "plotly",
         "firebase-admin",
         "azure-storage-blob",
-        "azure-storage-file-datalake"
+        "azure-storage-file-datalake",
+        "rapidfuzz",
+        "xlsxwriter",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

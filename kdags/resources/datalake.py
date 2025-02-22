@@ -7,40 +7,51 @@ class DataLake:
     def __init__(self):
         account_url = "https://kchdatalakedes.dfs.core.windows.net"
         sas_token = os.environ["AZURE_SAS_TOKEN"]
-        self.client = DataLakeServiceClient(account_url=account_url, credential=sas_token)
-        self.base_path = "OPERACIONES/CHILE/KCH/BHP"
+        self.client = DataLakeServiceClient(
+            account_url=account_url, credential=sas_token
+        )
+        self.base_path = "OPERACIONES/CHILE/KCH"
 
     def get_file_system_client(self, container: str):
         return self.client.get_file_system_client(container)
 
-    def list_paths(self, container: str, file_path: str, recursive: bool = True) -> pl.DataFrame:
+    def list_paths(
+        self, container: str, file_path: str, recursive: bool = True
+    ) -> pl.DataFrame:
         file_path = f"{self.base_path}/{file_path}"
         file_system_client = self.get_file_system_client(container)
         if recursive:
+
             files = [
                 {
-                    "file_path": path.name,
+                    "file_path": path.name.replace(f"{self.base_path}/", ""),
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
-                for path in file_system_client.get_paths(path=file_path, recursive=recursive)
+                for path in file_system_client.get_paths(
+                    path=file_path, recursive=recursive
+                )
                 if not path.is_directory
             ]
         else:
             files = [
                 {
-                    "file_path": path.name,
+                    "file_path": path.name.replace(f"{self.base_path}/", ""),
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
-                for path in file_system_client.get_paths(path=file_path, recursive=recursive)
+                for path in file_system_client.get_paths(
+                    path=file_path, recursive=recursive
+                )
             ]
         return pl.DataFrame(files)
 
     def read_bytes(self, container: str, file_path: str) -> bytes:
         """Download a file's contents as bytes"""
+        file_path = f"{self.base_path}/{file_path}"
         file_system_client = self.get_file_system_client(container)
         file_client = file_system_client.get_file_client(file_path)
+
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 

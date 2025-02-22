@@ -7,7 +7,7 @@ from io import StringIO
 
 def read_raw_component_status():
     dl = DataLake()
-    files_df = dl.list_paths("kcc-raw-data", "RESO/COMPONENT_STATUS")
+    files_df = dl.list_paths("kcc-raw-data", "BHP/RESO/COMPONENT_STATUS")
 
     dfs = [
         pd.read_html(StringIO(dl.read_bytes("kcc-raw-data", path).decode("utf-8")))[0]

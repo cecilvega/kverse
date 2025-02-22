@@ -58,7 +58,7 @@ def process_docs_data(docs_data, subcomponent_name, component_serial):
     df["file_name"] = df["blob_base"] + "_" + df["cleaned_subtitle"] + df["extension"]
 
     # Build the target folder path using your prefix, subcomponent name, component serial, and file_type.
-    prefix = "01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/CAEX/4.%20Antecedentes/REPARACION"
-    df["target_folder"] = f"{prefix}/{subcomponent_name.upper()}/{component_serial}/" + df["file_type"]
+
+    df["target_folder"] = f"{subcomponent_name.upper()}/{component_serial}/" + df["file_type"]
 
     return df
