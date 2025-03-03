@@ -25,7 +25,6 @@ setup(
         "pyarrow",
         "selenium",
         "lxml",
-        "mystmd",
         "altair",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
