@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 
 import pandas as pd
-from resources.tidypolars.testthat import *
-from operations.assets.common.utils import *
-from data_science_tools.config import Config
+
+# from kdags.resources.tidypolars.testthat import *
+# from kdags.assets.operation.common.utils import *
+# from data_science_tools.config import Config
 
 
 @dataclass

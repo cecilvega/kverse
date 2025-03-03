@@ -3,8 +3,10 @@ from kdags.resources import DataLake
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 from io import StringIO
+import dagster as dg
 
 
+@dg.asset
 def read_raw_component_status():
     dl = DataLake()
     files_df = dl.list_paths("kcc-raw-data", "BHP/RESO/COMPONENT_STATUS")
@@ -12,7 +14,7 @@ def read_raw_component_status():
     dfs = [
         pd.read_html(StringIO(dl.read_bytes("kcc-raw-data", path).decode("utf-8")))[0]
         for path in files_df["file_path"]
-        if int(path.split()[-1].split(".")[0]) >= 2022
+        if int(path.split()[-1].split(".")[0]) >= 2018
     ]
 
     return pd.concat(dfs, ignore_index=True)

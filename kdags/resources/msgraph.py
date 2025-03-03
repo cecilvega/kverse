@@ -10,18 +10,23 @@ from io import BytesIO
 class MSGraph:
     def __init__(self):
         self.client = GraphClient(self.acquire_token_func)
+        self._client_id = "d50ca740-c83f-4d1b-b616-12c519384f0c"
+        self._site_url_prefix = "https://globalkomatsu.sharepoint.com/sites/"
 
     def acquire_token_func(self):
-
-        client_id = "d50ca740-c83f-4d1b-b616-12c519384f0c"
         scopes = ["Files.ReadWrite.All"]
-
         app = msal.PublicClientApplication(
-            client_id=client_id, authority="https://login.microsoftonline.com/common"
+            client_id=self._client_id, authority="https://login.microsoftonline.com/common"
         )
-
         refresh_token = os.environ["MSGRAPH_TOKEN"]
         return app.acquire_token_by_refresh_token(refresh_token, scopes)
+
+    def get_sharepoint_file_content(self, site_id, file_path):
+        site_id = f"{self._site_url_prefix}/{site_id}"
+        site = self.client.sites.get_by_url(site_id)
+        drive_item = site.drive.root.get_by_path(file_path).get().execute_query()
+        content = drive_item.get_content().execute_query().value
+        return content
 
     def list_paths(self, site_url: str, folder_path: str) -> pd.DataFrame:
 
@@ -52,27 +57,21 @@ class MSGraph:
 
         for item in children:
             if item.is_folder:
-                self._list_items_recursive(
-                    item, items, base_path=f"{base_path}/{item.name}"
-                )
+                self._list_items_recursive(item, items, base_path=f"{base_path}/{item.name}")
                 continue
 
             item_info = {
                 "name": item.name,
                 "path": f"{base_path}/{item.name}",
                 "size_bytes": item.properties.get("size"),
-                "last_modified": item.last_modified_datetime.strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                "last_modified": item.last_modified_datetime.strftime("%Y-%m-%d %H:%M:%S"),
                 "web_url": item.web_url,
             }
 
             items.append(item_info)
 
             if item.is_folder:
-                self._list_items_recursive(
-                    item, items, base_path=f"{base_path}/{item.name}"
-                )
+                self._list_items_recursive(item, items, base_path=f"{base_path}/{item.name}")
 
     def download_file(self, site_url: str, file_path: str) -> bytes:
         """
@@ -116,24 +115,17 @@ class MSGraph:
             buffer = BytesIO(content)
 
             if file_type == "excel" or (
-                file_type is None
-                and kwargs.get("filepath_or_buffer", "").endswith((".xlsx", ".xls"))
+                file_type is None and kwargs.get("filepath_or_buffer", "").endswith((".xlsx", ".xls"))
             ):
                 return pd.read_excel(buffer, **kwargs)
-            elif file_type == "csv" or (
-                file_type is None
-                and kwargs.get("filepath_or_buffer", "").endswith(".csv")
-            ):
+            elif file_type == "csv" or (file_type is None and kwargs.get("filepath_or_buffer", "").endswith(".csv")):
                 return pd.read_csv(buffer, **kwargs)
             elif file_type == "parquet" or (
-                file_type is None
-                and kwargs.get("filepath_or_buffer", "").endswith(".parquet")
+                file_type is None and kwargs.get("filepath_or_buffer", "").endswith(".parquet")
             ):
                 return pd.read_parquet(buffer, **kwargs)
             else:
-                raise ValueError(
-                    f"Unsupported or undetectable file type. Please specify file_type explicitly."
-                )
+                raise ValueError(f"Unsupported or undetectable file type. Please specify file_type explicitly.")
 
         except Exception as e:
             raise Exception(f"Error reading file content: {str(e)}")
@@ -156,9 +148,7 @@ class MSGraph:
         # Download the image using requests.
         response = requests.get(blob_url)
         if response.status_code != 200:
-            raise Exception(
-                f"Failed to download image. Status code: {response.status_code}"
-            )
+            raise Exception(f"Failed to download image. Status code: {response.status_code}")
         image_content = response.content
 
         # Extract the original file name from the blob URL (remove any query parameters).

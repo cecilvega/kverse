@@ -3,7 +3,7 @@ from io import StringIO
 
 import pandas as pd
 
-from kdags.assets.operations.utils import extract_filename_info, extract_header_info
+from kdags.assets.operation.utils import extract_filename_info, extract_header_info
 
 
 def read_csv_trqsw(data: bytes, az_path: str) -> pd.DataFrame:

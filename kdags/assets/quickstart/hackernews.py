@@ -10,7 +10,7 @@ from dagster import AssetExecutionContext, MaterializeResult, MetadataValue, ass
 
 
 @asset(group_name="hackernews", compute_kind="HackerNews API")
-def topstory_ids() -> None:
+def topstory_ids():
     """Get up to 100 top stories from the HackerNews topstories endpoint.
 
     API Docs: https://github.com/HackerNews/API#new-top-and-best-stories
@@ -21,16 +21,21 @@ def topstory_ids() -> None:
     os.makedirs("data", exist_ok=True)
     with open("data/topstory_ids.json", "w") as f:
         json.dump(top_new_story_ids, f)
+    return top_new_story_ids
 
 
-@asset(deps=[topstory_ids], group_name="hackernews", compute_kind="HackerNews API")
-def topstories(context: AssetExecutionContext) -> MaterializeResult:
+@asset(
+    group_name="hackernews",
+    compute_kind="HackerNews API",
+    tags={"owner": "data-team", "criticality": "high", "refresh-frequency": "daily"},
+)
+def topstories(context: AssetExecutionContext, topstory_ids) -> MaterializeResult:
     """Get items based on story ids from the HackerNews items endpoint. It may take 30 seconds to fetch all 100 items.
 
     API Docs: https://github.com/HackerNews/API#items
     """
-    with open("data/topstory_ids.json", "r") as f:
-        topstory_ids = json.load(f)
+    # with open("data/topstory_ids.json", "r") as f:
+    #     topstory_ids = json.load(f)
 
     results = []
     for item_id in topstory_ids:
@@ -69,10 +74,7 @@ def most_frequent_words(context: AssetExecutionContext) -> MaterializeResult:
                 word_counts[cleaned_word] = word_counts.get(cleaned_word, 0) + 1
 
     # Get the top 25 most frequent words
-    top_words = {
-        pair[0]: pair[1]
-        for pair in sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:25]
-    }
+    top_words = {pair[0]: pair[1] for pair in sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:25]}
 
     # Make a bar chart of the top 25 words
     plt.figure(figsize=(10, 6))

@@ -1,66 +1,34 @@
 from pathlib import Path
 
-from dagster import (
-    Definitions,
-    graph_asset,
-    link_code_references_to_git,
-    load_assets_from_package_module,
-    op,
-    asset,
-    with_source_code_references,
-    ExperimentalWarning,
-)
+import dagster as dg
 from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMapping
 
-from kdags.assets import quickstart
-from kdags.assets import planification
-from kdags.assets import maintenance
+from kdags.assets import quickstart, planification, maintenance, reparation, operation
 from kdags.jobs import daily_refresh_schedule, daily_attendances_job
-import warnings
-from kdags.resources import MSGraph
+from .utils import get_asset_by_path, create_asset_catalog
 
-warnings.filterwarnings("ignore", category=ExperimentalWarning)
+__all__ = ["get_asset_by_path", "create_asset_catalog", "kdefs"]
 
-import os
+# warnings.filterwarnings("ignore", category=ExperimentalWarning)
 
-
-@asset
-def test_msgraph(context):
-    refresh_token = os.environ["MSGRAPH_TOKEN"]
-    token = MSGraph().acquire_token_func()
-    context.log.info(token)
-    context.log.info(refresh_token)
-    return token
+operation_assets = dg.load_assets_from_package_module(operation, group_name="operation")
+maintenance_assets = dg.load_assets_from_package_module(maintenance, group_name="maintenance")
+planification_assets = dg.load_assets_from_package_module(planification, group_name="planification")
+reparation_assets = dg.load_assets_from_package_module(reparation, group_name="reparation")
+hackernews_assets = dg.load_assets_from_package_module(quickstart)
 
 
-@op
-def foo_op():
-    refresh_token = os.environ["MSGRAPH_TOKEN"]
-
-    return refresh_token
-
-
-@graph_asset
-def my_asset():
-    return foo_op()
-
-
-maintenance_assets = load_assets_from_package_module(maintenance, group_name="maintenance")
-planification_assets = load_assets_from_package_module(planification, group_name="planification")
-hackernews_assets = load_assets_from_package_module(quickstart)
-
-
-all_assets = with_source_code_references(
+all_assets = dg.with_source_code_references(
     [
-        my_asset,
-        test_msgraph,
         *hackernews_assets,
+        *reparation_assets,
+        *operation_assets,
         *maintenance_assets,
         *planification_assets,
     ]
 )
 
-all_assets = link_code_references_to_git(
+all_assets = dg.link_code_references_to_git(
     assets_defs=all_assets,
     git_url="https://github.com/cecilvega/kverse/",
     git_branch="main",
@@ -70,7 +38,7 @@ all_assets = link_code_references_to_git(
     ),
 )
 
-defs = Definitions(
+kdefs = dg.Definitions(
     assets=all_assets,
     schedules=[daily_refresh_schedule, daily_attendances_job],
 )

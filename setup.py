@@ -6,6 +6,7 @@ setup(
     install_requires=[
         "dagster",
         "dagster-cloud",
+        "dagster-webserver",
         "pandas",
         "polars",
         "matplotlib",
@@ -18,6 +19,14 @@ setup(
         "azure-storage-file-datalake",
         "rapidfuzz",
         "xlsxwriter",
+        "xlrd",
+        "pdfplumber",
+        "pypxlib",
+        "pyarrow",
+        "selenium",
+        "lxml",
+        "mystmd",
+        "altair",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

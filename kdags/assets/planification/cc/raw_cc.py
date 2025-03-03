@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 from kdags.assets.planification.cc.compatibility_data import compatibility_data
 from kdags.resources.msgraph import MSGraph
+import dagster as dg
 
+# import polars as pl
 openpyxl.reader.excel.warnings.simplefilter(action="ignore")
 
 
@@ -28,19 +30,15 @@ def clean_string(s):
     return s
 
 
+@dg.asset
 def read_raw_cc():
 
     msgraph = MSGraph()
 
-    site = msgraph.client.sites.get_by_url("https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022")
-    file = (
-        site.drive.root.get_by_path(
-            "/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx"
-        )
-        .get()
-        .execute_query()
+    file_content = msgraph.get_sharepoint_file_content(
+        site_id="KCHCLSP00022",
+        file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
     )
-    content = file.get_content().execute_query().value
 
     columns = [
         "EQUIPO",
@@ -61,7 +59,7 @@ def read_raw_cc():
     ]
     df = (
         pd.read_excel(
-            BytesIO(content),
+            BytesIO(file_content),
             sheet_name="Planilla Cambio Componente  960",
             dtype={"MODÉLO": str},
         )
