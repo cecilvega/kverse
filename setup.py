@@ -26,6 +26,8 @@ setup(
         "selenium",
         "lxml",
         "altair",
+        "fastexcel",
+        "xlsx2csv",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

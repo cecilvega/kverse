@@ -28,6 +28,27 @@ class MSGraph:
         content = drive_item.get_content().execute_query().value
         return content
 
+    def upload_dataframe(self, site_id, folder_path, file_name, buffer):
+        """
+        Uploads a file buffer containing a dataframe to SharePoint.
+
+        Args:
+            site_id: SharePoint site ID (e.g., "KCHCLSP00022")
+            folder_path: Folder path within the site
+            file_name: Name for the uploaded file
+            buffer: BytesIO buffer containing the file data
+        """
+
+        site_url = f"{self._site_url_prefix}/{site_id}"
+        site = self.client.sites.get_by_url(site_url)
+
+        # Reset buffer position to start
+        buffer.seek(0)
+        content = buffer.getvalue()
+
+        # Upload the file
+        return site.drive.root.get_by_path(folder_path).upload(file_name, content).execute_query()
+
     def list_paths(self, site_url: str, folder_path: str) -> pd.DataFrame:
 
         site = self.client.sites.get_by_url(site_url)
