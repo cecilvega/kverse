@@ -119,11 +119,11 @@ def reconciled_icc(cc_summary, gather_icc_reports):
             "changeout_date",
             # Work order information
             "customer_work_order",
-            "icc_number",
-            # Additional details
-            "failure_description",
+            # "icc_number",
             # File metadata
             "filename",
+            # Additional details
+            "failure_description",
         ]
     ]
     return df
@@ -146,4 +146,4 @@ def materialize_sp_icc(reconciled_icc):
         buffer=buffer,
     )
 
-    return {"file_url": result.web_url, "count": len(reconciled_component_reports)}
+    return {"file_url": result.web_url, "count": len(reconciled_icc)}
