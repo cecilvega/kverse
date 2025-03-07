@@ -14,7 +14,7 @@ def read_raw_component_status():
     dfs = [
         pd.read_html(StringIO(dl.read_bytes("kcc-raw-data", path).decode("utf-8")))[0]
         for path in files_df["file_path"]
-        if int(path.split()[-1].split(".")[0]) >= 2018
+        # if int(path.split()[-1].split(".")[0]) >= 2018
     ]
 
     return pd.concat(dfs, ignore_index=True)

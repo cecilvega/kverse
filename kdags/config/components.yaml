@@ -1,17 +1,20 @@
 - component_name: "motor_traccion"
   component_code: "MT"
+  position_name:
+    - "derecho"
+    - "izquierdo"
   subcomponent:
     - name: "transmision"
       code: "TRANS"
       main: True
     - name: "motor_electrico"
-      code: "TRANS"
+      code: "ME"
     - name: "freno_servicio_trasero"
-      code: "TRANS"
     - name: "freno_estacionamiento"
-      code: "TRANS"
 - component_name: "modulo_potencia"
   component_code: "MP"
+  position_name:
+    - "unico"
   subcomponent:
     - name: "motor"
       main: True
@@ -21,21 +24,30 @@
     - name: "radiador"
 - component_name: "cilindro_direccion"
   component_code: "CD"
-- component_name: "blower_parrilla"
+  position_name:
+    - "derecho"
+    - "izquierdo"
+- component_name: "blower"
   component_code: "BP"
-  subcomponent:
-    - name: "blower"
-- component_name: "blower_parrilla"
-  component_code: "BP"
-  subcomponent:
-    - name: "blower"
+  position_name:
+    - "derecho"
+    - "izquierdo"
 - component_name: "conjunto_masa_suspension"
   component_code: "CMS"
+  position_name:
+    - "derecho"
+    - "izquierdo"
   subcomponent:
     - name: "suspension_delantera"
     - name: "masa"
     - name: "freno_servicio_delantero"
 - component_name: "cilindro_levante"
   component_code: "CL"
-- component_name: "cilindro_direccion"
-  component_code: "CD"
+  position_name:
+    - "derecho"
+    - "izquierdo"
+- component_name: "suspension_trasera"
+  component_code: "ST"
+  position_name:
+    - "derecho"
+    - "izquierdo"

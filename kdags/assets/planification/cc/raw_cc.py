@@ -5,12 +5,47 @@ from io import BytesIO
 import openpyxl
 import pandas as pd
 import numpy as np
-from kdags.assets.planification.cc.compatibility_data import compatibility_data
 from kdags.resources.msgraph import MSGraph
 import dagster as dg
 
 # import polars as pl
 openpyxl.reader.excel.warnings.simplefilter(action="ignore")
+
+compatibility_mapping = {
+    # (COMPONENTE, SUB COMPONENTE): (component_name, subcomponent_name)
+    ("alternador_principal", "alternador_principal"): (
+        "modulo_potencia",
+        "alternador_principal",
+    ),
+    ("blower_parrilla", "blower_parrilla"): ("blower", None),
+    ("blower", "blower"): ("blower", None),
+    ("cilindro_direccion", "cilindro_direccion"): ("cilindro_direccion", None),
+    ("cilindro_levante", "cilindro_levante"): ("cilindro_levante", None),
+    ("suspension_trasera", "suspension_trasera"): ("suspension_trasera", None),
+    ("cms", "suspension"): ("conjunto_masa_suspension", "suspension_delantera"),
+    ("cms", "suspension_delantera"): (
+        "conjunto_masa_suspension",
+        "suspension_delantera",
+    ),
+    ("cms", "masa"): ("conjunto_masa_suspension", "masa"),
+    ("cms", "freno_servicio"): ("conjunto_masa_suspension", "freno_servicio_delantero"),
+    ("cms", "freno_servicio_delanteros"): (
+        "conjunto_masa_suspension",
+        "freno_servicio_delantero",
+    ),
+    ("mdp", "radiador"): ("modulo_potencia", "radiador"),
+    ("mdp", "subframe"): ("modulo_potencia", "subframe"),
+    ("mdp", "motor_"): ("modulo_potencia", "motor"),
+    ("modulo_potencia", "motor"): ("modulo_potencia", "motor"),
+    ("mdp", "alternador_principal"): ("modulo_potencia", "alternador_principal"),
+    ("motor_traccion", "motor_traccion"): ("motor_traccion", "transmision"),
+    ("motor_traccion", "freno_estacionamiento"): (
+        "motor_traccion",
+        "freno_estacionamiento",
+    ),
+    ("motor_traccion", "freno_servicio"): ("motor_traccion", "freno_servicio_trasero"),
+    ("motor_traccion", "motor_electrico"): ("motor_traccion", "motor_electrico"),
+}
 
 
 def clean_string(s):
@@ -19,7 +54,11 @@ def clean_string(s):
     if s is not None:
 
         s = s.lower()
-        s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+        s = "".join(
+            c
+            for c in unicodedata.normalize("NFD", s)
+            if unicodedata.category(c) != "Mn"
+        )
 
         # Replace whitespaces with underscore
         s = re.sub(r"\s+", "_", s)
@@ -28,6 +67,15 @@ def clean_string(s):
         s = re.sub(r"[^\w]+", "", s)
         s = s.rstrip("_")
     return s
+
+
+def apply_component_mapping(row):
+    key = (row["COMPONENTE"], row["SUB COMPONENTE"])
+    if key in compatibility_mapping:
+        return pd.Series(compatibility_mapping[key])
+    else:
+        # If no mapping found, keep original values
+        return pd.Series([row["COMPONENTE"], row["SUB COMPONENTE"]])
 
 
 @dg.asset
@@ -73,19 +121,8 @@ def read_raw_cc():
 
     df[clean_columns] = df[clean_columns].apply(lambda x: x.apply(clean_string))
 
-    df = pd.merge(
-        df,
-        pd.DataFrame(compatibility_data),
-        on=["COMPONENTE", "SUB COMPONENTE"],
-        how="left",
-    )
-    df = df.assign(
-        component_name=np.where(df["component_name"].isnull(), df["COMPONENTE"], df["component_name"]),
-        subcomponent_name=np.where(
-            df["subcomponent_name"].isnull(),
-            df["SUB COMPONENTE"],
-            df["subcomponent_name"],
-        ),
+    df[["component_name", "subcomponent_name"]] = df.apply(
+        apply_component_mapping, axis=1
     )
 
     df = df.drop(columns=["COMPONENTE", "SUB COMPONENTE"])
@@ -93,14 +130,17 @@ def read_raw_cc():
     columns_map = {
         "EQUIPO": "equipment_name",
         "POSICION": "position_name",
-        "N/S RETIRADO": "component_serial",
+        "N/S RETIRADO": "removed_component_serial",
+        "N/S INSTALADO": "installed_component_serial",
         "W": "changeout_week",
         "FECHA DE CAMBIO": "changeout_date",
         "HORA CC": "component_hours",
-        "TBO": "tbo_hours",
+        "TBO": "tbo",
         "TIPO CAMBIO POOL": "pool_changeout_type",
         "OS  181": "customer_work_order",
         "MODÉLO": "equipment_model",
+        "DESCRIPCIÓN DE FALLA": "failure_description",
+        "HORA EQ": "equipment_hours",
     }
 
     df = df.rename(columns=columns_map).assign(
@@ -108,16 +148,29 @@ def read_raw_cc():
     )
     df = df.dropna(subset=["equipment_name", "changeout_date"])
     df = df.assign(
-        component_serial=df["component_serial"].str.strip().str.replace("\t", ""),
-        position_name=df["position_name"].replace({"RH": "DERECHO", "LH": "IZQUIERDO"}),
+        removed_component_serial=df["removed_component_serial"]
+        .str.strip()
+        .str.replace("\t", ""),
+        installed_component_serial=df["installed_component_serial"]
+        .str.strip()
+        .str.replace("\t", ""),
+        position_name=df["position_name"]
+        .replace({"RH": "derecho", "LH": "izquierdo"})
+        .str.lower(),
         customer_work_order=pd.to_numeric(
-            df["customer_work_order"].astype(str).str.extract(r"(\d+)", expand=False).fillna(-1).astype(int),
+            df["customer_work_order"]
+            .astype(str)
+            .str.extract(r"(\d+)", expand=False)
+            .fillna(-1)
+            .astype(int),
             errors="coerce",
         ),
     )
 
     df["equipment_name"] = (
-        df["equipment_model"].map({"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"}).fillna("")
+        df["equipment_model"]
+        .map({"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"})
+        .fillna("")
         + df["equipment_name"]
     )
 

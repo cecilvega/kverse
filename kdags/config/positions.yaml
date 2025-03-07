@@ -1,0 +1,6 @@
+- position_name: "unico"
+  position_code: 0
+- position_name: "izquierdo"
+  position_code: 1
+- position_name: "derecho"
+  position_code: 2
