@@ -1,150 +1,449 @@
 SV082:
   equipment_model: "PC8000-6"
   equipment_serial: "12098"
+  site_name: "MEL"
+  operating: True
 TK284:
   equipment_model: "930E-4"
   equipment_serial: "A30516"
+  site_name: "MEL"
+  operating: True
 TK285:
   equipment_model: "930E-4"
   equipment_serial: "A30517"
+  site_name: "MEL"
+  operating: True
 TK286:
   equipment_model: "930E-4"
   equipment_serial: "A30528"
+  site_name: "MEL"
+  operating: True
 TK289:
   equipment_model: "930E-4"
   equipment_serial: "A30529"
+  site_name: "MEL"
+  operating: True
 TK291:
   equipment_model: "930E-4"
   equipment_serial: "A30675"
+  site_name: "MEL"
+  operating: True
 TK292:
   equipment_model: "930E-4"
   equipment_serial: "A30676"
+  site_name: "MEL"
+  operating: True
 TK320:
   equipment_model: "960E"
   equipment_serial: "A30003"
+  site_name: "MEL"
+  operating: True
 TK322:
   equipment_model: "960E"
   equipment_serial: "A30006"
+  site_name: "MEL"
+  operating: True
 TK396:
   equipment_model: "960E"
   equipment_serial: "A30039"
+  site_name: "MEL"
+  operating: True
 TK397:
   equipment_model: "960E"
   equipment_serial: "A30040"
+  site_name: "MEL"
+  operating: True
 TK398:
   equipment_model: "960E"
   equipment_serial: "A30041"
+  site_name: "MEL"
+  operating: True
 TK399:
   equipment_model: "960E"
   equipment_serial: "A30042"
+  site_name: "MEL"
+  operating: True
 TK847:
   equipment_model: "960E"
   equipment_serial: "A30044"
+  site_name: "MEL"
+  operating: True
 TK848:
   equipment_model: "960E"
   equipment_serial: "A30045"
+  site_name: "MEL"
+  operating: True
 TK849:
   equipment_model: "960E"
   equipment_serial: "A30046"
+  site_name: "MEL"
+  operating: True
 TK850:
   equipment_model: "960E"
   equipment_serial: "A30048"
+  site_name: "MEL"
+  operating: True
 TK851:
   equipment_model: "960E"
   equipment_serial: "A30049"
+  site_name: "MEL"
+  operating: True
 TK852:
   equipment_model: "960E"
   equipment_serial: "A30050"
+  site_name: "MEL"
+  operating: True
 TK853:
   equipment_model: "960E"
   equipment_serial: "A30051"
+  site_name: "MEL"
+  operating: True
+
 TK854:
   equipment_model: "960E"
   equipment_serial: "A30052"
+  site_name: "MEL"
+  operating: True
 TK855:
   equipment_model: "960E"
   equipment_serial: "A30053"
+  site_name: "MEL"
+  operating: True
 TK856:
   equipment_model: "960E"
   equipment_serial: "A30054"
+  site_name: "MEL"
+  operating: True
 TK857:
   equipment_model: "960E"
   equipment_serial: "A30055"
+  site_name: "MEL"
+  operating: True
 TK858:
   equipment_model: "960E"
   equipment_serial: "A30058"
+  site_name: "MEL"
+  operating: True
 TK859:
   equipment_model: "960E"
   equipment_serial: "A30074"
+  site_name: "MEL"
+  operating: True
 TK860:
   equipment_model: "960E"
   equipment_serial: "A30075"
+  site_name: "MEL"
+  operating: True
 TK861:
   equipment_model: "960E"
   equipment_serial: "A30076"
+  site_name: "MEL"
+  operating: True
 TK862:
   equipment_model: "960E"
   equipment_serial: "A30077"
+  site_name: "MEL"
+  operating: True
 TK863:
   equipment_model: "960E"
   equipment_serial: "A30078"
+  site_name: "MEL"
+  operating: True
 TK864:
   equipment_model: "960E"
   equipment_serial: "A30079"
+  site_name: "MEL"
+  operating: True
 TK865:
   equipment_model: "960E"
   equipment_serial: "A30080"
+  site_name: "MEL"
+  operating: True
 TK866:
   equipment_model: "960E"
   equipment_serial: "A30081"
+  site_name: "MEL"
+  operating: True
 TK867:
   equipment_model: "960E"
   equipment_serial: "A30082"
+  site_name: "MEL"
+  operating: True
 TK868:
   equipment_model: "960E"
   equipment_serial: "A30083"
+  site_name: "MEL"
+  operating: True
 TK869:
   equipment_model: "960E"
   equipment_serial: "A30089"
+  site_name: "MEL"
+  operating: True
 TK870:
   equipment_model: "960E"
   equipment_serial: "A30090"
+  site_name: "MEL"
+  operating: True
 TK871:
   equipment_model: "960E"
   equipment_serial: "A30091"
+  site_name: "MEL"
+  operating: True
 TK872:
   equipment_model: "960E"
   equipment_serial: "A30093"
+  site_name: "MEL"
+  operating: True
 TK873:
   equipment_model: "960E"
   equipment_serial: "A30094"
+  site_name: "MEL"
+  operating: True
 TK874:
   equipment_model: "960E"
   equipment_serial: "A30095"
+  site_name: "MEL"
+  operating: True
 TK875:
   equipment_model: "960E"
   equipment_serial: "A30098"
+  site_name: "MEL"
+  operating: True
 TK876:
   equipment_model: "960E"
   equipment_serial: "A30099"
+  site_name: "MEL"
+  operating: True
 TK877:
   equipment_model: "960E"
   equipment_serial: "A30100"
+  site_name: "MEL"
+  operating: True
 TK878:
   equipment_model: "960E"
   equipment_serial: "A30101"
+  site_name: "MEL"
+  operating: True
 TK879:
   equipment_model: "960E"
   equipment_serial: "A30102"
+  site_name: "MEL"
+  operating: True
 TK880:
   equipment_model: "960E"
   equipment_serial: "A30103"
+  site_name: "MEL"
+  operating: True
 TK881:
   equipment_model: "960E"
   equipment_serial: "A30104"
+  site_name: "MEL"
+  operating: True
 TK882:
   equipment_model: "960E"
   equipment_serial: "A30105"
+  site_name: "MEL"
+  operating: True
 TK883:
   equipment_model: "960E"
   equipment_serial: "A30106"
+  site_name: "MEL"
+  operating: True
+CEX42:
+  equipment_model: "980E-5"
+  equipment_serial: "A50030"
+  site_name: "SPENCE"
+  operating: True
+
+CEX43:
+  equipment_model: "980E-5"
+  equipment_serial: "A50031"
+  site_name: "SPENCE"
+  operating: True
+
+CEX44:
+  equipment_model: "980E-5"
+  equipment_serial: "A50032"
+  site_name: "SPENCE"
+  operating: True
+
+CEX45:
+  equipment_model: "980E-5"
+  equipment_serial: "A50033"
+  site_name: "SPENCE"
+  operating: True
+
+CEX46:
+  equipment_model: "980E-5"
+  equipment_serial: "A50034"
+  site_name: "SPENCE"
+  operating: True
+
+CEX47:
+  equipment_model: "980E-5"
+  equipment_serial: "A50035"
+  site_name: "SPENCE"
+  operating: True
+
+CEX48:
+  equipment_model: "980E-5"
+  equipment_serial: "A50036"
+  site_name: "SPENCE"
+  operating: True
+
+CEX49:
+  equipment_model: "980E-5"
+  equipment_serial: "A50037"
+  site_name: "SPENCE"
+  operating: True
+
+CEX50:
+  equipment_model: "980E-5"
+  equipment_serial: "A50029"
+  site_name: "SPENCE"
+  operating: True
+
+CEX51:
+  equipment_model: "980E-5"
+  equipment_serial: "A50042"
+  site_name: "SPENCE"
+  operating: True
+
+CEX52:
+  equipment_model: "980E-5"
+  equipment_serial: "A50043"
+  site_name: "SPENCE"
+  operating: True
+
+CEX53:
+  equipment_model: "980E-5"
+  equipment_serial: "A50049"
+  site_name: "SPENCE"
+  operating: True
+
+CEX54:
+  equipment_model: "980E-5"
+  equipment_serial: "A50054"
+  site_name: "SPENCE"
+  operating: True
+
+CEX55:
+  equipment_model: "980E-5"
+  equipment_serial: "A50055"
+  site_name: "SPENCE"
+  operating: True
+
+CEX56:
+  equipment_model: "980E-5"
+  equipment_serial: "A50056"
+  site_name: "SPENCE"
+  operating: True
+
+CEX57:
+  equipment_model: "980E-5"
+  equipment_serial: "A50076"
+  site_name: "SPENCE"
+  operating: True
+
+CEX58:
+  equipment_model: "980E-5"
+  equipment_serial: "A50077"
+  site_name: "SPENCE"
+  operating: True
+
+CEX59:
+  equipment_model: "980E-5"
+  equipment_serial: "A50078"
+  site_name: "SPENCE"
+  operating: True
+
+CEX60:
+  equipment_model: "980E-5"
+  equipment_serial: "A50079"
+  site_name: "SPENCE"
+  operating: True
+
+CEX61:
+  equipment_model: "980E-5"
+  equipment_serial: "A50080"
+  site_name: "SPENCE"
+  operating: True
+
+CEX62:
+  equipment_model: "980E-5"
+  equipment_serial: "A50081"
+  site_name: "SPENCE"
+  operating: True
+
+CEX63:
+  equipment_model: "980E-5"
+  equipment_serial: "A50082"
+  site_name: "SPENCE"
+  operating: True
+
+CEX64:
+  equipment_model: "980E-5"
+  equipment_serial: "A50100"
+  site_name: "SPENCE"
+  operating: True
+
+CEX65:
+  equipment_model: "980E-5"
+  equipment_serial: "A50101"
+  site_name: "SPENCE"
+  operating: True
+
+CEX66:
+  equipment_model: "980E-5"
+  equipment_serial: "A50111"
+  site_name: "SPENCE"
+  operating: True
+
+CEX67:
+  equipment_model: "980E-5"
+  equipment_serial: "A50110"
+  site_name: "SPENCE"
+  operating: True
+
+CEX68:
+  equipment_model: "980E-5"
+  equipment_serial: "A50109"
+  site_name: "SPENCE"
+  operating: True
+
+CEX69:
+  equipment_model: "980E-5"
+  equipment_serial: "A50141"
+  site_name: "SPENCE"
+  operating: True
+
+CEX70:
+  equipment_model: "980E-5"
+  equipment_serial: "A50112"
+  site_name: "SPENCE"
+  operating: True
+
+CEX71:
+  equipment_model: "980E-5"
+  equipment_serial: "A50113"
+  site_name: "SPENCE"
+  operating: True
+
+CEX72:
+  equipment_model: "980E-5"
+  equipment_serial: "A50142"
+  site_name: "SPENCE"
+  operating: True
+
+CEX73:
+  equipment_model: "980E-5"
+  equipment_serial: "A50143"
+  site_name: "SPENCE"
+  operating: True
+
+CEX74:
+  equipment_model: "980E-5"
+  equipment_serial: "A50150"
+  site_name: "SPENCE"
+  operating: True
+

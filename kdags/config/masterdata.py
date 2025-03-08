@@ -26,9 +26,7 @@ class MasterData:
         config_path = cls.CONFIG_DIR / "components.yaml"
 
         # Verify file exists
-        assert (
-            config_path.exists()
-        ), f"Components config file not found at {config_path}"
+        assert config_path.exists(), f"Components config file not found at {config_path}"
 
         # Load the YAML data
         with open(config_path, "r") as f:
@@ -84,3 +82,29 @@ class MasterData:
             on="position_name",
         )
         return taxonomy_df
+
+    @classmethod
+    def equipments(cls) -> pd.DataFrame:
+        """
+        Load position mapping data from positions.yaml.
+
+        Returns:
+            pd.DataFrame: Position codes and their corresponding names
+        """
+        config_path = cls.CONFIG_DIR / "equipments.yaml"
+
+        # Verify file exists
+        assert config_path.exists(), f"Positions config file not found at {config_path}"
+
+        # Load the YAML data
+        with open(config_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        # Create DataFrame directly from the list of dictionaries
+        df = pd.DataFrame(data).T.rename_axis("equipment_name").reset_index()
+        # df = pd.pivot(df, index="equipment_name")
+
+        # Ensure position_code is treated as integer
+        # df["position_code"] = df["position_code"].astype(int)
+
+        return df
