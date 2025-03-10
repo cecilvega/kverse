@@ -10,7 +10,7 @@ from kdags.config.masterdata import MasterData
 @dg.asset
 def read_raw_pm_history():
     dl = DataLake()
-    df = dl.read_tibble("bhp-raw-data", "FIORI/PM_HISTORY/pm_history.csv", use_polars=False)
+    df = dl.read_tibble("abfs://bhp-raw-data/FIORI/PM_HISTORY/pm_history.csv", use_polars=False)
     df = df.copy()
 
     # Define the status mapping to standardized English values
@@ -56,7 +56,24 @@ def mutate_pm_history(read_raw_pm_history):
     equipments_df = MasterData.equipments()[["equipment_name", "site_name"]]
     df = pd.merge(df, equipments_df, how="left", on="equipment_name", validate="m:1").dropna(subset=["site_name"])
     df = df.sort_values(["site_name", "equipment_name", "start_date"]).reset_index(drop=True)
+    df["file_title"] = df.apply(
+        lambda row: row["summary_content"].replace(f"{row['equipment_name']}", "").rstrip().rstrip("-").rstrip(),
+        axis=1,
+    )
 
+    df = df.assign(
+        raw_file_path=df["pm_id"].map(lambda x: f"abfs://bhp-raw-data/FIORI/PM_REPORTS/{x}.pdf"),
+        analytics_file_path="abfs://bhp-analytics-data/MAINTENANCE/PM_REPORTS/"
+        + df["equipment_name"]
+        + "/"
+        + df["pm_id"].astype(str)
+        + "_"
+        + df["start_date"].dt.strftime("%Y-%m-%d")
+        + "_"
+        + df["file_title"]
+        + ".pdf",
+    )
+    df = df.drop(columns=["file_title"])
     return df
 
 
@@ -66,8 +83,7 @@ def materialize_pm_history(mutate_pm_history):
 
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
-        container="bhp-analytics-data",
-        file_path="MAINTENANCE/PM_HISTORY/pm_history.parquet",
+        uri="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet",
         df=mutate_pm_history,
         format="parquet",
     )
@@ -83,7 +99,7 @@ def materialize_pm_history(mutate_pm_history):
     )
     sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/PAUTAS_MANTENIMIENTO/pm_history.xlsx",
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/PM_HISTORY/pm_history.xlsx",
         df=df,
         format="excel",
     )
@@ -98,6 +114,6 @@ def materialize_pm_history(mutate_pm_history):
 @dg.asset
 def read_pm_history():
     dl = DataLake()
-    df = dl.read_tibble("bhp-analytics-data", "MAINTENANCE/PM_HISTORY/pm_history.parquet", use_polars=False)
+    df = dl.read_tibble(uri="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet", use_polars=False)
 
     return df

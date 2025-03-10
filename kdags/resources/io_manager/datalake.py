@@ -3,6 +3,7 @@ import polars as pl
 import os
 import pandas as pd
 from io import BytesIO
+from urllib.parse import urlparse
 
 
 class DataLake:
@@ -10,27 +11,56 @@ class DataLake:
         conn_str = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
         self.client = DataLakeServiceClient.from_connection_string(conn_str)
 
-    # def __init__(self):
-    #     account_url = "https://kchdatalakedes.dfs.core.windows.net"
-    #     sas_token = os.environ["AZURE_SAS_TOKEN"]
-    #     self.client = DataLakeServiceClient(account_url=account_url, credential=sas_token)
-    #     self.base_path = "OPERACIONES/CHILE/KCH"
+    def _parse_abfs_uri(self, uri: str) -> tuple:
+        """
+        Parse an ABFS URI into container and path components.
 
-    def get_file_system_client(self, container: str):
+        Args:
+            uri (str): URI in the format abfs://container/path
+
+        Returns:
+            tuple: (container, path)
+        """
+        if not uri.startswith("abfs://"):
+            raise ValueError(f"Invalid ABFS URI format: {uri}. Expected format: abfs://container/path")
+
+        # Parse the URI
+        parsed = urlparse(uri)
+        container = parsed.netloc
+
+        # Handle the path (remove leading slash)
+        path = parsed.path
+        if path.startswith("/"):
+            path = path[1:]
+
+        return container, path
+
+    def get_file_system_client(self, uri: str):
+        container, _ = self._parse_abfs_uri(uri)
         return self.client.get_file_system_client(container)
 
-    def list_paths(self, container: str, file_path: str, recursive: bool = True) -> pl.DataFrame:
+    def list_paths(self, uri: str, recursive: bool = True) -> pl.DataFrame:
+        """
+        List files at the specified path.
 
-        file_system_client = self.get_file_system_client(container)
+        Args:
+            uri (str): URI in format abfs://container/path
+            recursive (bool): Whether to list files recursively
+
+        Returns:
+            pl.DataFrame: DataFrame containing file information
+        """
+        container, path = self._parse_abfs_uri(uri)
+        file_system_client = self.get_file_system_client(f"abfs://{container}")
+
         if recursive:
-
             files = [
                 {
                     "file_path": path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
-                for path in file_system_client.get_paths(path=file_path, recursive=recursive)
+                for path in file_system_client.get_paths(path=path, recursive=recursive)
                 if not path.is_directory
             ]
         else:
@@ -40,28 +70,33 @@ class DataLake:
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
-                for path in file_system_client.get_paths(path=file_path, recursive=recursive)
+                for path in file_system_client.get_paths(path=path, recursive=recursive)
             ]
         return pl.DataFrame(files)
 
-    def read_bytes(self, container: str, file_path: str) -> bytes:
-        """Download a file's contents as bytes"""
+    def read_bytes(self, uri: str) -> bytes:
+        """
+        Download a file's contents as bytes.
 
-        file_system_client = self.get_file_system_client(container)
+        Args:
+            uri (str): URI in format abfs://container/path
+
+        Returns:
+            bytes: File content
+        """
+        container, file_path = self._parse_abfs_uri(uri)
+        file_system_client = self.get_file_system_client(f"abfs://{container}")
         file_client = file_system_client.get_file_client(file_path)
 
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 
-    def read_tibble(
-        self, container: str, file_path: str, use_polars: bool = True, **kwargs
-    ) -> [pd.DataFrame, pl.DataFrame]:
+    def read_tibble(self, uri: str, use_polars: bool = True, **kwargs) -> [pd.DataFrame, pl.DataFrame]:
         """
         Read a data file from Azure Data Lake and return as a DataFrame.
 
         Args:
-            container (str): Azure container name
-            file_path (str): Path to the file within the container
+            uri (str): URI in format abfs://container/path
             use_polars (bool): If True, return a polars DataFrame; otherwise return pandas DataFrame
 
         Returns:
@@ -70,8 +105,10 @@ class DataLake:
         Raises:
             ValueError: If file format is not supported
         """
+        container, file_path = self._parse_abfs_uri(uri)
+
         # Get the file bytes
-        file_bytes = self.read_bytes(container, file_path)
+        file_bytes = self.read_bytes(f"abfs://{container}/{file_path}")
 
         # Determine file type from extension
         file_ext = file_path.split(".")[-1].lower()
@@ -109,13 +146,12 @@ class DataLake:
         else:
             raise ValueError(f"Unsupported file format: .{file_ext}")
 
-    def upload_tibble(self, container: str, file_path: str, df, format: str = "parquet", **kwargs) -> str:
+    def upload_tibble(self, uri: str, df, format: str = "parquet", **kwargs) -> str:
         """
         Upload a DataFrame to Data Lake in the specified format.
 
         Args:
-            container (str): Container name
-            file_path (str): Target file path within the container
+            uri (str): URI in format abfs://container/path
             df: DataFrame to upload (pandas or polars)
             format (str): Output format ('parquet', 'csv', 'json')
             **kwargs: Additional arguments passed to the serialization function
@@ -123,9 +159,8 @@ class DataLake:
         Returns:
             str: Full path to the uploaded file
         """
-        from io import BytesIO
-
-        file_system_client = self.get_file_system_client(container)
+        container, file_path = self._parse_abfs_uri(uri)
+        file_system_client = self.get_file_system_client(f"abfs://{container}")
         file_client = file_system_client.get_file_client(file_path)
 
         # Convert DataFrame to bytes based on format
@@ -165,6 +200,6 @@ class DataLake:
             # Flush to finalize the file
             file_client.flush_data(len(data))
 
-            return file_path
+            return uri
         except Exception as e:
-            raise ValueError(f"Error uploading DataFrame to {file_path}: {str(e)}")
+            raise ValueError(f"Error uploading DataFrame to {uri}: {str(e)}")
