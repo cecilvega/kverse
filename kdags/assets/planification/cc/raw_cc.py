@@ -5,7 +5,7 @@ from io import BytesIO
 import openpyxl
 import pandas as pd
 import numpy as np
-from kdags.resources.msgraph import MSGraph
+from kdags.resources import MSGraph
 import dagster as dg
 
 # import polars as pl
@@ -54,11 +54,7 @@ def clean_string(s):
     if s is not None:
 
         s = s.lower()
-        s = "".join(
-            c
-            for c in unicodedata.normalize("NFD", s)
-            if unicodedata.category(c) != "Mn"
-        )
+        s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
         # Replace whitespaces with underscore
         s = re.sub(r"\s+", "_", s)
@@ -83,7 +79,7 @@ def read_raw_cc():
 
     msgraph = MSGraph()
 
-    file_content = msgraph.get_sharepoint_file_content(
+    file_content = msgraph.read_bytes(
         site_id="KCHCLSP00022",
         file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
     )
@@ -121,9 +117,7 @@ def read_raw_cc():
 
     df[clean_columns] = df[clean_columns].apply(lambda x: x.apply(clean_string))
 
-    df[["component_name", "subcomponent_name"]] = df.apply(
-        apply_component_mapping, axis=1
-    )
+    df[["component_name", "subcomponent_name"]] = df.apply(apply_component_mapping, axis=1)
 
     df = df.drop(columns=["COMPONENTE", "SUB COMPONENTE"])
 
@@ -148,29 +142,17 @@ def read_raw_cc():
     )
     df = df.dropna(subset=["equipment_name", "changeout_date"])
     df = df.assign(
-        removed_component_serial=df["removed_component_serial"]
-        .str.strip()
-        .str.replace("\t", ""),
-        installed_component_serial=df["installed_component_serial"]
-        .str.strip()
-        .str.replace("\t", ""),
-        position_name=df["position_name"]
-        .replace({"RH": "derecho", "LH": "izquierdo"})
-        .str.lower(),
+        removed_component_serial=df["removed_component_serial"].str.strip().str.replace("\t", ""),
+        installed_component_serial=df["installed_component_serial"].str.strip().str.replace("\t", ""),
+        position_name=df["position_name"].replace({"RH": "derecho", "LH": "izquierdo"}).str.lower(),
         customer_work_order=pd.to_numeric(
-            df["customer_work_order"]
-            .astype(str)
-            .str.extract(r"(\d+)", expand=False)
-            .fillna(-1)
-            .astype(int),
+            df["customer_work_order"].astype(str).str.extract(r"(\d+)", expand=False).fillna(-1).astype(int),
             errors="coerce",
         ),
     )
 
     df["equipment_name"] = (
-        df["equipment_model"]
-        .map({"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"})
-        .fillna("")
+        df["equipment_model"].map({"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"}).fillna("")
         + df["equipment_name"]
     )
 

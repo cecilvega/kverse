@@ -7,7 +7,7 @@ import dagster as dg
 @dg.asset
 def read_raw_work_orders_history():
     datalake = DataLake()
-    df = datalake.list_paths("kcc-raw-data", "FIORI/WORK_ORDERS_HISTORY", recursive=False)
+    df = datalake.list_paths("kcc-raw-data", "BHP/FIORI/WORK_ORDERS_HISTORY", recursive=False)
 
     equipments = df["file_path"].to_list()
     frames = []
@@ -38,24 +38,43 @@ def read_raw_work_orders_history():
         work_order_df = pd.merge(work_order_df, work_order_text_df, on="ot", how="outer")
         frames.append(work_order_df)
         df = pd.concat(frames)
-        return df
+    return df
 
 
 @dg.asset
-def materialize_work_order_history(reconciled_icc):
-    """Exports reconciled component reports to SharePoint as Excel."""
-    # Prepare data for upload
-    buffer = BytesIO()
-    reconciled_icc.to_excel(buffer, engine="openpyxl", index=False)
-    buffer.seek(0)
+def materialize_work_order_history(read_raw_work_orders_history):
 
-    # Upload to SharePoint
+    result = {}
+
+    # 1. Upload to SharePoint as Excel
     msgraph = MSGraph()
-    result = msgraph.upload_dataframe(
+    sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        folder_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/FIORI",
-        file_name=f"ot_fiori.xlsx",
-        buffer=buffer,
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/FIORI/work_orders_history.xlsx",
+        df=read_raw_work_orders_history,
+        format="excel",
     )
+    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
 
-    return {"file_url": result.web_url, "count": len(reconciled_icc)}
+    # 2. Upload to Data Lake as Parquet
+    datalake = DataLake()
+    datalake_path = datalake.upload_tibble(
+        container="kcc-analytics-data",
+        file_path="BHP/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
+        df=read_raw_work_orders_history,
+        format="parquet",
+    )
+    result["datalake"] = {"path": datalake_path, "format": "parquet"}
+
+    # Add record count
+    result["count"] = len(read_raw_work_orders_history)
+
+    return result
+
+
+@dg.asset
+def read_work_order_history():
+    dl = DataLake()
+    content = dl.read_bytes("kcc-analytics-data", "BHP/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet")
+    df = pd.read_parquet(BytesIO(content))
+    return df

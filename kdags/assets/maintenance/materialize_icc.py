@@ -6,7 +6,7 @@ import pandas as pd
 from kdags.config.masterdata import MasterData
 from pathlib import Path
 from kdags.assets.maintenance.icc import extract_technical_report_data, parse_filename
-from kdags.resources import MSGraph
+from kdags.resources import MSGraph, DataLake
 from io import BytesIO
 
 
@@ -25,10 +25,7 @@ def cc_summary(read_raw_cc):
     df = df.assign(
         position_code=df["position_code"].astype(int),
         equipment_hours=pd.to_numeric(df["equipment_hours"]).round(0).astype(int),
-        component_hours=pd.to_numeric(df["component_hours"])
-        .round(0)
-        .fillna(-1)
-        .astype(int),
+        component_hours=pd.to_numeric(df["component_hours"]).round(0).fillna(-1).astype(int),
     )
     df = df.sort_values(
         [
@@ -37,9 +34,7 @@ def cc_summary(read_raw_cc):
             "component_name",
             "subcomponent_name",
         ]
-    ).drop_duplicates(
-        ["equipment_name", "component_name", "changeout_date", "component_hours"]
-    )
+    ).drop_duplicates(["equipment_name", "component_name", "changeout_date", "component_hours"])
 
     return df
 
@@ -48,9 +43,7 @@ def cc_summary(read_raw_cc):
 def gather_icc_reports():
     icc_files = [
         f
-        for f in Path(
-            r"C:\Users\andmn\OneDrive - Komatsu Ltd\INFORMES_CAMBIO_DE_COMPONENTE"
-        ).rglob("*")
+        for f in Path(r"C:\Users\andmn\OneDrive - Komatsu Ltd\INFORMES_CAMBIO_DE_COMPONENTE").rglob("*")
         if ((f.is_file()) & (f.suffix == ".pdf"))
     ]
     data = []
@@ -130,20 +123,36 @@ def reconciled_icc(cc_summary, gather_icc_reports):
 
 
 @dg.asset
-def materialize_sp_icc(reconciled_icc):
-    """Exports reconciled component reports to SharePoint as Excel."""
-    # Prepare data for upload
-    buffer = BytesIO()
-    reconciled_icc.to_excel(buffer, engine="openpyxl", index=False)
-    buffer.seek(0)
+def materialize_icc(reconciled_icc):
+    """
+    Exports reconciled component reports to both SharePoint (Excel) and Data Lake (Parquet).
 
-    # Upload to SharePoint
+    Args:
+        reconciled_icc: DataFrame containing reconciled ICC data
+
+    Returns:
+        dict: Information about both export operations
+    """
+    result = {}
+
+    # 1. Upload to SharePoint as Excel
     msgraph = MSGraph()
-    result = msgraph.upload_dataframe(
+    sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        folder_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/ICC",
-        file_name=f"icc.xlsx",
-        buffer=buffer,
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/ICC/icc.xlsx",
+        df=reconciled_icc,
+        format="excel",
     )
+    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
 
-    return {"file_url": result.web_url, "count": len(reconciled_icc)}
+    # 2. Upload to Data Lake as Parquet
+    datalake = DataLake()
+    datalake_path = datalake.upload_tibble(
+        container="kcc-analytics-data", file_path="BHP/MAINTENANCE/ICC/icc.parquet", df=reconciled_icc, format="parquet"
+    )
+    result["datalake"] = {"path": datalake_path, "format": "parquet"}
+
+    # Add record count
+    result["count"] = len(reconciled_icc)
+
+    return result

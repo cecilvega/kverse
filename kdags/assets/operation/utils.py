@@ -7,11 +7,11 @@ import pandas as pd
 def extract_equipment_name(path):
     tk_match = re.search(r"TK(\d{3})", path)
     if tk_match:
-        return tk_match.group(1)  # Just return digits
+        return "TK" + tk_match.group(1)  # Just return digits
 
     dsc_match = re.search(r"(\d{3})_(?:dsc|tci)", path)
     if dsc_match:
-        return dsc_match.group(1)
+        return "TK" + dsc_match.group(1)
     return None
 
 
