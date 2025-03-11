@@ -203,3 +203,47 @@ class DataLake:
             return uri
         except Exception as e:
             raise ValueError(f"Error uploading DataFrame to {uri}: {str(e)}")
+
+    def copy_file(self, source_uri: str, destination_uri: str) -> str:
+        """
+        Copy a file from source URI to destination URI within the Data Lake.
+
+        Args:
+            source_uri (str): Source URI in format abfs://container/path
+            destination_uri (str): Destination URI in format abfs://container/path
+
+        Returns:
+            str: Full path to the destination file
+
+        Raises:
+            ValueError: If file cannot be copied
+        """
+
+        # Read the content from source
+        file_content = self.read_bytes(source_uri)
+
+        # Parse the destination URI
+        dest_container, dest_path = self._parse_abfs_uri(destination_uri)
+
+        # Get a file system client for the destination container
+        file_system_client = self.client.get_file_system_client(dest_container)
+
+        # Ensure directory exists
+        directory_path = "/".join(dest_path.split("/")[:-1])
+        if directory_path:
+            directory_client = file_system_client.get_directory_client(directory_path)
+            directory_client.create_directory(exist_ok=True)
+
+        # Get a file client for the destination path
+        file_client = file_system_client.get_file_client(dest_path)
+
+        # Create or overwrite the file
+        file_client.create_file()
+
+        # Upload the data
+        file_client.append_data(file_content, 0, len(file_content))
+
+        # Flush to finalize the file
+        file_client.flush_data(len(file_content))
+
+        return destination_uri

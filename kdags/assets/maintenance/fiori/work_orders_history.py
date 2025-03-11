@@ -7,16 +7,16 @@ import dagster as dg
 @dg.asset
 def read_raw_work_orders_history():
     datalake = DataLake()
-    df = datalake.list_paths("kcc-raw-data", "BHP/FIORI/WORK_ORDERS_HISTORY", recursive=False)
+    df = datalake.list_paths("abfs://bhp-raw-data/FIORI/WORK_ORDERS_HISTORY", recursive=False)
 
     equipments = df["file_path"].to_list()
     frames = []
     for equipment in equipments:
         work_order_text_df = pd.read_excel(
-            BytesIO(datalake.read_bytes("kcc-raw-data", f"{equipment}/history_text.xlsx"))
+            BytesIO(datalake.read_bytes(f"abfs://bhp-raw-data/{equipment}/history_text.xlsx"))
         ).rename(columns={"updated": "updated_at", "documents": "documents"})
         work_order_df = (
-            pd.read_excel(BytesIO(datalake.read_bytes("kcc-raw-data", f"{equipment}/Ordenes de trabajo.xlsx")))
+            pd.read_excel(BytesIO(datalake.read_bytes(f"abfs://bhp-raw-data/{equipment}/Ordenes de trabajo.xlsx")))
             .rename(
                 columns={
                     "Orden": "ot",
@@ -50,7 +50,7 @@ def materialize_work_order_history(read_raw_work_orders_history):
     msgraph = MSGraph()
     sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/FIORI/work_orders_history.xlsx",
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.xlsx",
         df=read_raw_work_orders_history,
         format="excel",
     )
@@ -59,8 +59,7 @@ def materialize_work_order_history(read_raw_work_orders_history):
     # 2. Upload to Data Lake as Parquet
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
-        container="kcc-analytics-data",
-        file_path="BHP/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
+        container="abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
         df=read_raw_work_orders_history,
         format="parquet",
     )
@@ -75,6 +74,6 @@ def materialize_work_order_history(read_raw_work_orders_history):
 @dg.asset
 def read_work_order_history():
     dl = DataLake()
-    content = dl.read_bytes("kcc-analytics-data", "BHP/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet")
+    content = dl.read_bytes(f"abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet")
     df = pd.read_parquet(BytesIO(content))
     return df
