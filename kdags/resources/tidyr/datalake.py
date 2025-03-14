@@ -96,60 +96,78 @@ class DataLake:
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 
-    def read_tibble(self, uri: str, use_polars: bool = True, **kwargs) -> [pd.DataFrame, pl.DataFrame]:
+    def read_tibble(
+        self, uri: str, use_polars: bool = True, include_uri: bool = False, **kwargs
+    ) -> [pd.DataFrame, pl.DataFrame]:
         """
         Read a data file from Azure Data Lake and return as a DataFrame.
 
         Args:
             uri (str): URI in format abfs://container/path
             use_polars (bool): If True, return a polars DataFrame; otherwise return pandas DataFrame
+            include_uri (bool): If True, include the URI as a column in the DataFrame
+            **kwargs: Additional arguments passed to the appropriate pandas read function
 
         Returns:
             Union[pd.DataFrame, pl.DataFrame]: The data as a DataFrame
 
         Raises:
-            ValueError: If file format is not supported
+            ValueError: If file format cannot be determined or is not supported
         """
-        container, file_path = self._parse_abfs_uri(uri)
+        try:
+            container, file_path = self._parse_abfs_uri(uri)
 
-        # Get the file bytes
-        file_bytes = self.read_bytes(f"abfs://{container}/{file_path}")
+            # Get the file bytes
+            file_bytes = self.read_bytes(f"abfs://{container}/{file_path}")
 
-        # Determine file type from extension
-        file_ext = file_path.split(".")[-1].lower()
+            # Determine file type from extension
+            file_ext = file_path.split(".")[-1].lower()
 
-        # Create BytesIO object
-        buffer = BytesIO(file_bytes)
+            # Create BytesIO object
+            buffer = BytesIO(file_bytes)
 
-        # Parse based on file type
-        if file_ext == "parquet":
-            if use_polars:
-                return pl.read_parquet(buffer, **kwargs)
+            # Parse based on file type
+            if file_ext == "parquet":
+                if use_polars:
+                    df = pl.read_parquet(buffer, **kwargs)
+                else:
+                    df = pd.read_parquet(buffer, **kwargs)
+
+            elif file_ext == "csv":
+                if use_polars:
+                    df = pl.read_csv(buffer, **kwargs)
+                else:
+                    df = pd.read_csv(buffer, **kwargs)
+
+            elif file_ext in ["xlsx", "xls"]:
+                if use_polars:
+                    df = pl.read_excel(buffer, **kwargs)
+                else:
+                    df = pd.read_excel(buffer, **kwargs)
+
+            elif file_ext == "json":
+                if use_polars:
+                    df = pl.read_json(buffer, **kwargs)
+                else:
+                    df = pd.read_json(buffer, **kwargs)
+
             else:
-                return pd.read_parquet(buffer, **kwargs)
+                raise ValueError(f"Unsupported file format: .{file_ext}")
 
-        elif file_ext == "csv":
-            if use_polars:
-                return pl.read_csv(buffer, **kwargs)
-            else:
-                return pd.read_csv(buffer, **kwargs)
+            # Add URI column if requested
+            if include_uri and df is not None:
+                if use_polars:
+                    df = df.with_columns(pl.lit(uri).alias("uri"))
+                else:
+                    df["uri"] = uri
 
-        elif file_ext in ["xlsx", "xls"]:
-            # Polars has limited Excel support, so use pandas first
-            pandas_df = pd.read_excel(buffer, **kwargs)
-            if use_polars:
-                return pl.from_pandas(pandas_df)
-            else:
-                return pandas_df
+            return df
 
-        elif file_ext == "json":
-            if use_polars:
-                return pl.read_json(buffer, **kwargs)
-            else:
-                return pd.read_json(buffer, **kwargs)
-
-        else:
-            raise ValueError(f"Unsupported file format: .{file_ext}")
+        except Exception as e:
+            # Enhance the error message with the URI
+            error_message = f"Error reading file from {uri}: {str(e)}"
+            # Raise a new exception with the enhanced message but preserve the original exception type
+            raise type(e)(error_message) from e
 
     def upload_tibble(self, uri: str, df, format: str = "parquet", **kwargs) -> str:
         """
