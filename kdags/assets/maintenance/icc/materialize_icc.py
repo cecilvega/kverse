@@ -1,13 +1,13 @@
+import os
 from datetime import datetime
+from pathlib import Path
 
 import dagster as dg
 import pandas as pd
 
+from kdags.assets.maintenance.icc.utils import extract_technical_report_data, parse_filename
 from kdags.config.masterdata import MasterData
-from pathlib import Path
-from kdags.assets.maintenance.icc import extract_technical_report_data, parse_filename
-from kdags.resources import MSGraph, DataLake
-from io import BytesIO
+from kdags.resources import DataLake
 
 
 @dg.asset
@@ -43,7 +43,7 @@ def cc_summary(read_raw_cc):
 def gather_icc_reports():
     icc_files = [
         f
-        for f in Path(r"C:\Users\andmn\OneDrive - Komatsu Ltd\INFORMES_CAMBIO_DE_COMPONENTE").rglob("*")
+        for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "INFORMES_CAMBIO_DE_COMPONENTE").rglob("*")
         if ((f.is_file()) & (f.suffix == ".pdf"))
     ]
     data = []
@@ -136,19 +136,20 @@ def materialize_icc(reconciled_icc):
     result = {}
 
     # 1. Upload to SharePoint as Excel
-    msgraph = MSGraph()
-    sharepoint_result = msgraph.upload_tibble(
-        site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/ICC/icc.xlsx",
-        df=reconciled_icc,
-        format="excel",
+    reconciled_icc.to_excel(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "icc.xlsx", index=False)
+    file_url = (
+        "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/"
+        "01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/ICC/icc.xlsx"
     )
-    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
+
+    result["sharepoint"] = {"file_url": file_url, "format": "excel"}
 
     # 2. Upload to Data Lake as Parquet
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
-        container="kcc-analytics-data", file_path="BHP/MAINTENANCE/ICC/icc.parquet", df=reconciled_icc, format="parquet"
+        uri="abfs://bhp-analytics-data/MAINTENANCE/ICC/icc.parquet",
+        df=reconciled_icc,
+        format="parquet",
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}
 

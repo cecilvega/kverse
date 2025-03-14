@@ -4,11 +4,14 @@ import os
 import pandas as pd
 from io import BytesIO
 from urllib.parse import urlparse
+from datetime import datetime, timedelta
+import re
 
 
 class DataLake:
     def __init__(self):
         conn_str = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
+
         self.client = DataLakeServiceClient.from_connection_string(conn_str)
 
     def _parse_abfs_uri(self, uri: str) -> tuple:
@@ -48,15 +51,17 @@ class DataLake:
             recursive (bool): Whether to list files recursively
 
         Returns:
-            pl.DataFrame: DataFrame containing file information
+            pl.DataFrame: DataFrame containing file information with URIs
         """
         container, path = self._parse_abfs_uri(uri)
         file_system_client = self.get_file_system_client(f"abfs://{container}")
 
+        base_uri = f"abfs://{container}/"
+
         if recursive:
             files = [
                 {
-                    "file_path": path.name,
+                    "uri": base_uri + path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
@@ -66,7 +71,7 @@ class DataLake:
         else:
             files = [
                 {
-                    "file_path": path.name,
+                    "uri": base_uri + path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
@@ -247,3 +252,99 @@ class DataLake:
         file_client.flush_data(len(file_content))
 
         return destination_uri
+
+    def list_partitioned_paths(
+        self, uri: str, only_recent: bool = False, days_lookback: int = 30, cutoff_date: datetime = None
+    ) -> pl.DataFrame:
+        """
+        List files in a partitioned data lake structure with intelligent filtering by date.
+
+        Lists all files first, then efficiently filters based on partition dates extracted
+        from the URI paths. Works with both monthly (y=%Y/m=%m) and daily (y=%Y/m=%m/d=%d) partitions.
+
+        Args:
+            uri (str): URI in format abfs://container/path
+            only_recent (bool): If True, only include files from recent partitions
+            days_lookback (int): Number of days to look back when only_recent is True
+            cutoff_date (datetime): Reference date for lookback calculation, defaults to current date
+
+        Returns:
+            pl.DataFrame: DataFrame containing file information with URIs
+        """
+        if cutoff_date is None:
+            cutoff_date = datetime.now()
+
+        # Get all files first
+        all_files_df = self.list_paths(uri, recursive=True)
+
+        # If not filtering by recency or no files found, return as is
+        if not only_recent or all_files_df.shape[0] == 0:
+            return all_files_df
+
+        # Calculate the cutoff date
+        min_date = cutoff_date - timedelta(days=days_lookback)
+
+        # Extract dates from URIs
+        # Define common patterns for both monthly and daily partitions
+        monthly_pattern = r"y=(\d{4})/m=(\d{2})"
+        daily_pattern = r"y=(\d{4})/m=(\d{2})/d=(\d{2})"
+
+        # Extract partition dates from URIs
+        def extract_date_from_uri(uri_str):
+            # Try daily pattern first
+            daily_match = re.search(daily_pattern, uri_str)
+            if daily_match:
+                year, month, day = map(int, daily_match.groups())
+                return datetime(year, month, day)
+
+            # Try monthly pattern next
+            monthly_match = re.search(monthly_pattern, uri_str)
+            if monthly_match:
+                year, month = map(int, monthly_match.groups())
+                # Use the first day of the month
+                return datetime(year, month, 1)
+
+            # If no pattern matches, return None
+            return None
+
+        # Create a new column with extracted dates
+        dates = [extract_date_from_uri(uri_str) for uri_str in all_files_df["uri"].to_list()]
+        date_series = pl.Series("partition_date", dates)
+        all_files_df = all_files_df.with_columns([date_series])
+
+        # Filter based on partition dates
+        filtered_df = all_files_df.filter(
+            (pl.col("partition_date").is_not_null())
+            & (pl.col("partition_date") >= min_date)
+            & (pl.col("partition_date") <= cutoff_date)
+        )
+
+        # Drop the temporary partition_date column if needed
+        filtered_df = filtered_df.drop("partition_date")
+
+        return filtered_df
+
+    def delete_files(self, uris: list) -> dict:
+        """
+        Delete multiple files from the Data Lake.
+
+        Args:
+            uris (list): List of URIs to delete in format abfs://container/path
+
+        Returns:
+            dict: Summary of deletion operation with success and error counts
+        """
+        results = {"total": len(uris), "successful": 0, "failed": 0, "errors": []}
+
+        for uri in uris:
+            try:
+                container, file_path = self._parse_abfs_uri(uri)
+                file_system_client = self.get_file_system_client(f"abfs://{container}")
+                file_client = file_system_client.get_file_client(file_path)
+                file_client.delete_file()
+                results["successful"] += 1
+            except Exception as e:
+                results["failed"] += 1
+                results["errors"].append({"uri": uri, "error": str(e)})
+
+        return results

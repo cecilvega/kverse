@@ -22,7 +22,7 @@ work_order_history_job = ScheduleDefinition(
         selection=AssetSelection.assets("materialize_work_order_history").upstream(),
         description="Archivo con todas las OT's Fiori",
     ),
-    cron_schedule="0 9 * * FRI",
+    cron_schedule="0 9 1 * *",
     execution_timezone="America/Santiago",
     default_status=DefaultScheduleStatus.RUNNING,
 )
@@ -34,7 +34,7 @@ icc_job = ScheduleDefinition(
         selection=AssetSelection.assets("materialize_icc").upstream(),
         tags={"source": "icc"},
     ),
-    cron_schedule="0 9 * * FRI",
+    cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",
     default_status=DefaultScheduleStatus.RUNNING,
 )
