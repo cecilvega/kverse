@@ -3,7 +3,7 @@ import time
 import pandas as pd
 import dagster as dg
 from typing import Dict, List
-from kdags.resources import DataLake, MSGraph
+from kdags.resources.tidyr import DataLake, MSGraph
 
 
 @dg.asset(

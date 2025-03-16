@@ -6,7 +6,7 @@ import openpyxl
 import pandas as pd
 import unicodedata
 
-from kdags.resources import MSGraph
+from kdags.resources.tidyr import MSGraph
 
 # import polars as pl
 openpyxl.reader.excel.warnings.simplefilter(action="ignore")

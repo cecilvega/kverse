@@ -7,7 +7,8 @@ import pandas as pd
 
 from kdags.assets.maintenance.icc.utils import extract_technical_report_data, parse_filename
 from kdags.config.masterdata import MasterData
-from kdags.resources import DataLake
+from kdags.resources.tidyr import DataLake, MSGraph
+import polars as pl
 
 
 @dg.asset
@@ -123,7 +124,7 @@ def reconciled_icc(cc_summary, gather_icc_reports):
 
 
 @dg.asset
-def materialize_icc(reconciled_icc):
+def spawn_icc(reconciled_icc):
     """
     Exports reconciled component reports to both SharePoint (Excel) and Data Lake (Parquet).
 
@@ -136,13 +137,13 @@ def materialize_icc(reconciled_icc):
     result = {}
 
     # 1. Upload to SharePoint as Excel
-    reconciled_icc.to_excel(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "icc.xlsx", index=False)
-    file_url = (
-        "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/"
-        "01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/ICC/icc.xlsx"
+    sharepoint_result = MSGraph().upload_tibble(
+        site_id="KCHCLSP00022",
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/ICC/icc.xlsx",
+        df=reconciled_icc,
+        format="excel",
     )
-
-    result["sharepoint"] = {"file_url": file_url, "format": "excel"}
+    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
 
     # 2. Upload to Data Lake as Parquet
     datalake = DataLake()
@@ -157,3 +158,13 @@ def materialize_icc(reconciled_icc):
     result["count"] = len(reconciled_icc)
 
     return result
+
+
+@dg.asset
+def read_icc():
+    dl = DataLake()
+    uri = "abfs://bhp-analytics-data/MAINTENANCE/ICC/icc.parquet"
+    if dl.uri_exists(uri):
+        return dl.read_tibble(uri=uri)
+    else:
+        return pl.DataFrame()

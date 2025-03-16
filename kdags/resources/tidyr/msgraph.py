@@ -14,6 +14,33 @@ class MSGraph:
         self._client_id = "d50ca740-c83f-4d1b-b616-12c519384f0c"
         self._site_url_prefix = "https://globalkomatsu.sharepoint.com/sites/"
 
+    def delete_file(self, site_id: str, file_path: str) -> dict:
+        """
+        Deletes a file from SharePoint, bypassing any shared locks.
+
+        Args:
+            site_id (str): SharePoint site ID (e.g., "KCHCLSP00022")
+            file_path (str): Full path including filename within the site
+
+        Returns:
+            dict: Information about the deletion result
+        """
+
+        def bypass_lock(request):
+            request.headers["Prefer"] = "bypass-shared-lock"
+
+        try:
+            site_id = f"{self._site_url_prefix}/{site_id}"
+
+            site = self.client.sites.get_by_url(site_id)
+            drive_item = site.drive.root.get_by_path(file_path).get().execute_query()
+            drive_item.before_execute(bypass_lock)
+
+            drive_item.delete_object().execute_query()
+            return {"status": "success", "message": f"File '{file_path}' successfully deleted"}
+        except Exception as e:
+            return {"status": "error", "message": f"Error deleting file: {file_path}"}
+
     def acquire_token_func(self):
         scopes = ["Files.ReadWrite.All"]
         app = msal.PublicClientApplication(
@@ -58,41 +85,35 @@ class MSGraph:
         # Create buffer and convert DataFrame based on format
         buffer = BytesIO()
 
-        try:
-            if format.lower() == "excel":
-                # Default to xlsx engine
-                engine = kwargs.pop("engine", "openpyxl")
-                df.to_excel(buffer, sheet_name=sheet_name, engine=engine, index=False, **kwargs)
-            elif format.lower() == "csv":
-                df.to_csv(buffer, index=False, **kwargs)
-            elif format.lower() == "parquet":
-                df.to_parquet(buffer, **kwargs)
-            elif format.lower() == "json":
-                df.to_json(buffer, **kwargs)
-            else:
-                raise ValueError(f"Unsupported format: {format}")
+        if format.lower() == "excel":
+            # Default to xlsx engine
+            engine = kwargs.pop("engine", "openpyxl")
+            df.to_excel(buffer, sheet_name=sheet_name, engine=engine, index=False, **kwargs)
+        elif format.lower() == "csv":
+            df.to_csv(buffer, index=False, **kwargs)
+        elif format.lower() == "parquet":
+            df.to_parquet(buffer, **kwargs)
 
-            # Ensure filename has correct extension if not provided
-            if not file_name.endswith(f".{format}") and format.lower() != "excel":
-                file_name = f"{file_name}.{format}"
-            elif format.lower() == "excel" and not (file_name.endswith(".xlsx") or file_name.endswith(".xls")):
-                file_name = f"{file_name}.xlsx"
+        else:
+            raise ValueError(f"Unsupported format: {format}")
 
-            # Reset buffer position to start
-            buffer.seek(0)
-            content = buffer.getvalue()
+        # Ensure filename has correct extension if not provided
+        if not file_name.endswith(f".{format}") and format.lower() != "excel":
+            file_name = f"{file_name}.{format}"
+        elif format.lower() == "excel" and not (file_name.endswith(".xlsx") or file_name.endswith(".xls")):
+            file_name = f"{file_name}.xlsx"
 
-            # Get site and upload
-            site_url = f"{self._site_url_prefix}/{site_id}"
-            site = self.client.sites.get_by_url(site_url)
+        # Reset buffer position to start
+        buffer.seek(0)
+        content = buffer.getvalue()
 
-            # Upload the file
-            return site.drive.root.get_by_path(folder_path).upload(file_name, content).execute_query()
+        # Get site and upload
+        site_url = f"{self._site_url_prefix}/{site_id}"
+        site = self.client.sites.get_by_url(site_url)
 
-        except Exception as e:
-            raise ValueError(f"Error uploading DataFrame to SharePoint ({file_path}): {str(e)}")
-        finally:
-            buffer.close()
+        self.delete_file(site_id, file_path)
+        # Upload the file
+        return site.drive.root.get_by_path(folder_path).upload(file_name, content).execute_query()
 
     def read_tibble(self, site_id, file_path, use_polars=True, **kwargs) -> pd.DataFrame:
         """

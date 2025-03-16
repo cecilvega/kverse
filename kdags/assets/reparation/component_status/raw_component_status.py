@@ -1,5 +1,5 @@
 import polars as pl
-from kdags.resources import DataLake
+from kdags.resources.tidyr import DataLake
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 from io import StringIO

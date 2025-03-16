@@ -1,10 +1,7 @@
 import dagster as dg
 import pandas as pd
-from kdags.resources import DataLake, MSGraph
-from kdags.config.masterdata import MasterData
-
-# 105 o 103
-# 600 3000 600 103 opción 1 area comercial
+from kdags.resources.tidyr import DataLake, MSGraph
+from kdags.config import MasterData
 
 
 @dg.asset
@@ -78,7 +75,7 @@ def mutate_pm_history(read_raw_pm_history):
 
 
 @dg.asset
-def materialize_pm_history(mutate_pm_history):
+def spawn_pm_history(mutate_pm_history):
     result = {}
 
     datalake = DataLake()

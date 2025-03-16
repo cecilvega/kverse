@@ -6,14 +6,17 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 from kdags.assets import planification, maintenance, reparation, operation
 from kdags.jobs import (
     attendances_job,
+    oil_analysis_job,
     icc_job,
     work_order_history_job,
     pm_history_job,
+    op_file_idx_job,
+    plm_job,
 )
 from kdags.config.masterdata import MasterData
-from .utils import get_asset_by_path, create_asset_catalog
 
-__all__ = ["get_asset_by_path", "create_asset_catalog", "kdefs", "MasterData"]
+
+__all__ = ["kdefs", "MasterData"]
 
 # warnings.filterwarnings("ignore", category=ExperimentalWarning)
 
@@ -44,5 +47,13 @@ all_assets = dg.link_code_references_to_git(
 
 kdefs = dg.Definitions(
     assets=all_assets,
-    schedules=[attendances_job, icc_job, work_order_history_job, pm_history_job],
+    schedules=[
+        attendances_job,
+        icc_job,
+        work_order_history_job,
+        pm_history_job,
+        oil_analysis_job,
+        op_file_idx_job,
+        plm_job,
+    ],
 )

@@ -5,7 +5,7 @@ from pathlib import Path
 import dagster as dg
 import pandas as pd
 
-from kdags.resources import DataLake
+from kdags.resources.tidyr import DataLake, MSGraph
 
 
 @dg.asset
@@ -46,20 +46,17 @@ def read_raw_work_orders_history():
 
 
 @dg.asset
-def materialize_work_order_history(read_raw_work_orders_history):
+def spawn_work_order_history(read_raw_work_orders_history):
 
     result = {}
 
-    file_url = (
-        "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/"
-        "01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/CAEX/ANTECEDENTES/WORK_ORDERS_HISTORY/work_orders_history.xlsx"
+    sharepoint_result = MSGraph().upload_tibble(
+        site_id="KCHCLSP00022",
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.xlsx",
+        df=read_raw_work_orders_history,
+        format="excel",
     )
-    read_raw_work_orders_history.to_excel(
-        Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.xlsx",
-        index=False,
-    )
-
-    result["sharepoint"] = {"file_url": file_url, "format": "excel"}
+    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
 
     # 2. Upload to Data Lake as Parquet
     datalake = DataLake()

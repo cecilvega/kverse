@@ -1,12 +1,10 @@
-from office365.graph_client import GraphClient
-
-from kdags.resources import MSGraph
-from kdags.resources import init_firebase
-from dagster import asset
 from io import BytesIO
 
 import pandas as pd
+from dagster import asset
 from firebase_admin import firestore
+
+from kdags.resources.tidyr import MSGraph, init_firebase
 
 
 def get_attendances():

@@ -2,7 +2,7 @@ import polars as pl
 from typing import List
 
 
-def upsert_dataframes(
+def upsert_tibbles(
     incoming_df: pl.DataFrame,
     consolidated_df: pl.DataFrame,
     key_columns: List[str],
@@ -28,15 +28,15 @@ def upsert_dataframes(
     ), f"Key columns {key_columns} not found in consolidated dataframe"
 
     # If incoming dataframe is empty, just return the consolidated dataframe
-    if incoming_df.height == 0:
+    if incoming_df.shape[0] == 0:
         return consolidated_df
 
     # If consolidated dataframe is empty, just return the deduplicated incoming dataframe
-    if consolidated_df.height == 0:
-        return incoming_df.drop_duplicates(subset=key_columns, keep="last")
+    if consolidated_df.shape[0] == 0:
+        return incoming_df.unique(subset=key_columns, keep="last")
 
     # Ensure incoming dataframe has no duplicates, keeping the last occurrence
-    unique_incoming_df = incoming_df.drop_duplicates(subset=key_columns, keep="last")
+    unique_incoming_df = incoming_df.unique(subset=key_columns, keep="last")
 
     # 1. Identify records to update (matching records between both dataframes)
     updates = unique_incoming_df.join(consolidated_df.select(key_columns), on=key_columns, how="inner")

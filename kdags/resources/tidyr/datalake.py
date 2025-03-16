@@ -191,7 +191,7 @@ class DataLake:
             buffer = BytesIO()
             # Handle both pandas and polars DataFrames
             if hasattr(df, "to_pandas"):  # It's a polars DataFrame
-                df.to_pandas().to_parquet(buffer, **kwargs)
+                df.write_parquet(buffer, **kwargs)
             else:  # Assume it's pandas
                 df.to_parquet(buffer, **kwargs)
             buffer.seek(0)
@@ -200,16 +200,9 @@ class DataLake:
         elif format.lower() == "csv":
             # Handle both pandas and polars DataFrames
             if hasattr(df, "to_pandas"):  # It's a polars DataFrame
-                data = df.to_pandas().to_csv(**kwargs).encode("utf-8")
+                data = df.write_csv(**kwargs).encode("utf-8")
             else:  # Assume it's pandas
                 data = df.to_csv(**kwargs).encode("utf-8")
-
-        elif format.lower() == "json":
-            # Handle both pandas and polars DataFrames
-            if hasattr(df, "to_pandas"):  # It's a polars DataFrame
-                data = df.to_pandas().to_json(**kwargs).encode("utf-8")
-            else:  # Assume it's pandas
-                data = df.to_json(**kwargs).encode("utf-8")
 
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -226,6 +219,36 @@ class DataLake:
             return uri
         except Exception as e:
             raise ValueError(f"Error uploading DataFrame to {uri}: {str(e)}")
+
+    def uri_exists(self, uri: str) -> bool:
+        """
+        Check if a file exists at the specified URI in Azure Data Lake.
+
+        Args:
+            uri (str): URI in format abfs://container/path
+
+        Returns:
+            bool: True if the file exists, False otherwise
+        """
+        try:
+            container, file_path = self._parse_abfs_uri(uri)
+            file_system_client = self.get_file_system_client(f"abfs://{container}")
+
+            # If file_path is empty or ends with '/', treat it as a directory check
+            if not file_path or file_path.endswith("/"):
+                directory_client = file_system_client.get_directory_client(file_path.rstrip("/"))
+                # Check if directory exists by getting properties (will raise exception if not found)
+                directory_client.get_directory_properties()
+                return True
+            else:
+                # Check if file exists by getting file client and properties
+                file_client = file_system_client.get_file_client(file_path)
+                file_client.get_file_properties()
+                return True
+
+        except Exception:
+            # Any exception (typically ResourceNotFoundError) means the URI doesn't exist
+            return False
 
     def copy_file(self, source_uri: str, destination_uri: str) -> str:
         """

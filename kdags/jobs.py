@@ -5,10 +5,11 @@ from dagster import (
     DefaultScheduleStatus,
 )
 
+# Maintenance Jobs
 pm_history_job = ScheduleDefinition(
     job=define_asset_job(
-        name="maintenance_pm_history_job",
-        selection=AssetSelection.assets("materialize_pm_history").upstream(),
+        name="pm_history_job",
+        selection=AssetSelection.assets("spawn_pm_history").upstream(),
         description="Archivo con listado historial de PMs",
     ),
     cron_schedule="0 9 * * FRI",
@@ -18,8 +19,8 @@ pm_history_job = ScheduleDefinition(
 
 work_order_history_job = ScheduleDefinition(
     job=define_asset_job(
-        name="maintenance_work_order_history_job",
-        selection=AssetSelection.assets("materialize_work_order_history").upstream(),
+        name="work_order_history_job",
+        selection=AssetSelection.assets("spawn_work_order_history").upstream(),
         description="Archivo con todas las OT's Fiori",
     ),
     cron_schedule="0 9 1 * *",
@@ -27,11 +28,22 @@ work_order_history_job = ScheduleDefinition(
     default_status=DefaultScheduleStatus.RUNNING,
 )
 
+oil_analysis_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="oil_analysis_job",
+        selection=AssetSelection.assets("spawn_oil_analysis").upstream(),
+        description="Muestras aceite SCAAE",
+    ),
+    cron_schedule="30 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
+)
+
 
 icc_job = ScheduleDefinition(
     job=define_asset_job(
-        name="maintenance_icc_job",
-        selection=AssetSelection.assets("materialize_icc").upstream(),
+        name="icc_job",
+        selection=AssetSelection.assets("spawn_icc").upstream(),
         tags={"source": "icc"},
     ),
     cron_schedule="30 6 * * *",
@@ -45,4 +57,29 @@ attendances_job = ScheduleDefinition(
     cron_schedule="0 0 * * *",
     execution_timezone="America/Santiago",
     # default_status=DefaultScheduleStatus.RUNNING,
+)
+
+# Operation Jobs
+
+op_file_idx_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="op_file_index_job",
+        selection=AssetSelection.assets("spawn_op_file_idx").upstream(),
+        tags={"source": "icc"},
+    ),
+    cron_schedule="30 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
+)
+
+plm_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="plm_job",
+        selection=AssetSelection.assets("spawn_plm3_haul").upstream()
+        | AssetSelection.assets("spawn_plm3_alarms").upstream(),
+        description="Muestras aceite SCAAE",
+    ),
+    cron_schedule="30 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
 )
