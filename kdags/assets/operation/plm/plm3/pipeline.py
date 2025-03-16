@@ -27,6 +27,19 @@ def mutate_plm3_haul(context: dg.AssetExecutionContext) -> pl.DataFrame:
         .sort(["Cust_Unit", "PDate", "PTime"])
         .rename({"PDate": "metric_date", "Cust_Unit": "equipment_name"})
     )
+
+    df = df.drop(["Operator_ID"])
+    # First, convert the date string to a date type
+    # df = df.with_columns(pl.col("metric_date").str.to_date("%Y-%m-%d").alias("metric_date"))
+
+    # Then, convert the time string to a time type
+    df = df.with_columns(pl.col("PTime").str.to_time().alias("PTime"))
+
+    # Finally, combine the date and time columns into a datetime
+    df = df.with_columns(pl.col("metric_date").dt.combine(pl.col("PTime")).alias("metric_datetime")).filter(
+        pl.col("metric_datetime").dt.year() >= 2021
+    )
+    df = df.drop(["PTime"])
     return df
 
 
