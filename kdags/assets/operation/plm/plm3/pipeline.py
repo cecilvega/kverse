@@ -1,12 +1,11 @@
 import os
-import tempfile
-from zipfile import ZipFile
+from datetime import datetime
+from pathlib import Path
+
 import dagster as dg
 import polars as pl
-from pypxlib import Table
-import pandas as pd
+
 from kdags.resources.tidyr import DataLake, MSGraph
-from pathlib import Path
 
 
 @dg.asset
@@ -18,28 +17,28 @@ def mutate_plm3_haul(context: dg.AssetExecutionContext) -> pl.DataFrame:
     ]
     frames = []
     for file_path in file_paths:
-        frames.append(pl.read_csv(file_path))
-    df = pl.concat(frames)
+        frames.append(pl.read_csv(file_path).drop(["Operator_ID"]))
+    df = pl.concat(frames).unique(["Cust_Unit", "PDate", "PTime"])
 
     df = (
-        df.with_columns(pl.col("PDate").str.strptime(pl.Date, "%Y-%m-%d"))
-        .unique(["Cust_Unit", "PDate", "PTime"])
-        .sort(["Cust_Unit", "PDate", "PTime"])
-        .rename({"PDate": "metric_date", "Cust_Unit": "equipment_name"})
+        df.with_columns(
+            [
+                pl.col("PDate").str.strptime(pl.Date, "%Y-%m-%d").alias("PDate"),
+                pl.col("PTime").str.to_time("%H:%M:%S.%f").alias("PTime"),
+            ]
+        )
+        .with_columns(record_dt=pl.col("PDate").dt.combine(pl.col("PTime")))
+        .drop(["PDate", "PTime"])
+        .rename(
+            {
+                "Cust_Unit": "equipment_name",
+            }
+        )
+        .rename(lambda col_name: col_name.lower())
+        .filter(pl.col("record_dt") >= datetime(2020, 10, 1))
+        .sort(["equipment_name", "record_dt"])
     )
 
-    df = df.drop(["Operator_ID"])
-    # First, convert the date string to a date type
-    # df = df.with_columns(pl.col("metric_date").str.to_date("%Y-%m-%d").alias("metric_date"))
-
-    # Then, convert the time string to a time type
-    df = df.with_columns(pl.col("PTime").str.to_time().alias("PTime"))
-
-    # Finally, combine the date and time columns into a datetime
-    df = df.with_columns(pl.col("metric_date").dt.combine(pl.col("PTime")).alias("metric_datetime")).filter(
-        pl.col("metric_datetime").dt.year() >= 2021
-    )
-    df = df.drop(["PTime"])
     return df
 
 
@@ -53,13 +52,28 @@ def mutate_plm3_alarms(context: dg.AssetExecutionContext) -> pl.DataFrame:
     frames = []
     for file_path in file_paths:
         frames.append(pl.read_csv(file_path))
-    df = pl.concat(frames)
+    df = pl.concat(frames).unique(["Cust_Unit", "Cleared_Date", "Set_Date", "Set_Time", "Cleared_Time", "Description"])
 
+    date_cols = ["Cleared_Date", "Set_Date"]
+    time_cols = ["Set_Time", "Cleared_Time"]
     df = (
-        df.with_columns(pl.col("Cleared_Date").str.strptime(pl.Date, "%Y-%m-%d"))
-        .unique(["Cust_Unit", "Cleared_Date", "Cleared_Time"])
-        .sort(["Cust_Unit", "Cleared_Date", "Cleared_Time"])
-        .rename({"Cleared_Date": "metric_date", "Cust_Unit": "equipment_name"})
+        df.with_columns([pl.col(col).str.strptime(pl.Date, "%Y-%m-%d").alias(col) for col in date_cols])
+        .with_columns([pl.col(col).str.to_time("%H:%M:%S.%f").alias(col) for col in time_cols])
+        .with_columns(
+            record_start_dt=pl.col("Set_Date").dt.combine(pl.col("Set_Time")),
+            record_end_dt=pl.col("Cleared_Date").dt.combine(pl.col("Cleared_Time")),
+        )
+        .drop(["Cleared_Date", "Set_Date", "Set_Time", "Cleared_Time"])
+        .rename(
+            {
+                "Cust_Unit": "equipment_name",
+                "Alarm_Type": "parameter_code",
+                "Description": "parameter_name",
+            }
+        )
+        .rename(lambda col_name: col_name.lower())
+        .filter(pl.col("record_start_dt") >= datetime(2020, 10, 1))
+        .sort(["equipment_name", "record_start_dt", "record_end_dt"])
     )
     return df
 
@@ -69,22 +83,15 @@ def spawn_plm3_haul(context: dg.AssetExecutionContext, mutate_plm3_haul: pl.Data
     df = mutate_plm3_haul.clone()
     result = {}
     MSGraph().delete_file(
-        site_id="KCHCLSP00022", file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv"
+        site_id="KCHCLSP00022", filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv"
     )
     mutate_plm3_haul.write_csv(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "OPERATION/PLM/haul.csv")
-    # sharepoint_result = MSGraph().upload_tibble(
-    #     site_id="KCHCLSP00022",
-    #     file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
-    #     df=df,
-    #     format="csv",
-    # )
+
     result["sharepoint"] = {
         "file_url": "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD"
         + "/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
         "format": "csv",
     }
-
-    # 2. Upload to Data Lake as Parquet
 
     datalake_path = DataLake().upload_tibble(
         uri="abfs://bhp-analytics-data/OPERATION/PLM3/haul.parquet",
@@ -93,7 +100,6 @@ def spawn_plm3_haul(context: dg.AssetExecutionContext, mutate_plm3_haul: pl.Data
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}
 
-    # Add record count
     result["count"] = len(df)
 
     return result
@@ -103,15 +109,9 @@ def spawn_plm3_haul(context: dg.AssetExecutionContext, mutate_plm3_haul: pl.Data
 def spawn_plm3_alarms(context: dg.AssetExecutionContext, mutate_plm3_alarms: pl.DataFrame) -> dict:
     df = mutate_plm3_alarms.clone()
     result = {}
-    # sharepoint_result = MSGraph().upload_tibble(
-    #     site_id="KCHCLSP00022",
-    #     file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/alarms.csv",
-    #     df=df,
-    #     format="csv",
-    # )
-    # result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "csv"}
+
     MSGraph().delete_file(
-        site_id="KCHCLSP00022", file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/alarms.csv"
+        site_id="KCHCLSP00022", filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/alarms.csv"
     )
     mutate_plm3_alarms.write_csv(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "OPERATION/PLM/alarms.csv")
     result["sharepoint"] = {
@@ -119,8 +119,6 @@ def spawn_plm3_alarms(context: dg.AssetExecutionContext, mutate_plm3_alarms: pl.
         + "/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
         "format": "csv",
     }
-
-    # 2. Upload to Data Lake as Parquet
 
     datalake_path = DataLake().upload_tibble(
         uri="abfs://bhp-analytics-data/OPERATION/PLM3/alarms.parquet",

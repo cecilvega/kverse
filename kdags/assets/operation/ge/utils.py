@@ -1,18 +1,5 @@
 import re
 from datetime import datetime
-import pandas as pd
-from kdags.resources.tidyr import DataLake
-
-
-def extract_equipment_name(path):
-    tk_match = re.search(r"TK(\d{3})", path)
-    if tk_match:
-        return "TK" + tk_match.group(1)  # Just return digits
-
-    dsc_match = re.search(r"(\d{3})_(?:dsc|tci)", path)
-    if dsc_match:
-        return "TK" + dsc_match.group(1)
-    return None
 
 
 def extract_header_info(data: str, columns: list) -> dict:
@@ -102,61 +89,3 @@ def extract_filename_info(file_path: str, columns: list = None) -> dict:
         info["filename_cycle"] = cycle
     info["file_path"] = file_path
     return info
-
-
-def parse_time_column(time_series: pd.Series) -> pd.Series:
-    """
-    Parse time column handling multiple formats and cleaning special characters
-
-    Args:
-        time_series (pd.Series): Series containing time data
-
-    Returns:
-        pd.Series: Parsed datetime series
-    """
-    # Clean the strings first
-    cleaned_times = time_series.replace({'"': "", "=": "", "'": ""}, regex=True).str.strip()
-
-    # List of possible formats ordered by most to least common
-    formats = [
-        "%Y-%m-%d %H:%M:%S.%f",  # 2024-09-17 10:41:45.034
-        # "%Y-%m-%d %H:%M:%S",  # 2024-09-17 10:41:45
-        # "%d%b%y %H:%M:%S.%f",  # 17SEP24 10:41:45.034
-        # "%d%b%y %H:%M:%S",  # 17SEP24 10:41:45
-        # "%Y%m%d %H:%M:%S.%f",  # 20240917 10:41:45.034
-        # "%Y%m%d %H:%M:%S",  # 20240917 10:41:45
-    ]
-
-    def try_parsing(time_str):
-        for fmt in formats:
-            try:
-                return pd.to_datetime(time_str, format=fmt)
-            except:
-                continue
-        return pd.NaT
-
-    return cleaned_times.apply(try_parsing)
-
-
-def process_dataframe_files(files_df: pd.DataFrame, foo) -> pd.DataFrame:
-    """
-    Process CSV files from a DataFrame containing file paths
-
-    Args:
-        files_df (pd.DataFrame): DataFrame with 'file_path' and 'equipment_name' columns
-
-    Returns:
-        pd.DataFrame: Combined DataFrame from all processed files
-    """
-    all_dfs = []
-
-    for _, row in files_df.iterrows():
-        with open(row["file_path"], "rb") as f:
-            data = f.read()
-            df = foo(data, row["file_path"])
-
-        if not df.empty:
-            df["equipment_name"] = row["equipment_name"]
-            all_dfs.append(df)
-
-    return pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()

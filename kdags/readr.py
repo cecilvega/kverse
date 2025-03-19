@@ -14,11 +14,14 @@ from kdags.assets.maintenance.tribology.oil_analysis import (
 )
 
 from kdags.assets.maintenance.icc.pipeline import read_icc
+from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_history
+from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 
 # Operation
-from kdags.assets.operation.operation_files_index import read_op_file_idx
+from kdags.assets.operation.operation_files_idx import read_op_file_idx
 from kdags.assets.operation.plm.haul import read_haul
 from kdags.assets.operation.plm.alarms import read_alarms
+from kdags.assets.operation.ge.events.pipeline import read_events
 
 
 __all__ = ["Readr"]
@@ -44,6 +47,9 @@ class Readr:
         read_raw_oil_analysis: dg.AssetsDefinition = read_raw_oil_analysis
         read_oil_analysis: dg.AssetsDefinition = read_oil_analysis
 
+        read_work_order_history: dg.AssetsDefinition = read_work_order_history
+        read_pm_history: dg.AssetsDefinition = read_pm_history
+
         read_icc: dg.AssetsDefinition = read_icc
 
     @dataclass
@@ -51,8 +57,11 @@ class Readr:
         """Reader functions organized by domain"""
 
         read_op_file_index: dg.AssetsDefinition = read_op_file_idx
+
         read_haul: dg.AssetsDefinition = read_haul
         read_alarms: dg.AssetsDefinition = read_alarms
+
+        read_events: dg.AssetsDefinition = read_events
 
     @staticmethod
     def get_asset_by_path(defs: dg.Definitions, path: str) -> dg.AssetsDefinition:

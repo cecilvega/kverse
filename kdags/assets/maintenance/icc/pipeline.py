@@ -41,20 +41,20 @@ def cc_summary(read_raw_cc):
 
 
 @dg.asset
-def gather_icc_reports():
+def gather_icc_reports(context: dg.AssetExecutionContext):
     icc_files = [
         f
         for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "INFORMES_CAMBIO_DE_COMPONENTE").rglob("*")
         if ((f.is_file()) & (f.suffix == ".pdf"))
     ]
     data = []
-    for i in icc_files:
+    for file_path in icc_files:
         try:
-            i_data = extract_technical_report_data(i)
-            i_data = {**i_data, **parse_filename(i)}
+            i_data = extract_technical_report_data(file_path)
+            i_data = {**i_data, **parse_filename(file_path)}
             data.append(i_data)
         except Exception as e:
-            print(i)
+            context.log.error(file_path)
             raise e
     icc_df = pd.DataFrame(data)[
         [
@@ -139,7 +139,7 @@ def spawn_icc(reconciled_icc):
     # 1. Upload to SharePoint as Excel
     sharepoint_result = MSGraph().upload_tibble(
         site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/ICC/icc.xlsx",
+        filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/ICC/icc.xlsx",
         df=reconciled_icc,
         format="excel",
     )

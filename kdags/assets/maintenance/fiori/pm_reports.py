@@ -29,7 +29,7 @@ def transfer_sp_pm_reports(context):
 
     df = msgraph.read_tibble(
         site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/PAUTAS_MANTENIMIENTO/pm_history.xlsx",
+        filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MANTENIMIENTO/PAUTAS_MANTENIMIENTO/pm_history.xlsx",
         use_polars=False,
     )
     df = df.loc[df["site_name"] == "MEL"].reset_index(drop=True)

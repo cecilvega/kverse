@@ -77,7 +77,18 @@ plm_job = ScheduleDefinition(
         name="plm_job",
         selection=AssetSelection.assets("spawn_plm3_haul").upstream()
         | AssetSelection.assets("spawn_plm3_alarms").upstream(),
-        description="Muestras aceite SCAAE",
+        description="PLM Haulcycle y alarmas",
+    ),
+    cron_schedule="30 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
+)
+
+ge_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="ge_job",
+        selection=AssetSelection.assets("spawn_events").upstream(),
+        description="GE Eventos",
     ),
     cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",

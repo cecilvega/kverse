@@ -96,7 +96,7 @@ def spawn_pm_history(mutate_pm_history):
     )
     sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/PM_HISTORY/pm_history.xlsx",
+        filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/PM_HISTORY/pm_history.xlsx",
         df=df,
         format="excel",
     )

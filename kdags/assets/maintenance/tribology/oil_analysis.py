@@ -206,7 +206,7 @@ def spawn_oil_analysis(
     # Save to SharePoint locally as Excel
     sharepoint_result = MSGraph().upload_tibble(
         site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/OIL_ANALYSIS/oil_analysis.xlsx",
+        filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/OIL_ANALYSIS/oil_analysis.xlsx",
         df=df,
         format="excel",
     )

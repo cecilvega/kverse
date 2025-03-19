@@ -14,13 +14,13 @@ class MSGraph:
         self._client_id = "d50ca740-c83f-4d1b-b616-12c519384f0c"
         self._site_url_prefix = "https://globalkomatsu.sharepoint.com/sites/"
 
-    def delete_file(self, site_id: str, file_path: str) -> dict:
+    def delete_file(self, site_id: str, filepath: str) -> dict:
         """
         Deletes a file from SharePoint, bypassing any shared locks.
 
         Args:
             site_id (str): SharePoint site ID (e.g., "KCHCLSP00022")
-            file_path (str): Full path including filename within the site
+            filepath (str): Full path including filename within the site
 
         Returns:
             dict: Information about the deletion result
@@ -33,13 +33,13 @@ class MSGraph:
             site_id = f"{self._site_url_prefix}/{site_id}"
 
             site = self.client.sites.get_by_url(site_id)
-            drive_item = site.drive.root.get_by_path(file_path).get().execute_query()
+            drive_item = site.drive.root.get_by_path(filepath).get().execute_query()
             drive_item.before_execute(bypass_lock)
 
             drive_item.delete_object().execute_query()
-            return {"status": "success", "message": f"File '{file_path}' successfully deleted"}
+            return {"status": "success", "message": f"File '{filepath}' successfully deleted"}
         except Exception as e:
-            return {"status": "error", "message": f"Error deleting file: {file_path}"}
+            return {"status": "error", "message": f"Error deleting file: {filepath}"}
 
     def acquire_token_func(self):
         scopes = ["Files.ReadWrite.All"]
@@ -49,22 +49,22 @@ class MSGraph:
         refresh_token = os.environ["MSGRAPH_TOKEN"]
         return app.acquire_token_by_refresh_token(refresh_token, scopes)
 
-    def read_bytes(self, site_id, file_path):
+    def read_bytes(self, site_id, filepath):
         site_id = f"{self._site_url_prefix}/{site_id}"
         site = self.client.sites.get_by_url(site_id)
-        drive_item = site.drive.root.get_by_path(file_path).get().execute_query()
+        drive_item = site.drive.root.get_by_path(filepath).get().execute_query()
         content = drive_item.get_content().execute_query().value
         return content
 
     def upload_tibble(
-        self, site_id: str, file_path: str, df, format: str = "excel", sheet_name: str = "Sheet1", **kwargs
+        self, site_id: str, filepath: str, df, format: str = "excel", sheet_name: str = "Sheet1", **kwargs
     ) -> object:
         """
         Uploads a DataFrame to SharePoint in the specified format.
 
         Args:
             site_id (str): SharePoint site ID (e.g., "KCHCLSP00022")
-            file_path (str): Full path including filename within the site
+            filepath (str): Full path including filename within the site
             df: DataFrame to upload (pandas or polars)
             format (str): Output format ('excel', 'csv', 'parquet', 'json')
             sheet_name (str): Sheet name for Excel files (default: 'Sheet1')
@@ -75,8 +75,8 @@ class MSGraph:
         """
 
         # Extract folder path and filename from file_path
-        folder_path = os.path.dirname(file_path)
-        file_name = os.path.basename(file_path)
+        folder_path = os.path.dirname(filepath)
+        file_name = os.path.basename(filepath)
 
         # Convert polars DataFrame to pandas if needed
         if hasattr(df, "to_pandas"):
@@ -111,11 +111,11 @@ class MSGraph:
         site_url = f"{self._site_url_prefix}/{site_id}"
         site = self.client.sites.get_by_url(site_url)
 
-        self.delete_file(site_id, file_path)
+        self.delete_file(site_id, filepath)
         # Upload the file
         return site.drive.root.get_by_path(folder_path).upload(file_name, content).execute_query()
 
-    def read_tibble(self, site_id, file_path, use_polars=True, **kwargs) -> pd.DataFrame:
+    def read_tibble(self, site_id, filepath, use_polars=True, **kwargs) -> pd.DataFrame:
         """
         Read tabular data from downloaded content. Automatically detects file type if not specified.
 
@@ -133,10 +133,10 @@ class MSGraph:
         """
 
         # Get the file bytes
-        file_bytes = self.read_bytes(site_id, file_path)
+        file_bytes = self.read_bytes(site_id, filepath)
 
         # Determine file type from extension
-        file_ext = file_path.split(".")[-1].lower()
+        file_ext = filepath.split(".")[-1].lower()
 
         # Create BytesIO object
         buffer = BytesIO(file_bytes)
@@ -264,28 +264,6 @@ class MSGraph:
         except Exception as e:
             # Handle other errors (like folder doesn't exist, permission issues, etc.)
             return {"status": "error", "message": f"Error uploading file: {str(e)}"}
-
-    # def download_file(self, site_url: str, file_path: str) -> bytes:
-    #     """
-    #     Download a file from SharePoint and return its content as bytes.
-    #
-    #     Args:
-    #         site_url (str): The SharePoint site URL
-    #         file_path (str): The relative path to the file within the site
-    #
-    #     Returns:
-    #         bytes: The raw content of the file
-    #
-    #     Raises:
-    #         Exception: If there's an error downloading the file
-    #     """
-    #     try:
-    #         site = self.client.sites.get_by_url(site_url)
-    #         file = site.drive.root.get_by_path(file_path).get().execute_query()
-    #         content = file.get_content().execute_query().value
-    #         return content
-    #     except Exception as e:
-    #         raise Exception(f"Error downloading file {file_path}: {str(e)}")
 
     def _store_new_refresh_token(self):
 

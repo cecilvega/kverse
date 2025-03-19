@@ -161,5 +161,5 @@ def spawn_op_file_idx(list_op_file_idx):
 @dg.asset
 def read_op_file_idx():
     dl = DataLake()
-    df = dl.read_tibble("abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet")
+    df = dl.read_tibble("abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet").rename({"file_path": "filepath"})
     return df

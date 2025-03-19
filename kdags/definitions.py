@@ -12,6 +12,7 @@ from kdags.jobs import (
     pm_history_job,
     op_file_idx_job,
     plm_job,
+    ge_job,
 )
 from kdags.config.masterdata import MasterData
 
@@ -55,5 +56,6 @@ kdefs = dg.Definitions(
         oil_analysis_job,
         op_file_idx_job,
         plm_job,
+        ge_job,
     ],
 )
