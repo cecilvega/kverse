@@ -35,16 +35,16 @@ def read_raw_oil_analysis(
     )
     context.log.info(f"Found {len(files_df)} files in {uri}")
 
-    file_paths = files_df["uri"].to_list()
+    filepaths = files_df["uri"].to_list()
 
     # Read all selected files
     all_dfs = []
 
-    for file_path in file_paths:
+    for filepath in filepaths:
         # Get file metadata
-        file_name = os.path.basename(file_path)
-        date_str = file_name[:8] if len(file_name) >= 8 and file_name[:8].isdigit() else None
-        df = dl.read_tibble(uri=file_path, include_uri=True, use_polars=True, infer_schema_length=0)
+        filename = os.path.basename(filepath)
+        date_str = filename[:8] if len(filename) >= 8 and filename[:8].isdigit() else None
+        df = dl.read_tibble(uri=filepath, include_uri=True, use_polars=True, infer_schema_length=0)
 
         # Add metadata columns
         if date_str:

@@ -132,11 +132,12 @@ def extract_haul_from_paradox(table: Table) -> pl.DataFrame:
     )
     df = (
         # Rename columns and select only the renamed ones
-        df.rename({"Reserved2": "Tare_Sprung_Weight"}).drop(
+        df.drop(
             [
                 "Frame_SN",
                 "Seconds",
                 "Truck_Type",
+                "Reserved2",  # Tare_Sprung_Weight
                 "Reserved3",
                 "Reserved4",
                 "Reserved5",
@@ -155,7 +156,6 @@ def extract_haul_from_paradox(table: Table) -> pl.DataFrame:
                 col: (pl.col(col) / WEIGHT_FACTOR).round(2)
                 for col in [
                     "Total_Payload",
-                    "Tare_Sprung_Weight",
                     "Empty_Carry_Back_Load",
                     "Gross_Payload",
                     "Peak_Sprung_Load",

@@ -75,7 +75,7 @@ def apply_component_mapping(row):
 
 
 @dg.asset
-def read_raw_cc():
+def read_cc():
 
     msgraph = MSGraph()
 

@@ -63,7 +63,7 @@ attendances_job = ScheduleDefinition(
 
 op_file_idx_job = ScheduleDefinition(
     job=define_asset_job(
-        name="op_file_index_job",
+        name="op_file_idx_job",
         selection=AssetSelection.assets("spawn_op_file_idx").upstream(),
         tags={"source": "icc"},
     ),

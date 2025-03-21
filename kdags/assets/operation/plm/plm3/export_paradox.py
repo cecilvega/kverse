@@ -25,7 +25,7 @@ def get_alarms_path(df, partition_date):
 def export_plm3(context, read_op_file_idx: pl.DataFrame):
     data_list = (
         read_op_file_idx.filter(pl.col("data_type") == "PLM3")
-        .rename({"file_path": "zip_path"})
+        .rename({"filepath": "zip_path"})
         .select(["zip_path", "partition_date"])
         # .head(100)
         .to_dicts()

@@ -5,16 +5,16 @@ from pathlib import Path
 import dagster as dg
 import pandas as pd
 
-from kdags.assets.maintenance.icc.utils import extract_technical_report_data, parse_filename
+from kdags.assets.maintenance.component_changeouts.utils import extract_technical_report_data, parse_filename
 from kdags.config.masterdata import MasterData
 from kdags.resources.tidyr import DataLake, MSGraph
 import polars as pl
 
 
 @dg.asset
-def cc_summary(read_raw_cc):
+def cc_summary(read_cc):
     taxonomy_df = MasterData.taxonomy()
-    df = read_raw_cc.copy()
+    df = read_cc.copy()
     df = df.loc[df["changeout_date"] >= datetime(2024, 9, 26)]
     df = pd.merge(
         df,
@@ -45,7 +45,7 @@ def gather_icc_reports(context: dg.AssetExecutionContext):
     icc_files = [
         f
         for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "INFORMES_CAMBIO_DE_COMPONENTE").rglob("*")
-        if ((f.is_file()) & (f.suffix == ".pdf"))
+        if ((f.is_file()) & (f.suffix == ".pdf") & (f.stem.lower().startswith("icc")))
     ]
     data = []
     for file_path in icc_files:
@@ -66,7 +66,7 @@ def gather_icc_reports(context: dg.AssetExecutionContext):
             "icc_number",
             "component_code",
             "position_code",
-            "file_path",
+            "filepath",
         ]
     ]
     return icc_df

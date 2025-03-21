@@ -15,13 +15,13 @@ def list_op_file_idx():
     files = [f for f in Path(base_path).rglob("*")]
     df = [f for f in files if "." in str(f).split("/")[-1]]
     df = [f for f in df if ((str(f).lower().endswith(".csv")) | (str(f).lower().endswith(".zip")))]
-    df = pd.DataFrame({"file_path": [str(s) for s in df]})
-    df = df.assign(suffix=df["file_path"].map(lambda x: str(x).split(".")[-1]))
-    df = df.assign(equipment_name=lambda x: x["file_path"].map(lambda y: extract_equipment_name(y)))
+    df = pd.DataFrame({"filepath": [str(s) for s in df]})
+    df = df.assign(suffix=df["filepath"].map(lambda x: str(x).split(".")[-1]))
+    df = df.assign(equipment_name=lambda x: x["filepath"].map(lambda y: extract_equipment_name(y)))
     return df
 
 
-def extract_patterns(file_path):
+def extract_patterns(filepath):
     # Date patterns
     date_patterns = {
         r"\d{4}-\d{2}-\d{2}": "yyyy-mm-dd",
@@ -49,7 +49,7 @@ def extract_patterns(file_path):
     date_value = None
     date_pattern = "no_date_pattern"
     for pattern, format_name in date_patterns.items():
-        match = re.search(pattern, file_path.lower())
+        match = re.search(pattern, filepath.lower())
         if match:
             date_value = match.group(0)
             date_pattern = format_name
@@ -59,7 +59,7 @@ def extract_patterns(file_path):
     data_type = "unknown"
     data_source = "unknown"
     for pattern_name, info in data_patterns.items():
-        if re.search(info["pattern"], file_path, re.IGNORECASE):
+        if re.search(info["pattern"], filepath, re.IGNORECASE):
             data_type = pattern_name
             data_source = info["source"]
             break
@@ -81,7 +81,7 @@ def process_files_list(df):
 
     # Process each row
     for idx, row in df.iterrows():
-        patterns = extract_patterns(row["file_path"])
+        patterns = extract_patterns(row["filepath"])
         df.at[idx, "extracted_date"] = patterns["extracted_date"]
         df.at[idx, "date_pattern"] = patterns["date_pattern"]
         df.at[idx, "data_type"] = patterns["data_type"]
@@ -110,27 +110,6 @@ def convert_date_format(date_str, pattern):
         return None
 
 
-def create_structured_path(row):
-    # Extract filename from original path
-    filename = os.path.basename(row["file_path"])
-
-    # Format the date part
-    date_str = row["partition_date"].strftime("y=%Y/m=%m/d=%d")
-
-    # Build the new path
-    new_path = os.path.join(
-        "/home/cecilvega/Public",
-        str(row["data_source"]),
-        str(row["data_type"]),
-        str(row["equipment_name"]),
-        date_str,
-        filename.lower(),
-    )
-
-    # Normalize path separators
-    return new_path.replace("\\", "/")
-
-
 @dg.asset
 def spawn_op_file_idx(list_op_file_idx):
     df = list_op_file_idx.copy()
@@ -141,7 +120,7 @@ def spawn_op_file_idx(list_op_file_idx):
 
     # Process each row
     for idx, row in df.iterrows():
-        patterns = extract_patterns(row["file_path"])
+        patterns = extract_patterns(row["filepath"])
         df.at[idx, "extracted_date"] = patterns["extracted_date"]
         df.at[idx, "date_pattern"] = patterns["date_pattern"]
         df.at[idx, "data_type"] = patterns["data_type"]
@@ -150,7 +129,7 @@ def spawn_op_file_idx(list_op_file_idx):
     df["partition_date"] = df.apply(lambda x: convert_date_format(x["extracted_date"], x["date_pattern"]), axis=1)
 
     DataLake().upload_tibble(
-        uri="abfs://bhp-analytics-data/OPERATION/op_file_index.parquet",
+        uri="abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet",
         df=df,
         format="parquet",
     )
@@ -161,5 +140,5 @@ def spawn_op_file_idx(list_op_file_idx):
 @dg.asset
 def read_op_file_idx():
     dl = DataLake()
-    df = dl.read_tibble("abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet").rename({"file_path": "filepath"})
+    df = dl.read_tibble("abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet")
     return df

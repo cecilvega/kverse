@@ -4,6 +4,36 @@ from datetime import datetime
 import pandas as pd
 
 
+def parse_horometer_value(value_str):
+    """
+    Parse horometer values with mixed decimal/thousands separators.
+    Examples: "65.416,8 HRS", "1,234.56 hrs", "100,000 h"
+
+    Returns float value or -1.0 if parsing fails.
+    """
+    try:
+        # Remove unit text and whitespace
+        clean_str = value_str.split(" ")[0].lower().replace("hrs", "").replace("h", "").strip()
+
+        # If there's no comma or period, just parse directly
+        if "," not in clean_str and "." not in clean_str:
+            return float(clean_str)
+
+        # Check if comma is used as decimal separator (e.g., "65.416,8")
+        if "," in clean_str:
+            parts = clean_str.split(",")
+            if len(parts) == 2 and len(parts[1]) <= 2:
+                # Comma is decimal separator - remove thousands separators (periods)
+                whole_part = parts[0].replace(".", "")
+                return float(whole_part + "." + parts[1])
+
+        # Otherwise assume period is decimal separator and remove thousands separators (commas)
+        return float(clean_str.replace(",", ""))
+
+    except (ValueError, IndexError, AttributeError):
+        return -1.0
+
+
 def extract_technical_report_data(pdf_path):
     """
     Extract key information from a Komatsu technical report PDF.
@@ -48,26 +78,18 @@ def extract_technical_report_data(pdf_path):
                     results["datos_equipo"]["serie"] = line.split("Serie:")[1].strip()
 
                 elif "Horómetro de equipo:" in line:
-                    results["datos_equipo"]["horometro"] = line.split(
-                        "Horómetro de equipo:"
-                    )[1].strip()
+                    results["datos_equipo"]["horometro"] = line.split("Horómetro de equipo:")[1].strip()
 
                 # Extract general data
                 elif "Fecha del reporte:" in line:
-                    results["datos_generales"]["report_date"] = line.split(
-                        "Fecha del reporte:"
-                    )[1].strip()
+                    results["datos_generales"]["report_date"] = line.split("Fecha del reporte:")[1].strip()
 
                 elif "Fecha de la falla:" in line:
-                    results["datos_generales"]["failure_date"] = line.split(
-                        "Fecha de la falla:"
-                    )[1].strip()
+                    results["datos_generales"]["failure_date"] = line.split("Fecha de la falla:")[1].strip()
 
         # Extract case description - find it anywhere in the document
         if "4. Descripción del caso" in all_pages_text:
-            start_idx = all_pages_text.find("4. Descripción del caso") + len(
-                "4. Descripción del caso"
-            )
+            start_idx = all_pages_text.find("4. Descripción del caso") + len("4. Descripción del caso")
             end_idx = all_pages_text.find("5. Causas de falla")
             if start_idx > 0 and end_idx > start_idx:
                 description = all_pages_text[start_idx:end_idx].strip()
@@ -75,9 +97,7 @@ def extract_technical_report_data(pdf_path):
 
         # Extract failure causes - find it anywhere in the document
         if "5. Causas de falla" in all_pages_text:
-            start_idx = all_pages_text.find("5. Causas de falla") + len(
-                "5. Causas de falla"
-            )
+            start_idx = all_pages_text.find("5. Causas de falla") + len("5. Causas de falla")
             end_idx = all_pages_text.find("6. Detallar como se solucionó la falla")
             if start_idx > 0 and end_idx > start_idx:
                 causes = all_pages_text[start_idx:end_idx].strip()
@@ -87,8 +107,7 @@ def extract_technical_report_data(pdf_path):
     data = {
         # Format equipment name: extract 3 digits and append TK prefix
         "equipment_name": (
-            "TK"
-            + re.search(r"(\d{3})", results["datos_equipo"].get("camion", "")).group(1)
+            "TK" + re.search(r"(\d{3})", results["datos_equipo"].get("camion", "")).group(1)
             if re.search(r"(\d{3})", results["datos_equipo"].get("camion", ""))
             else None
         ),
@@ -98,15 +117,7 @@ def extract_technical_report_data(pdf_path):
         "equipment_serial": results["datos_equipo"].get("serie", "").strip(),
         # Process horometro: remove dots and "HRS" and convert to integer
         # "horometro": results["datos_equipo"].get("horometro", "").strip(),
-        "equipment_hours": int(
-            results["datos_equipo"]
-            .get("horometro", "-1")
-            .split(" ")[0]
-            .replace(".", "")
-            .replace("hrs", "")
-            .replace("h", "")
-            .strip()
-        ),
+        "equipment_hours": parse_horometer_value(results["datos_equipo"].get("horometro", "-1")),
         # Format dates in dd-mm-yyyy format
         "report_date": format_date(results["datos_generales"].get("report_date", "")),
         "failure_date": format_date(results["datos_generales"].get("failure_date", "")),
@@ -137,26 +148,24 @@ def format_date(date_str):
             continue
 
     # If we get here, none of the formats matched
-    raise ValueError(
-        f"Could not parse date '{date_str}' - expected format dd-mm-yyyy or dd-mm-yy"
-    )
+    raise ValueError(f"Could not parse date '{date_str}' - expected format dd-mm-yyyy or dd-mm-yy")
 
 
-def parse_filename(file_path):
+def parse_filename(filepath):
     """
     Parse filename to extract equipment number, ICC number, component code, and date.
 
     Args:
-        file_path: Path object of the file
+        filepath: Path object of the file
 
     Returns:
         Dict with extracted information
     """
-    filename = file_path.stem  # Get filename without extension
+    filename = filepath.stem  # Get filename without extension
 
     # Initialize extraction results
     result = {
-        "file_path": str(file_path),
+        "filepath": str(filepath),
         "filename": filename,
         "equipment_name": None,
         "icc_number": None,
