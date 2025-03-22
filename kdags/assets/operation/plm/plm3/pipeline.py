@@ -7,46 +7,64 @@ import polars as pl
 
 from kdags.resources.tidyr import DataLake, MSGraph
 
-column_mapping = {
-    "Cust_Unit": "equipment_name",  # Truck #
-    "PDate": "record_date",  # Date
-    "PTime": "record_dt",  # Time
-    "Total_Payload": "payload_net",  # Payload (Net)
-    "Swingload_Num": "swingloads",  # Swingloads
-    # "": "Operator ID",  # Operator ID
-    # "": "Status",  # Status
-    # "": "Flags",  # Flags
-    "Empty_Carry_Back_Load": "carry_back",  # Carry Back
-    "Total_Cycle_Time": "total_cycle_time",  # Total Cycle Time
-    "Empty_Haul_Time": "empty_run_time",  # E-Run Time
-    "Empty_Stop_Time": "empty_stop_time",  # E-Stop Time
-    "Loading_Time": "loading_time",  # Loading Time
-    "Loaded_Haul_Time": "loaded_haul_time",  # L-Run Time
-    "Loaded_Stop_Time": "loaded_stop_time",  # L-Stop Time
-    "Dumping_Time": "dumping_time",  # Dumping Time
-    "Loaded_Start_Time": "loaded_start_time",  # Loading Start Time
-    "Time_Body_Lift_Off": "Dumping Start Time",  # Dumping Start Time
-    "Loaded_Haul_Distance": "loaded_haul_distance",  # L-Haul Distance
-    "Empty_Haul_Distance": "empty_haul_distance",  # E-Haul Distance
-    "Loaded_Max_Speed": "loaded_max_speed",  # L-Max Speed
-    "Time_Loaded_Max_Speed": "loaded_max_speed_time",  # L-Max Speed Time
-    "Empty_Max_Speed": "empty_max_speed",  # E-Max Speed
-    "Time_Empty_Max_Speed": "empty_max_speed_time",  # E-Max Speed Time
-    "TimePeakPosFrameTorque": "peak_positive_torque_time",  # Max +T Time
-    "Peak_Pos_Frame_Torque": "peak_positive_torque",  # Max +T
-    "TimePeakNegFrameTorque": "peak_negative_torque_time",  # Max -T Time
-    "Peak_Neg_Frame_Torque": "peak_negative_torque",  # Max -T
-    "Peak_Sprung_Load": "peak_sprung_load",  # Max Sprung
-    "Time_Peak_Sprung_Load": "peak_sprung_load_time",  # Max Sprung Time
-    "Lft_Front_Tire_Ton_mph": "left_front_tire_tkph",  # LF TKPH
-    "Rt_Front_Tire_Ton_mph": "right_front_tire_tkph",  # RF TKPH
-    "Rear_Tire_Ton_mph": "rear_tire_tkph",  # R TKPH
-    "Gross_Payload": "gross_payload",  # Gross Payload
-}
-
 
 @dg.asset
 def mutate_plm3_haul(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    column_mapping = {
+        "Cust_Unit": "equipment_name",  # Truck #
+        "PDate": "record_date",  # Date
+        "PTime": "record_dt",  # Time
+        "Total_Payload": "payload_net",  # Payload (Net)
+        "Swingload_Num": "swingloads",  # Swingloads
+        # "": "Operator ID",  # Operator ID
+        # "": "Status",  # Status
+        # "": "Flags",  # Flags
+        "Empty_Carry_Back_Load": "carry_back",  # Carry Back
+        "Total_Cycle_Time": "total_cycle_time",  # Total Cycle Time
+        "Empty_Haul_Time": "empty_run_time",  # E-Run Time
+        "Empty_Stop_Time": "empty_stop_time",  # E-Stop Time
+        "Loading_Time": "loading_time",  # Loading Time
+        "Loaded_Haul_Time": "loaded_haul_time",  # L-Run Time
+        "Loaded_Stop_Time": "loaded_stop_time",  # L-Stop Time
+        "Dumping_Time": "dumping_time",  # Dumping Time
+        "Loaded_Start_Time": "loaded_start_time",  # Loading Start Time
+        "Time_Body_Lift_Off": "dumping_start_time",  # Dumping Start Time
+        "Loaded_Haul_Distance": "loaded_haul_distance",  # L-Haul Distance
+        "Empty_Haul_Distance": "empty_haul_distance",  # E-Haul Distance
+        "Loaded_Max_Speed": "loaded_max_speed",  # L-Max Speed
+        "Time_Loaded_Max_Speed": "loaded_max_speed_time",  # L-Max Speed Time
+        "Empty_Max_Speed": "empty_max_speed",  # E-Max Speed
+        "Time_Empty_Max_Speed": "empty_max_speed_time",  # E-Max Speed Time
+        "TimePeakPosFrameTorque": "peak_positive_torque_time",  # Max +T Time
+        "Peak_Pos_Frame_Torque": "peak_positive_torque",  # Max +T
+        "TimePeakNegFrameTorque": "peak_negative_torque_time",  # Max -T Time
+        "Peak_Neg_Frame_Torque": "peak_negative_torque",  # Max -T
+        "Peak_Sprung_Load": "peak_sprung_load",  # Max Sprung
+        "Time_Peak_Sprung_Load": "peak_sprung_load_time",  # Max Sprung Time
+        "Lft_Front_Tire_Ton_mph": "left_front_tire_tkph",  # LF TKPH
+        "Rt_Front_Tire_Ton_mph": "right_front_tire_tkph",  # RF TKPH
+        "Rear_Tire_Ton_mph": "rear_tire_tkph",  # R TKPH
+        "Gross_Payload": "gross_payload",  # Gross Payload
+    }
+
+    distance_columns = [
+        "loaded_haul_distance",
+        "empty_haul_distance",
+        "loaded_max_speed",
+        "empty_max_speed",
+        "left_front_tire_tkph",
+        "right_front_tire_tkph",
+        "rear_tire_tkph",
+    ]
+    time_columns = [
+        "loaded_start_time",
+        "dumping_start_time",
+        "loaded_max_speed_time",
+        "empty_max_speed_time",
+        "peak_positive_torque_time",
+        "peak_negative_torque_time",
+        "peak_sprung_load_time",
+    ]
     filepaths = [
         f
         for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/bhp-raw-data/PLM3/HAUL").rglob("*")
@@ -67,7 +85,8 @@ def mutate_plm3_haul(context: dg.AssetExecutionContext) -> pl.DataFrame:
         .with_columns(PTime=pl.col("PDate").dt.combine(pl.col("PTime")))
         .rename(column_mapping)
         .select(list(column_mapping.values()))
-        .rename(lambda col_name: col_name.lower())
+        .with_columns([pl.from_epoch(pl.col(c), time_unit="s").dt.time().alias(c) for c in time_columns])
+        .with_columns([(pl.col(c) * 1.609344).round(2).alias(c) for c in distance_columns])
         .filter(pl.col("record_dt") >= datetime(2020, 10, 1))
         .sort(["equipment_name", "record_dt"])
     )
