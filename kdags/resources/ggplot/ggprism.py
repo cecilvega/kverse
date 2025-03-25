@@ -207,7 +207,7 @@ class GGPrism:
         color: str = None,
         stacked: bool = False,
         width: float = 0.85,
-        **kwargs
+        **kwargs,
     ) -> plt.Axes:
         """
         Create a bar plot with ggprism styling
@@ -251,7 +251,7 @@ class GGPrism:
                     edgecolor="white",
                     linewidth=0.8,
                     label=col,
-                    **kwargs
+                    **kwargs,
                 )
 
                 bottom += data[col].values
@@ -273,7 +273,7 @@ class GGPrism:
                     edgecolor="white",
                     linewidth=0.8,
                     label=col,
-                    **kwargs
+                    **kwargs,
                 )
 
             ax.set_xticks(x_pos)
@@ -292,7 +292,7 @@ class GGPrism:
         marker: str = "o",
         markersize: float = 5,
         linewidth: float = 1.5,
-        **kwargs
+        **kwargs,
     ) -> plt.Axes:
         """
         Create a line plot with ggprism styling
@@ -332,7 +332,7 @@ class GGPrism:
                     markersize=markersize,
                     linewidth=linewidth,
                     label=col,
-                    **kwargs
+                    **kwargs,
                 )
 
             self.style_legend(ax)
@@ -407,3 +407,220 @@ class GGPrism:
             bbox_inches (str): Bounding box setting
         """
         fig.savefig(filename, dpi=dpi, bbox_inches=bbox_inches, facecolor=fig.get_facecolor())
+
+    def time_series_plot(
+        self,
+        ax: plt.Axes,
+        data: pd.DataFrame,
+        date_column: str = "sample_dt",
+        value_columns: Union[str, List[str]] = "parameter_value",
+        precaution_limit: Optional[float] = None,
+        critical_limit: Optional[float] = None,
+        marker: str = "o",
+        markersize: float = 5,
+        linewidth: float = 1.5,
+        ylim: Optional[Tuple[float, float]] = None,
+        date_format: Optional[str] = "%Y-%m-%d",
+        xtick_interval: Optional[int] = None,
+        label_top_n: int = 3,
+        label_fontsize: int = 9,
+        label_position: str = "top",
+        **kwargs,
+    ) -> plt.Axes:
+        """
+        Create a time series plot with the GGPrism styling and optional warning limits.
+
+        Parameters:
+            ax (plt.Axes): Matplotlib axis object
+            data (pd.DataFrame): Data to plot
+            date_column (str): Column name for dates/time
+            value_columns (str or list): Column name(s) for values to plot
+            precaution_limit (float, optional): Value for precaution limit line
+            critical_limit (float, optional): Value for critical limit line
+            marker (str): Marker style
+            markersize (float): Marker size
+            linewidth (float): Line width
+            ylim (tuple, optional): Y-axis limits as (ymin, ymax)
+            date_format (str, optional): Format string for date labels
+            xtick_interval (int, optional): Show every Nth x-tick label (None shows all)
+            label_top_n (int): Number of top values to label with text annotations
+            label_fontsize (int): Font size for data point labels
+            label_position (str): Position for labels ('top', 'right', 'left', 'bottom')
+            **kwargs: Additional arguments for plt.plot
+
+        Returns:
+            plt.Axes: The modified axis object
+        """
+        # Apply theme first
+        self.apply_theme(ax)
+
+        # Ensure the date column is properly formatted as datetime
+        date_data = pd.to_datetime(data[date_column])
+
+        # Define label offset based on position
+        offsets = {"top": (0, 5), "right": (5, 0), "left": (-5, 0), "bottom": (0, -5)}
+        va = "bottom" if label_position == "top" else "top" if label_position == "bottom" else "center"
+        ha = "left" if label_position == "right" else "right" if label_position == "left" else "center"
+
+        offset = offsets.get(label_position, (0, 5))  # Default to top if invalid
+
+        # Handle single y column
+        if isinstance(value_columns, str):
+            # Single column line plot
+            color = kwargs.pop("color", self.COLORS[0])
+            label = kwargs.pop("label", value_columns)
+
+            ax.plot(
+                date_data,
+                data[value_columns],
+                color=color,
+                marker=marker,
+                markersize=markersize,
+                linewidth=linewidth,
+                label=label,
+                **kwargs,
+            )
+
+            # Find top N values to label
+            if label_top_n > 0:
+                # Create a copy of the data for finding points to label
+                label_data = data.copy()
+                label_data["date"] = date_data
+
+                # Calculate z-scores to identify outliers and high values
+                # This helps identify both the highest values and significant outliers
+                label_data["z_score"] = (label_data[value_columns] - label_data[value_columns].mean()) / label_data[
+                    value_columns
+                ].std()
+
+                # Sort by absolute z-score (captures both high and low outliers)
+                label_data = label_data.sort_values(by="z_score", ascending=False)
+
+                # Get top N rows to label
+                top_points = label_data.head(label_top_n)
+
+                # Add labels for these points
+                for _, point in top_points.iterrows():
+                    ax.annotate(
+                        f"{point[value_columns]:.1f}",
+                        xy=(point["date"], point[value_columns]),
+                        xytext=offset,
+                        textcoords="offset points",
+                        fontsize=label_fontsize,
+                        color=self.FIXED_COLORS["axis_color"],
+                        fontweight="bold",
+                        va=va,
+                        ha=ha,
+                    )
+        else:
+            # Multiple line plot for several columns
+            for i, col in enumerate(value_columns):
+                color = kwargs.pop("color", None) or self.COLORS[i % len(self.COLORS)]
+                label = kwargs.pop("label", col)
+
+                ax.plot(
+                    date_data,
+                    data[col],
+                    color=color,
+                    marker=marker,
+                    markersize=markersize,
+                    linewidth=linewidth,
+                    label=label,
+                    **kwargs,
+                )
+
+                # Find top N values to label for each column
+                if label_top_n > 0:
+                    # Create a copy of the data for this column
+                    label_data = data.copy()
+                    label_data["date"] = date_data
+
+                    # Calculate z-scores to identify outliers and high values
+                    label_data["z_score"] = (label_data[col] - label_data[col].mean()) / label_data[col].std()
+
+                    # Sort by absolute z-score (captures both high and low outliers)
+                    label_data = label_data.sort_values(by="z_score", ascending=False)
+
+                    # Get top N rows to label (with some minimum spacing to avoid overlaps)
+                    top_points = label_data.head(min(label_top_n * 0.5, len(label_data)))
+                    # Apply a minimum date spacing filter (skip points too close to each other)
+                    labeled_points = []
+                    min_date_diff = pd.Timedelta(days=len(date_data) // (label_top_n * 3 + 1))  # Adaptive spacing
+
+                    for _, point in top_points.iterrows():
+                        if not labeled_points or all(
+                            abs(point["date"] - lp["date"]) > min_date_diff for lp in labeled_points
+                        ):
+                            if len(labeled_points) < label_top_n:
+                                labeled_points.append(point)
+
+                    # Add labels for these points
+                    for point in labeled_points:
+                        ax.annotate(
+                            f"{point[col]:.1f}",
+                            xy=(point["date"], point[col]),
+                            xytext=offset,
+                            textcoords="offset points",
+                            fontsize=label_fontsize,
+                            color=color,
+                            fontweight="bold",
+                            va=va,
+                            ha=ha,
+                        )
+
+        # Add precaution limit if provided
+        if precaution_limit is not None:
+            ax.axhline(
+                y=precaution_limit,
+                color="#FFA500",  # Orange
+                linestyle="--",
+                linewidth=1.5,
+                label="Precaution Limit",
+            )
+
+        # Add critical limit if provided
+        if critical_limit is not None:
+            ax.axhline(
+                y=critical_limit,
+                color="#C000C0",  # Magenta to match ggprism palette
+                linestyle="--",
+                linewidth=1.5,
+                label="Critical Limit",
+            )
+
+        # Set y-axis limits if provided
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+        # Format x-axis for dates
+        import matplotlib.dates as mdates
+
+        # Set up date formatter
+        if date_format:
+            date_formatter = mdates.DateFormatter(date_format)
+            ax.xaxis.set_major_formatter(date_formatter)
+
+        # Handle x-axis tick intervals
+        if xtick_interval is not None and xtick_interval > 1:
+            # Get all tick positions
+            locs = ax.xaxis.get_major_locator().tick_values(date_data.min(), date_data.max())
+
+            # Keep only every Nth tick
+            ax.xaxis.set_major_locator(mdates.FixedLocator(locs[::xtick_interval]))
+        else:
+            # Auto-determine appropriate date locator based on data range
+            date_range = (date_data.max() - date_data.min()).days
+
+            if date_range <= 10:
+                ax.xaxis.set_major_locator(mdates.DayLocator())
+            elif date_range <= 60:
+                ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO))
+            elif date_range <= 365:
+                ax.xaxis.set_major_locator(mdates.MonthLocator())
+            else:
+                ax.xaxis.set_major_locator(mdates.YearLocator())
+
+        fig = ax.figure
+        fig.autofmt_xdate()
+
+        return ax
