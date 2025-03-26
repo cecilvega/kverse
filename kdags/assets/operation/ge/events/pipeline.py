@@ -1,10 +1,11 @@
-import polars as pl
-import dagster as dg
-from pathlib import Path
-from io import StringIO
-from .reader import read_csv_events
-from kdags.resources.tidyr import DataLake, MSGraph
 import os
+from pathlib import Path
+
+import dagster as dg
+import polars as pl
+
+from kdags.resources.tidyr import DataLake, MSGraph
+from .reader import read_csv_events
 
 
 @dg.asset

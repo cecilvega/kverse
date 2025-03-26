@@ -5,9 +5,8 @@ from pathlib import Path
 import dagster as dg
 import pandas as pd
 
-from kdags.assets.maintenance.component_changeouts.utils import extract_technical_report_data, parse_filename
-from kdags.config.masterdata import MasterData
-from kdags.resources.tidyr import DataLake, MSGraph
+from kdags.assets.reliability.icc.utils import extract_technical_report_data, parse_filename
+from kdags.resources.tidyr import DataLake, MSGraph, MasterData
 import polars as pl
 
 
@@ -163,7 +162,8 @@ def spawn_icc(reconciled_icc):
 @dg.asset
 def read_icc():
     dl = DataLake()
-    uri = "abfs://bhp-analytics-data/MAINTENANCE/ICC/icc.parquet"
+
+    uri = "abfs://bhp-analytics-data/RELIABILITY/ICC/icc.parquet"
     if dl.uri_exists(uri):
         return dl.read_tibble(uri=uri)
     else:

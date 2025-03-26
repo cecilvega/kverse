@@ -3,7 +3,7 @@ from pathlib import Path
 import dagster as dg
 from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMapping
 
-from kdags.assets import maintenance, reparation, operation
+from kdags.assets import maintenance, reparation, operation, planning, reliability
 from kdags.jobs import (
     attendances_job,
     oil_analysis_job,
@@ -14,16 +14,15 @@ from kdags.jobs import (
     plm_job,
     ge_job,
 )
-from kdags.config.masterdata import MasterData
 
-
-__all__ = ["kdefs", "MasterData"]
+__all__ = ["kdefs"]
 
 # warnings.filterwarnings("ignore", category=ExperimentalWarning)
 
 operation_assets = dg.load_assets_from_package_module(operation, group_name="operation")
 maintenance_assets = dg.load_assets_from_package_module(maintenance, group_name="maintenance")
-# planification_assets = dg.load_assets_from_package_module(planification, group_name="planification")
+planning_assets = dg.load_assets_from_package_module(planning, group_name="planning")
+reliability_assets = dg.load_assets_from_package_module(reliability, group_name="reliability")
 reparation_assets = dg.load_assets_from_package_module(reparation, group_name="reparation")
 
 
@@ -32,7 +31,8 @@ all_assets = dg.with_source_code_references(
         *reparation_assets,
         *operation_assets,
         *maintenance_assets,
-        # *planification_assets,
+        *planning_assets,
+        *reliability_assets,
     ]
 )
 

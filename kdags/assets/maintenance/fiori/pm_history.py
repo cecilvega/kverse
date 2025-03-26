@@ -1,7 +1,6 @@
 import dagster as dg
 import pandas as pd
-from kdags.resources.tidyr import DataLake, MSGraph
-from kdags.config import MasterData
+from kdags.resources.tidyr import DataLake, MSGraph, MasterData
 
 
 @dg.asset

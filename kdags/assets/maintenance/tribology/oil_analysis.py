@@ -5,7 +5,6 @@ import polars as pl
 
 from kdags.resources.dplyr import upsert_tibbles
 from kdags.resources.tidyr import DataLake, MSGraph
-from pathlib import Path
 
 
 class ReadRawOilAnalysisConfig(dg.Config):

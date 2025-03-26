@@ -13,7 +13,7 @@ class MasterData:
     """
 
     # Class variable to store the config directory path
-    CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
+    CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parents[2] / "config"
 
     @classmethod
     def components(cls) -> pd.DataFrame:
