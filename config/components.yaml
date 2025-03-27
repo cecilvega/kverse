@@ -27,7 +27,7 @@
   position_name:
     - "derecho"
     - "izquierdo"
-- component_name: "blower"
+- component_name: "blower_parrilla"
   component_code: "BP"
   position_name:
     - "derecho"

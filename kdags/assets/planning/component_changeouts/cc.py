@@ -20,11 +20,11 @@ compatibility_mapping = {
         "modulo_potencia",
         "alternador_principal",
     ),
-    ("blower_parrilla", "blower_parrilla"): ("blower", None),
-    ("blower", "blower"): ("blower", None),
-    ("cilindro_direccion", "cilindro_direccion"): ("cilindro_direccion", None),
-    ("cilindro_levante", "cilindro_levante"): ("cilindro_levante", None),
-    ("suspension_trasera", "suspension_trasera"): ("suspension_trasera", None),
+    ("blower_parrilla", "blower_parrilla"): ("blower_parrilla", "blower_parrilla"),
+    ("blower", "blower"): ("blower_parrilla", "blower_parrilla"),
+    ("cilindro_direccion", "cilindro_direccion"): ("cilindro_direccion", "cilindro_direccion"),
+    ("cilindro_levante", "cilindro_levante"): ("cilindro_levante", "cilindro_levante"),
+    ("suspension_trasera", "suspension_trasera"): ("suspension_trasera", "suspension_trasera"),
     ("cms", "suspension"): ("conjunto_masa_suspension", "suspension_delantera"),
     ("cms", "suspension_delantera"): (
         "conjunto_masa_suspension",
@@ -68,13 +68,31 @@ def clean_string(s):
     return s
 
 
-def apply_component_mapping(row_dict):
-    key = (row_dict["COMPONENTE"], row_dict["SUB COMPONENTE"])
+# def apply_component_mapping(row_dict):
+#     key = (row_dict["COMPONENTE"], row_dict["SUB COMPONENTE"])
+#     if key in compatibility_mapping:
+#         return {"component_name": compatibility_mapping[key][0], "subcomponent_name": compatibility_mapping[key][1]}
+#     else:
+#         # If no mapping found, keep original values
+#         return {"component_name": row_dict["COMPONENTE"], "subcomponent_name": row_dict["SUB COMPONENTE"]}
+# import polars as pl
+
+import polars as pl
+
+
+# Create a user-defined function to perform the mapping
+def get_component_name(comp, subcomp):
+    key = (comp, subcomp)
     if key in compatibility_mapping:
-        return {"component_name": compatibility_mapping[key][0], "subcomponent_name": compatibility_mapping[key][1]}
-    else:
-        # If no mapping found, keep original values
-        return {"component_name": row_dict["COMPONENTE"], "subcomponent_name": row_dict["SUB COMPONENTE"]}
+        return compatibility_mapping[key][0]
+    return comp
+
+
+def get_subcomponent_name(comp, subcomp):
+    key = (comp, subcomp)
+    if key in compatibility_mapping:
+        return compatibility_mapping[key][1]
+    return subcomp
 
 
 @dg.asset
@@ -119,20 +137,15 @@ def read_cc():
     for col in clean_columns:
         df = df.with_columns(pl.col(col).map_elements(clean_string).alias(col))
 
-    # Convert the mapping dictionary to a DataFrame
-    mapping_data = [(k[0], k[1], v[0], v[1]) for k, v in compatibility_mapping.items()]
-    mapping_df = pl.DataFrame(
-        mapping_data, schema=["COMPONENTE", "SUB COMPONENTE", "component_name", "subcomponent_name"]
-    )
-
-    # Join with the mapping DataFrame
-    df = df.join(mapping_df, on=["COMPONENTE", "SUB COMPONENTE"], how="left")
-
-    # Fill missing values with original values
+    # Apply the mapping
     df = df.with_columns(
         [
-            pl.col("component_name").fill_null(pl.col("COMPONENTE")),
-            pl.col("subcomponent_name").fill_null(pl.col("SUB COMPONENTE")),
+            pl.col("COMPONENTE")
+            .map_elements(lambda c: get_component_name(c, df.select("SUB COMPONENTE").row(0)[0]))
+            .alias("component_name"),
+            pl.col("SUB COMPONENTE")
+            .map_elements(lambda sc: get_subcomponent_name(df.select("COMPONENTE").row(0)[0], sc))
+            .alias("subcomponent_name"),
         ]
     )
 
@@ -175,6 +188,7 @@ def read_cc():
             .fill_null("-1")
             .cast(pl.Int64, strict=False),
             pl.col("equipment_hours").cast(pl.Float64, strict=False).alias("equipment_hours"),
+            pl.col("changeout_date").str.to_date("%Y-%m-%d %H:%M:%S", strict=False).alias("changeout_date"),
         ]
     )
 

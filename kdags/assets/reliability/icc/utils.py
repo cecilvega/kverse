@@ -175,12 +175,18 @@ def parse_filename(filepath):
         "changeout_date": None,
     }
 
-    # Try to extract date (assuming format YYYY-MM-DD)
-    date_match = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
-    if date_match:
-        result["changeout_date"] = datetime.strptime(date_match.group(1), "%Y-%m-%d")
+    # Try to extract date (testing both YYYY-MM-DD and DD-MM-YYYY formats)
+    date_match_yyyy_first = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
+    date_match_dd_first = re.search(r"(\d{2}-\d{2}-\d{4})", filename)
+
+    if date_match_yyyy_first:
+        result["changeout_date"] = datetime.strptime(date_match_yyyy_first.group(1), "%Y-%m-%d")
         # Remove date from filename for other pattern matching
-        filename_without_date = filename.replace(date_match.group(1), "").strip()
+        filename_without_date = filename.replace(date_match_yyyy_first.group(1), "").strip()
+    elif date_match_dd_first:
+        result["changeout_date"] = datetime.strptime(date_match_dd_first.group(1), "%d-%m-%Y")
+        # Remove date from filename for other pattern matching
+        filename_without_date = filename.replace(date_match_dd_first.group(1), "").strip()
     else:
         filename_without_date = filename
 
