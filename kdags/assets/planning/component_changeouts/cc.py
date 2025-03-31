@@ -77,23 +77,6 @@ def clean_string(s):
 #         return {"component_name": row_dict["COMPONENTE"], "subcomponent_name": row_dict["SUB COMPONENTE"]}
 # import polars as pl
 
-import polars as pl
-
-
-# Create a user-defined function to perform the mapping
-def get_component_name(comp, subcomp):
-    key = (comp, subcomp)
-    if key in compatibility_mapping:
-        return compatibility_mapping[key][0]
-    return comp
-
-
-def get_subcomponent_name(comp, subcomp):
-    key = (comp, subcomp)
-    if key in compatibility_mapping:
-        return compatibility_mapping[key][1]
-    return subcomp
-
 
 @dg.asset
 def read_cc():
@@ -137,17 +120,21 @@ def read_cc():
     for col in clean_columns:
         df = df.with_columns(pl.col(col).map_elements(clean_string).alias(col))
 
-    # Apply the mapping
-    df = df.with_columns(
-        [
-            pl.col("COMPONENTE")
-            .map_elements(lambda c: get_component_name(c, df.select("SUB COMPONENTE").row(0)[0]))
-            .alias("component_name"),
-            pl.col("SUB COMPONENTE")
-            .map_elements(lambda sc: get_subcomponent_name(df.select("COMPONENTE").row(0)[0], sc))
-            .alias("subcomponent_name"),
-        ]
-    )
+    # For each key-value pair in the mapping, create a conditional replacement
+    for (comp, sub_comp), (new_comp, new_sub_comp) in compatibility_mapping.items():
+        # Create conditions for matching both columns
+        condition = (pl.col("COMPONENTE") == comp) & (pl.col("SUB COMPONENTE") == sub_comp)
+
+        # Apply replacements when condition is met
+        df = df.with_columns(
+            [
+                pl.when(condition).then(pl.lit(new_comp)).otherwise(pl.col("COMPONENTE")).alias("component_name"),
+                pl.when(condition)
+                .then(pl.lit(new_sub_comp))
+                .otherwise(pl.col("SUB COMPONENTE"))
+                .alias("subcomponent_name"),
+            ]
+        )
 
     # Drop columns
     df = df.drop("COMPONENTE", "SUB COMPONENTE")
@@ -194,11 +181,11 @@ def read_cc():
 
     # Map equipment model to prefix and concatenate with equipment_name
     model_mapping = {"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"}
-    df = df.with_columns(
-        (pl.col("equipment_model").map_elements(lambda x: model_mapping.get(x, "")) + pl.col("equipment_name")).alias(
-            "equipment_name"
-        )
-    )
+    # df = df.with_columns(
+    #     (pl.col("equipment_model").map_elements(lambda x: model_mapping.get(x, "")) + pl.col("equipment_name")).alias(
+    #         "equipment_name"
+    #     )
+    # )
 
     return df
 
