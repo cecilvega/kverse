@@ -181,11 +181,11 @@ def read_cc():
 
     # Map equipment model to prefix and concatenate with equipment_name
     model_mapping = {"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"}
-    # df = df.with_columns(
-    #     (pl.col("equipment_model").map_elements(lambda x: model_mapping.get(x, "")) + pl.col("equipment_name")).alias(
-    #         "equipment_name"
-    #     )
-    # )
+    df = df.with_columns(
+        (pl.col("equipment_model").map_elements(lambda x: model_mapping.get(x, "")) + pl.col("equipment_name")).alias(
+            "equipment_name"
+        )
+    )
 
     return df
 
