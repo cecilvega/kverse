@@ -14,21 +14,12 @@ class DataLake:
 
         self.client = DataLakeServiceClient.from_connection_string(conn_str)
 
-    def _parse_abfs_uri(self, uri: str) -> tuple:
-        """
-        Parse an ABFS URI into container and path components.
+    def _parse_abfs_path(self, abfs_path: str) -> tuple:
 
-        Args:
-            uri (str): URI in the format abfs://container/path
+        if not abfs_path.startswith("abfs://"):
+            raise ValueError(f"Invalid abfs_path format: {abfs_path}. Expected format: abfs://container/path")
 
-        Returns:
-            tuple: (container, path)
-        """
-        if not uri.startswith("abfs://"):
-            raise ValueError(f"Invalid ABFS URI format: {uri}. Expected format: abfs://container/path")
-
-        # Parse the URI
-        parsed = urlparse(uri)
+        parsed = urlparse(abfs_path)
         container = parsed.netloc
 
         # Handle the path (remove leading slash)
@@ -38,30 +29,21 @@ class DataLake:
 
         return container, path
 
-    def get_file_system_client(self, uri: str):
-        container, _ = self._parse_abfs_uri(uri)
+    def get_file_system_client(self, abfs_path: str):
+        container, _ = self._parse_abfs_path(abfs_path)
         return self.client.get_file_system_client(container)
 
-    def list_paths(self, uri: str, recursive: bool = True) -> pl.DataFrame:
-        """
-        List files at the specified path.
+    def list_paths(self, abfs_path: str, recursive: bool = True) -> pl.DataFrame:
 
-        Args:
-            uri (str): URI in format abfs://container/path
-            recursive (bool): Whether to list files recursively
-
-        Returns:
-            pl.DataFrame: DataFrame containing file information with URIs
-        """
-        container, path = self._parse_abfs_uri(uri)
+        container, path = self._parse_abfs_path(abfs_path)
         file_system_client = self.get_file_system_client(f"abfs://{container}")
 
-        base_uri = f"abfs://{container}/"
+        base_abfs_path = f"abfs://{container}/"
 
         if recursive:
             files = [
                 {
-                    "uri": base_uri + path.name,
+                    "abfs_path": base_abfs_path + path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
@@ -71,7 +53,7 @@ class DataLake:
         else:
             files = [
                 {
-                    "uri": base_uri + path.name,
+                    "abfs_path": base_abfs_path + path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
@@ -79,17 +61,9 @@ class DataLake:
             ]
         return pl.DataFrame(files)
 
-    def read_bytes(self, uri: str) -> bytes:
-        """
-        Download a file's contents as bytes.
+    def read_bytes(self, abfs_path: str) -> bytes:
 
-        Args:
-            uri (str): URI in format abfs://container/path
-
-        Returns:
-            bytes: File content
-        """
-        container, file_path = self._parse_abfs_uri(uri)
+        container, file_path = self._parse_abfs_path(abfs_path)
         file_system_client = self.get_file_system_client(f"abfs://{container}")
         file_client = file_system_client.get_file_client(file_path)
 
@@ -97,25 +71,11 @@ class DataLake:
         return downloaded_data.readall()
 
     def read_tibble(
-        self, uri: str, use_polars: bool = True, include_uri: bool = False, **kwargs
+        self, abfs_path: str, use_polars: bool = True, include_abfs_path: bool = False, **kwargs
     ) -> [pd.DataFrame, pl.DataFrame]:
-        """
-        Read a data file from Azure Data Lake and return as a DataFrame.
 
-        Args:
-            uri (str): URI in format abfs://container/path
-            use_polars (bool): If True, return a polars DataFrame; otherwise return pandas DataFrame
-            include_uri (bool): If True, include the URI as a column in the DataFrame
-            **kwargs: Additional arguments passed to the appropriate pandas read function
-
-        Returns:
-            Union[pd.DataFrame, pl.DataFrame]: The data as a DataFrame
-
-        Raises:
-            ValueError: If file format cannot be determined or is not supported
-        """
         try:
-            container, file_path = self._parse_abfs_uri(uri)
+            container, file_path = self._parse_abfs_path(abfs_path)
 
             # Get the file bytes
             file_bytes = self.read_bytes(f"abfs://{container}/{file_path}")
@@ -154,35 +114,22 @@ class DataLake:
             else:
                 raise ValueError(f"Unsupported file format: .{file_ext}")
 
-            # Add URI column if requested
-            if include_uri and df is not None:
+            if include_abfs_path and df is not None:
                 if use_polars:
-                    df = df.with_columns(pl.lit(uri).alias("uri"))
+                    df = df.with_columns(pl.lit(abfs_path).alias("abfs_path"))
                 else:
-                    df["uri"] = uri
+                    df["abfs_path"] = abfs_path
 
             return df
 
         except Exception as e:
-            # Enhance the error message with the URI
-            error_message = f"Error reading file from {uri}: {str(e)}"
+            error_message = f"Error reading file from {abfs_path}: {str(e)}"
             # Raise a new exception with the enhanced message but preserve the original exception type
             raise type(e)(error_message) from e
 
-    def upload_tibble(self, uri: str, df, format: str = "parquet", **kwargs) -> str:
-        """
-        Upload a DataFrame to Data Lake in the specified format.
+    def upload_tibble(self, df, abfs_path: str, format: str = "parquet", **kwargs) -> str:
 
-        Args:
-            uri (str): URI in format abfs://container/path
-            df: DataFrame to upload (pandas or polars)
-            format (str): Output format ('parquet', 'csv', 'json')
-            **kwargs: Additional arguments passed to the serialization function
-
-        Returns:
-            str: Full path to the uploaded file
-        """
-        container, file_path = self._parse_abfs_uri(uri)
+        container, file_path = self._parse_abfs_path(abfs_path)
         file_system_client = self.get_file_system_client(f"abfs://{container}")
         file_client = file_system_client.get_file_client(file_path)
 
@@ -216,22 +163,22 @@ class DataLake:
             # Flush to finalize the file
             file_client.flush_data(len(data))
 
-            return uri
+            return abfs_path
         except Exception as e:
-            raise ValueError(f"Error uploading DataFrame to {uri}: {str(e)}")
+            raise ValueError(f"Error uploading DataFrame to {abfs_path}: {str(e)}")
 
-    def uri_exists(self, uri: str) -> bool:
+    def abfs_path_exists(self, abfs_path: str) -> bool:
         """
-        Check if a file exists at the specified URI in Azure Data Lake.
+        Check if a file exists at the specified abfs_path in Azure Data Lake.
 
         Args:
-            uri (str): URI in format abfs://container/path
+            abfs_path (str): abfs_path in format abfs://container/path
 
         Returns:
             bool: True if the file exists, False otherwise
         """
         try:
-            container, file_path = self._parse_abfs_uri(uri)
+            container, file_path = self._parse_abfs_path(abfs_path)
             file_system_client = self.get_file_system_client(f"abfs://{container}")
 
             # If file_path is empty or ends with '/', treat it as a directory check
@@ -247,29 +194,16 @@ class DataLake:
                 return True
 
         except Exception:
-            # Any exception (typically ResourceNotFoundError) means the URI doesn't exist
+            # Any exception (typically ResourceNotFoundError) means the abfs_path doesn't exist
             return False
 
-    def copy_file(self, source_uri: str, destination_uri: str) -> str:
-        """
-        Copy a file from source URI to destination URI within the Data Lake.
-
-        Args:
-            source_uri (str): Source URI in format abfs://container/path
-            destination_uri (str): Destination URI in format abfs://container/path
-
-        Returns:
-            str: Full path to the destination file
-
-        Raises:
-            ValueError: If file cannot be copied
-        """
+    def copy_file(self, source_abfs_path: str, destination_abfs_path: str) -> str:
 
         # Read the content from source
-        file_content = self.read_bytes(source_uri)
+        file_content = self.read_bytes(source_abfs_path)
 
-        # Parse the destination URI
-        dest_container, dest_path = self._parse_abfs_uri(destination_uri)
+        # Parse the destination abfs_path
+        dest_container, dest_path = self._parse_abfs_path(destination_abfs_path)
 
         # Get a file system client for the destination container
         file_system_client = self.client.get_file_system_client(dest_container)
@@ -292,31 +226,17 @@ class DataLake:
         # Flush to finalize the file
         file_client.flush_data(len(file_content))
 
-        return destination_uri
+        return destination_abfs_path
 
     def list_partitioned_paths(
-        self, uri: str, only_recent: bool = False, days_lookback: int = 30, cutoff_date: datetime = None
+        self, abfs_path: str, only_recent: bool = False, days_lookback: int = 30, cutoff_date: datetime = None
     ) -> pl.DataFrame:
-        """
-        List files in a partitioned data lake structure with intelligent filtering by date.
 
-        Lists all files first, then efficiently filters based on partition dates extracted
-        from the URI paths. Works with both monthly (y=%Y/m=%m) and daily (y=%Y/m=%m/d=%d) partitions.
-
-        Args:
-            uri (str): URI in format abfs://container/path
-            only_recent (bool): If True, only include files from recent partitions
-            days_lookback (int): Number of days to look back when only_recent is True
-            cutoff_date (datetime): Reference date for lookback calculation, defaults to current date
-
-        Returns:
-            pl.DataFrame: DataFrame containing file information with URIs
-        """
         if cutoff_date is None:
             cutoff_date = datetime.now()
 
         # Get all files first
-        all_files_df = self.list_paths(uri, recursive=True)
+        all_files_df = self.list_paths(abfs_path, recursive=True)
 
         # If not filtering by recency or no files found, return as is
         if not only_recent or all_files_df.shape[0] == 0:
@@ -325,21 +245,19 @@ class DataLake:
         # Calculate the cutoff date
         min_date = cutoff_date - timedelta(days=days_lookback)
 
-        # Extract dates from URIs
         # Define common patterns for both monthly and daily partitions
         monthly_pattern = r"y=(\d{4})/m=(\d{2})"
         daily_pattern = r"y=(\d{4})/m=(\d{2})/d=(\d{2})"
 
-        # Extract partition dates from URIs
-        def extract_date_from_uri(uri_str):
+        def extract_date_from_abfs_path(uri):
             # Try daily pattern first
-            daily_match = re.search(daily_pattern, uri_str)
+            daily_match = re.search(daily_pattern, uri)
             if daily_match:
                 year, month, day = map(int, daily_match.groups())
                 return datetime(year, month, day)
 
             # Try monthly pattern next
-            monthly_match = re.search(monthly_pattern, uri_str)
+            monthly_match = re.search(monthly_pattern, uri)
             if monthly_match:
                 year, month = map(int, monthly_match.groups())
                 # Use the first day of the month
@@ -349,7 +267,7 @@ class DataLake:
             return None
 
         # Create a new column with extracted dates
-        dates = [extract_date_from_uri(uri_str) for uri_str in all_files_df["uri"].to_list()]
+        dates = [extract_date_from_abfs_path(uri) for uri in all_files_df["abfs_path"].to_list()]
         date_series = pl.Series("partition_date", dates)
         all_files_df = all_files_df.with_columns([date_series])
 
@@ -365,27 +283,19 @@ class DataLake:
 
         return filtered_df
 
-    def delete_files(self, uris: list) -> dict:
-        """
-        Delete multiple files from the Data Lake.
+    def delete_files(self, abfs_paths: list) -> dict:
 
-        Args:
-            uris (list): List of URIs to delete in format abfs://container/path
+        results = {"total": len(abfs_paths), "successful": 0, "failed": 0, "errors": []}
 
-        Returns:
-            dict: Summary of deletion operation with success and error counts
-        """
-        results = {"total": len(uris), "successful": 0, "failed": 0, "errors": []}
-
-        for uri in uris:
+        for abfs_path in abfs_paths:
             try:
-                container, file_path = self._parse_abfs_uri(uri)
+                container, file_path = self._parse_abfs_path(abfs_path)
                 file_system_client = self.get_file_system_client(f"abfs://{container}")
                 file_client = file_system_client.get_file_client(file_path)
                 file_client.delete_file()
                 results["successful"] += 1
             except Exception as e:
                 results["failed"] += 1
-                results["errors"].append({"uri": uri, "error": str(e)})
+                results["errors"].append({"abfs_path": abfs_path, "error": str(e)})
 
         return results

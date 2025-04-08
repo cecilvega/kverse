@@ -8,35 +8,58 @@ import pandas as pd
 from kdags.assets.reliability.icc.utils import extract_technical_report_data, parse_filename
 from kdags.resources.tidyr import DataLake, MSGraph, MasterData
 import polars as pl
+from datetime import date
 
 
-# @dg.asset
-# def cc_summary(read_cc):
-#     taxonomy_df = MasterData.taxonomy()
-#     df = read_cc.copy()
-#     df = df.loc[df["changeout_date"] >= datetime(2024, 9, 26)]
-#     df = pd.merge(
-#         df,
-#         taxonomy_df,
-#         how="left",
-#         on=["component_name", "subcomponent_name", "position_name"],
-#         validate="m:1",
-#     ).dropna(subset=["component_code"])
-#     df = df.assign(
-#         position_code=df["position_code"].astype(int),
-#         equipment_hours=pd.to_numeric(df["equipment_hours"]).round(0).astype(int),
-#         component_hours=pd.to_numeric(df["component_hours"]).round(0).fillna(-1).astype(int),
-#     )
-#     df = df.sort_values(
-#         [
-#             "changeout_date",
-#             "equipment_name",
-#             "component_name",
-#             "subcomponent_name",
-#         ]
-#     ).drop_duplicates(["equipment_name", "component_name", "changeout_date", "component_hours"])
-#
-#     return df
+ICC_ANALYTICS_PATH = "abfs://bhp-analytics-data/RELIABILITY/ICC/icc.parquet"
+
+
+def get_shift_dates():
+    # --- Configuration ---
+    start_date = date(2020, 1, 1)
+    end_date = date(2030, 12, 31)
+
+    # Reference point: Wednesday, April 9, 2025 starts an 'M' shift week.
+    ref_date_wednesday = date(2025, 4, 9)
+    ref_shift_label = "M"
+    other_shift_label = "N"
+
+    # Get the absolute ordinal day number for the reference Wednesday
+    ref_ordinal_wednesday = ref_date_wednesday.toordinal()
+    # --- End Configuration ---
+
+    # 1. Generate all dates
+    df = pl.DataFrame({"date": pl.date_range(start_date, end_date, interval="1d", eager=True)})
+
+    # 2. Calculate ISO Year and Week
+    df = df.with_columns(iso_year=pl.col("date").dt.iso_year(), iso_week=pl.col("date").dt.week())
+
+    # 3. Calculate shift label - Using Mon=1 convention for weekday()
+
+    # 3a. Calculate offset days to subtract to get to previous Wednesday (assuming Wed=3)
+    df = df.with_columns(days_to_subtract=(pl.col("date").dt.weekday() - 3 + 7) % 7)
+
+    # 3b. Calculate the shift week start date
+    df = df.with_columns(shift_week_start=pl.col("date") - pl.duration(days=pl.col("days_to_subtract")))
+
+    # 3c. Calculate the absolute ordinal for the shift week start date
+    df = df.with_columns(
+        shift_start_ordinal=pl.col("shift_week_start").map_elements(lambda d: d.toordinal(), return_dtype=pl.Int64)
+    )
+
+    # 3d. Calculate week difference using absolute ordinals
+    df = df.with_columns(week_difference_ord=(pl.col("shift_start_ordinal") - ref_ordinal_wednesday) // 7)
+
+    # 3e. Assign shift based on ordinal week difference parity
+    df = df.with_columns(
+        shift=pl.when(pl.col("week_difference_ord") % 2 == 0)
+        .then(pl.lit(ref_shift_label))  # Even diff -> 'M'
+        .otherwise(pl.lit(other_shift_label))  # Odd diff -> 'N'
+    )
+
+    # 4. Select final columns
+    final_df = df.select(["date", "iso_year", "iso_week", "shift"])
+    return final_df
 
 
 @dg.asset
@@ -141,7 +164,7 @@ def gather_icc_reports(context: dg.AssetExecutionContext):
 
 
 @dg.asset
-def reconciled_icc(cc_summary, gather_icc_reports):
+def icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
     df = (
         cc_summary.select(
             [
@@ -192,52 +215,62 @@ def reconciled_icc(cc_summary, gather_icc_reports):
             ]
         )
     )
+
+    df = df.join(get_shift_dates(), how="left", left_on="changeout_date", right_on="date").sort(
+        "changeout_date", descending=True
+    )
+
+    datalake = DataLake()  # Direct instantiation
+    context.log.info(f"Writing {df.height} records to {ICC_ANALYTICS_PATH}")
+
+    datalake.upload_tibble(df=df, abfs_path=ICC_ANALYTICS_PATH, format="parquet")
+    context.add_output_metadata(
+        {  # Add metadata on success
+            "abfs_path": ICC_ANALYTICS_PATH,
+            "rows_written": df.height,
+        }
+    )
+
     return df
 
 
 @dg.asset
-def spawn_icc(reconciled_icc):
+def publish_sharepoint_icc(context: dg.AssetExecutionContext, icc: pl.DataFrame):
     """
-    Exports reconciled component reports to both SharePoint (Excel) and Data Lake (Parquet).
-
-    Args:
-        reconciled_icc: DataFrame containing reconciled ICC data
-
-    Returns:
-        dict: Information about both export operations
+    Takes the final ICC data and uploads it to SharePoint.
     """
-    result = {}
+    df = icc.clone()
+    if df.is_empty():
+        context.log.warning("Received empty DataFrame. Skipping SharePoint upload.")
+        context.add_output_metadata({"status": "skipped_empty_input", "sharepoint_url": None})
+        return None
 
-    # 1. Upload to SharePoint as Excel
-    sharepoint_result = MSGraph().upload_tibble(
+    context.log.info(f"Preparing to upload {df.height} records to SharePoint.")
+    msgraph = MSGraph()  # Direct instantiation
+
+    sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/RELIABILITY/ICC/icc.xlsx",
-        df=reconciled_icc,
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/RELIABILITY/ICC/icc.xlsx",
+        df=df,
         format="excel",
     )
-    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
-
-    # 2. Upload to Data Lake as Parquet
-    datalake = DataLake()
-    datalake_path = datalake.upload_tibble(
-        uri="abfs://bhp-analytics-data/RELIABILITY/ICC/icc.parquet",
-        df=reconciled_icc,
-        format="parquet",
+    url = sharepoint_result.web_url
+    context.log.info(f"Successfully uploaded oil analysis data to SharePoint: {url}")
+    context.add_output_metadata(
+        {"sharepoint_url": url, "format": "excel", "row_count": df.height, "status": "completed"}
     )
-    result["datalake"] = {"path": datalake_path, "format": "parquet"}
-
-    # Add record count
-    result["count"] = reconciled_icc.shape[0]
-
-    return result
+    return {"sharepoint_url": url}
 
 
-@dg.asset
-def read_icc():
+@dg.asset(
+    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
+)
+def read_icc(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-
-    uri = "abfs://bhp-analytics-data/RELIABILITY/ICC/icc.parquet"
-    if dl.uri_exists(uri):
-        return dl.read_tibble(uri=uri)
+    if dl.abfs_path_exists(ICC_ANALYTICS_PATH):
+        df = dl.read_tibble(abfs_path=ICC_ANALYTICS_PATH)
+        context.log.info(f"Read {df.height} records from {ICC_ANALYTICS_PATH}.")
+        return df
     else:
+        context.log.warning(f"Data file not found at {ICC_ANALYTICS_PATH}. Returning empty DataFrame.")
         return pl.DataFrame()

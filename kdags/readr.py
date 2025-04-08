@@ -8,32 +8,22 @@ import polars as pl
 
 from kdags.resources.tidyr.masterdata import MasterData
 
-### REPARATION ###
-###
+# === REPARATION ===
+from kdags.assets.reparation.component_status.processing import read_component_status
 
-
-### MAINTENANCE ###
-from kdags.assets.maintenance.tribology.oil_analysis import (
-    ReadRawOilAnalysisConfig,
-    read_raw_oil_analysis,
-    read_oil_analysis,
-)
+# === MAINTENANCE ===
+from kdags.assets.maintenance.tribology.processing import read_oil_analysis
 from kdags.assets.planning.component_changeouts.cc import read_cc
 from kdags.assets.reliability.icc.pipeline import read_icc
 from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_history
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 
-###
-
-### OPERATION ###
+# === OPERATION ===
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
 from kdags.assets.operation.plm.haul import read_haul
 from kdags.assets.operation.plm.alarms import read_alarms
 from kdags.assets.operation.ge.events.pipeline import read_events
 
-###
-
-# from kdags.assets.operation.plm.plm3.read_plm3 import read_plm3
 
 __all__ = ["Readr"]
 
@@ -43,15 +33,9 @@ class Readr:
     MasterData: MasterData = MasterData
 
     @dataclass
-    class Config:
-        ReadRawOilAnalysis: dg.Config = ReadRawOilAnalysisConfig
-        # Add more config classes as needed
-
-    @dataclass
     class Maintenance:
 
         read_oil_analysis: dg.AssetsDefinition = read_oil_analysis
-        read_raw_oil_analysis: dg.AssetsDefinition = read_raw_oil_analysis
         read_work_order_history: dg.AssetsDefinition = read_work_order_history
         read_pm_history: dg.AssetsDefinition = read_pm_history
 
@@ -64,6 +48,10 @@ class Readr:
         read_alarms: dg.AssetsDefinition = read_alarms
 
         read_events: dg.AssetsDefinition = read_events
+
+    @dataclass
+    class Reparation:
+        read_component_status: dg.AssetsDefinition = read_component_status
 
     @dataclass
     class Planning:

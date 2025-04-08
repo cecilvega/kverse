@@ -7,6 +7,7 @@
     - name: "transmision"
       code: "TRANS"
       main: True
+#      reso:
     - name: "motor_electrico"
       code: "ME"
     - name: "freno_servicio_trasero"
@@ -27,6 +28,10 @@
   position_name:
     - "derecho"
     - "izquierdo"
+  subcomponent:
+    - name: "cilindro_direccion"
+      code: "CD"
+      main: True
 - component_name: "blower_parrilla"
   component_code: "BP"
   position_name:
@@ -38,16 +43,33 @@
     - "derecho"
     - "izquierdo"
   subcomponent:
-    - name: "suspension_delantera"
-    - name: "masa"
-    - name: "freno_servicio_delantero"
+    - name: suspension_delantera
+      reso:
+        - FRONT SUSPENSION
+        - asd
+    - name: masa
+    - name: freno_servicio_delantero
+      reso:
+        - FRONT SUSPENSION
 - component_name: "cilindro_levante"
   component_code: "CL"
   position_name:
     - "derecho"
     - "izquierdo"
+  subcomponent:
+    - name: "cilindro_levante"
+      code: "CL"
+      main: True
+      reso:
+        - HOIST CYLINDER
 - component_name: "suspension_trasera"
   component_code: "ST"
   position_name:
     - "derecho"
     - "izquierdo"
+  subcomponent:
+    - name: "suspension_trasera"
+      code: "ST"
+      main: True
+      reso:
+        - REAR SUSPENSION

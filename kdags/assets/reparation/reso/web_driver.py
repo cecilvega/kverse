@@ -1,6 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from .config import CHROME_DRIVER_PATH, RESO_URL, RESO_CREDENTIALS
+from .config import RESO_URL
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
@@ -8,6 +8,10 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     TimeoutException,
 )
+from pathlib import Path
+import os
+
+CHROME_DRIVER_PATH = os.path.abspath(os.path.join(Path(__file__).parents[5], "config", "chromedriver.exe"))
 
 
 def initialize_driver():
@@ -16,8 +20,9 @@ def initialize_driver():
     options.add_experimental_option("detach", True)
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--ignore-ssl-errors")
+    options.add_argument("--start-maximized")
 
-    service = Service(executable_path=CHROME_DRIVER_PATH)
+    service = Service()
     return webdriver.Chrome(service=service, options=options)
 
 
@@ -57,9 +62,6 @@ def login_to_reso(driver, wait):
                 time.sleep(1)
         return False
 
-    email = RESO_CREDENTIALS["email"]
-    password = RESO_CREDENTIALS["password"]
-
     # Navigate to Reso
     driver.get(RESO_URL)
 
@@ -69,7 +71,7 @@ def login_to_reso(driver, wait):
     # Enter Email
     email_field = wait.until(EC.presence_of_element_located((By.ID, "i0116")))
     email_field.clear()
-    email_field.send_keys(email)
+    email_field.send_keys(os.environ["RESO_EMAIL"])
 
     # Click Next after email
     click_element(wait, By.ID, "idSIButton9")
@@ -77,7 +79,7 @@ def login_to_reso(driver, wait):
     # Enter Password
     password_field = wait.until(EC.presence_of_element_located((By.ID, "i0118")))
     password_field.clear()
-    password_field.send_keys(password)
+    password_field.send_keys(os.environ["RESO_PASSWORD"])
 
     # Click Next after password (with extra wait)
     time.sleep(1)  # Give the page time to process the password
@@ -87,8 +89,8 @@ def login_to_reso(driver, wait):
     time.sleep(1)  # Give the page time to load the Stay Signed In screen
     click_element(wait, By.ID, "idSIButton9")
 
-    # Navigate to Presupuesto page
-    time.sleep(2)  # Wait for login to complete
-    driver.get(f"{RESO_URL}/Gestion/Presupuesto")
+    # # Navigate to Presupuesto page
+    # time.sleep(2)  # Wait for login to complete
+    # driver.get(f"{RESO_URL}/Gestion/Presupuesto")
 
     return True

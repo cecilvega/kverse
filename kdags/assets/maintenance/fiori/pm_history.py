@@ -79,7 +79,7 @@ def spawn_pm_history(mutate_pm_history):
 
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
-        uri="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet",
+        abfs_path="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet",
         df=mutate_pm_history,
         format="parquet",
     )
@@ -110,6 +110,8 @@ def spawn_pm_history(mutate_pm_history):
 @dg.asset
 def read_pm_history():
     dl = DataLake()
-    df = dl.read_tibble(uri="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet", use_polars=False)
+    df = dl.read_tibble(
+        abfs_path="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet", use_polars=False
+    )
 
     return df

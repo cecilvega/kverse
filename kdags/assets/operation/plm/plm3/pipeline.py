@@ -146,7 +146,7 @@ def spawn_plm3_haul(context: dg.AssetExecutionContext, mutate_plm3_haul: pl.Data
     }
 
     datalake_path = DataLake().upload_tibble(
-        uri="abfs://bhp-analytics-data/OPERATION/PLM3/haul.parquet",
+        abfs_path="abfs://bhp-analytics-data/OPERATION/PLM3/haul.parquet",
         df=df,
         format="parquet",
     )
@@ -173,7 +173,7 @@ def spawn_plm3_alarms(context: dg.AssetExecutionContext, mutate_plm3_alarms: pl.
     }
 
     datalake_path = DataLake().upload_tibble(
-        uri="abfs://bhp-analytics-data/OPERATION/PLM3/alarms.parquet",
+        abfs_path="abfs://bhp-analytics-data/OPERATION/PLM3/alarms.parquet",
         df=df,
         format="parquet",
     )

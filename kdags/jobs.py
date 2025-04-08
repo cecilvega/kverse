@@ -5,7 +5,31 @@ from dagster import (
     DefaultScheduleStatus,
 )
 
-# Maintenance Jobs
+# === Reparation ===
+scrape_component_status_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="scrape_component_status_job",
+        selection=AssetSelection.assets("scrape_component_status").upstream(),
+        description="Component Status RESO",
+    ),
+    cron_schedule="0 9 * * FRI",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
+)
+
+component_status_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="component_status_job",
+        selection=AssetSelection.assets("component_status").upstream(),
+        description="Component Status RESO",
+    ),
+    cron_schedule="0 9 * * FRI",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
+)
+
+
+# === Maintenance ===
 pm_history_job = ScheduleDefinition(
     job=define_asset_job(
         name="pm_history_job",
@@ -31,7 +55,7 @@ work_order_history_job = ScheduleDefinition(
 oil_analysis_job = ScheduleDefinition(
     job=define_asset_job(
         name="oil_analysis_job",
-        selection=AssetSelection.assets("spawn_oil_analysis").upstream(),
+        selection=AssetSelection.assets("publish_sharepoint_oil_analysis").upstream(),
         description="Muestras aceite SCAAE",
     ),
     cron_schedule="30 6 * * *",
@@ -43,7 +67,7 @@ oil_analysis_job = ScheduleDefinition(
 icc_job = ScheduleDefinition(
     job=define_asset_job(
         name="icc_job",
-        selection=AssetSelection.assets("spawn_icc").upstream(),
+        selection=AssetSelection.assets("publish_sharepoint_icc").upstream(),
         tags={"source": "icc"},
     ),
     cron_schedule="30 6 * * *",
@@ -59,7 +83,7 @@ attendances_job = ScheduleDefinition(
     # default_status=DefaultScheduleStatus.RUNNING,
 )
 
-# Operation Jobs
+# === Operation ===
 
 op_file_idx_job = ScheduleDefinition(
     job=define_asset_job(

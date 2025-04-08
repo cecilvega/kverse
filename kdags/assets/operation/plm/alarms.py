@@ -7,7 +7,7 @@ import dagster as dg
 def read_alarms():
     dl = DataLake()
     uri = "abfs://bhp-analytics-data/OPERATION/PLM3/alarms.parquet"
-    if dl.uri_exists(uri):
-        return dl.read_tibble(uri=uri)
+    if dl.abfs_path_exists(uri):
+        return dl.read_tibble(abfs_path=uri)
     else:
         return pl.DataFrame()

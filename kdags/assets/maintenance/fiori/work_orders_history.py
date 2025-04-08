@@ -59,7 +59,7 @@ def spawn_work_order_history(read_raw_work_orders_history):
     # 2. Upload to Data Lake as Parquet
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
-        uri="abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
+        abfs_path="abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
         df=read_raw_work_orders_history,
         format="parquet",
     )

@@ -12,29 +12,30 @@ class ReadRawOilAnalysisConfig(dg.Config):
     days_lookback: int = 30
 
 
+# Define the path for the final consolidated data
+OIL_ANALYSIS_ANALYTICS_PATH = "abfs://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet"
+
+
 @dg.asset
-def read_raw_oil_analysis(
+def raw_oil_analysis(
     context: dg.AssetExecutionContext,
     config: ReadRawOilAnalysisConfig,
 ) -> pl.DataFrame:
     """
-    Reads raw oil analysis Excel files from Azure Data Lake.
-    Args:
-        context: Dagster execution context
-    Returns:
-        DataFrame containing the raw oil analysis data
+    Reads raw oil analysis Excel files from Azure Data Lake raw zone.
+    Filters based on recency configuration.
     """
     dl = DataLake()
-    uri = "abfs://bhp-raw-data/LUBE_ANALYST/SCAAE"
+    abfs_path = "abfs://bhp-raw-data/LUBE_ANALYST/SCAAE"
     # List all files in the specified path
     files_df = dl.list_partitioned_paths(
         "abfs://bhp-raw-data/LUBE_ANALYST/SCAAE",
         only_recent=config.only_recent,
         days_lookback=config.days_lookback,
     )
-    context.log.info(f"Found {len(files_df)} files in {uri}")
+    context.log.info(f"Found {len(files_df)} files in {abfs_path}")
 
-    filepaths = files_df["uri"].to_list()
+    filepaths = files_df["abfs_path"].to_list()
 
     # Read all selected files
     all_dfs = []
@@ -43,7 +44,7 @@ def read_raw_oil_analysis(
         # Get file metadata
         filename = os.path.basename(filepath)
         date_str = filename[:8] if len(filename) >= 8 and filename[:8].isdigit() else None
-        df = dl.read_tibble(uri=filepath, include_uri=True, use_polars=True, infer_schema_length=0)
+        df = dl.read_tibble(abfs_path=filepath, include_abfs_path=True, use_polars=True, infer_schema_length=0)
 
         # Add metadata columns
         if date_str:
@@ -61,7 +62,7 @@ def read_raw_oil_analysis(
     if not all_dfs:
         context.log.warning("No files were found or successfully processed")
         # Return an empty dataframe with expected schema
-        return pl.DataFrame(schema={"uri": pl.Utf8, "file_date": pl.Date})
+        return pl.DataFrame(schema={"abfs_path": pl.Utf8, "file_date": pl.Date})
 
     # Concatenate all DataFrames
     result_df = pl.concat(all_dfs)
@@ -71,7 +72,7 @@ def read_raw_oil_analysis(
 
 
 @dg.asset
-def mutate_oil_analysis(read_raw_oil_analysis):
+def mutate_oil_analysis(raw_oil_analysis):
     column_mapping = {
         "ID": "sample_id",
         "Unidad": "equipment_name",
@@ -117,10 +118,10 @@ def mutate_oil_analysis(read_raw_oil_analysis):
         ">6": "particles_gt_6",
         ">14": "particles_gt_14",
         "Código ISO": "iso_code",
-        "uri": "uri",
+        "abfs_path": "abfs_path",
         "file_date": "file_date",
     }
-    df = read_raw_oil_analysis.clone()
+    df = raw_oil_analysis.clone()
     df = (
         df.rename(column_mapping)
         .select(list(column_mapping.values()))
@@ -141,47 +142,26 @@ def mutate_oil_analysis(read_raw_oil_analysis):
             ]
         )
         .drop_nulls(subset=["sample_date"])
-        .drop(["component", "uri", "file_date"])
+        .drop(["component", "abfs_path", "file_date"])
     )
     return df
 
 
 @dg.asset
-def read_oil_analysis():
-    dl = DataLake()
-    uri = "abfs://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet"
-    if dl.uri_exists(uri):
-        return dl.read_tibble(uri=uri)
-    else:
-        return pl.DataFrame()
+def oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis):
+    new_df = mutate_oil_analysis.clone()
+    context.log.info(f"Received {new_df.height} new/updated records for upsert.")
 
-
-@dg.asset
-def spawn_oil_analysis(
-    context: dg.AssetExecutionContext, mutate_oil_analysis: pl.DataFrame, read_oil_analysis: pl.DataFrame
-):
-    """
-    Performs an upsert operation between incoming oil analysis data and consolidated data.
-    Writes the result to Data Lake and local SharePoint folder.
-
-    Args:
-        context: Dagster execution context
-        mutate_oil_analysis: Incoming DataFrame with new or updated oil analysis records
-        read_oil_analysis: Consolidated DataFrame with existing oil analysis records
-
-    Returns:
-        dict: Information about the data export operations
-    """
-    # Define key columns for the upsert operation
+    existing_df = DataLake().read_tibble(OIL_ANALYSIS_ANALYTICS_PATH)
     key_columns = ["sample_id"]
 
-    context.log.info(f"Performing upsert operation with {mutate_oil_analysis.height} incoming records")
-    context.log.info(f"Consolidated dataset has {read_oil_analysis.height} existing records")
+    context.log.info(f"Performing upsert operation with {new_df.height} incoming records")
+    context.log.info(f"Consolidated dataset has {existing_df.height} existing records")
 
-    if read_oil_analysis.height != 0:
+    if existing_df.height != 0:
         df = upsert_tibbles(
-            incoming_df=mutate_oil_analysis,
-            consolidated_df=read_oil_analysis,
+            new_df=new_df,
+            existing_df=existing_df,
             key_columns=key_columns,
         )
     else:
@@ -190,28 +170,52 @@ def spawn_oil_analysis(
     # Perform upsert operation
     df = df.sort("sample_date")
 
-    result = {}
-
-    # Upload to Data Lake as Parquet
-    datalake = DataLake()
-    datalake_path = datalake.upload_tibble(
-        uri="abfs://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet",
-        df=df,
-        format="parquet",
+    context.log.info(f"Writing {df.height} records to {OIL_ANALYSIS_ANALYTICS_PATH}")
+    DataLake().upload_tibble(df=df, abfs_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
+    context.log.info("Write successful.")
+    context.add_output_metadata(
+        {"abfs_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}
     )
-    result["datalake"] = {"path": datalake_path, "format": "parquet"}
-    context.log.info(f"Uploaded to Data Lake: {datalake_path}")
+    return oil_analysis
 
-    # Save to SharePoint locally as Excel
-    sharepoint_result = MSGraph().upload_tibble(
+
+@dg.asset
+def publish_sharepoint_oil_analysis(context: dg.AssetExecutionContext, oil_analysis: pl.DataFrame):
+    """
+    Takes the final oil_analysis data (read by read_oil_analysis) and uploads it to SharePoint.
+    """
+    df = oil_analysis.clone()
+    if df.is_empty():
+        context.log.warning("Received empty DataFrame. Skipping SharePoint upload.")
+        context.add_output_metadata({"status": "skipped_empty_input", "sharepoint_url": None})
+        return None
+
+    context.log.info(f"Preparing to upload {df.height} records to SharePoint.")
+    msgraph = MSGraph()  # Direct instantiation
+
+    sharepoint_result = msgraph.upload_tibble(
         site_id="KCHCLSP00022",
-        filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/OIL_ANALYSIS/oil_analysis.xlsx",
+        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/OIL_ANALYSIS/oil_analysis.xlsx",
         df=df,
         format="excel",
     )
-    result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
+    url = sharepoint_result.web_url
+    context.log.info(f"Successfully uploaded oil analysis data to SharePoint: {url}")
+    context.add_output_metadata(
+        {"sharepoint_url": url, "format": "excel", "row_count": df.height, "status": "completed"}
+    )
+    return {"sharepoint_url": url}
 
-    # Add record count
-    result["row_count"] = df.height
 
-    return result
+@dg.asset(
+    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
+)
+def read_oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    dl = DataLake()
+    if dl.abfs_path_exists(OIL_ANALYSIS_ANALYTICS_PATH):
+        df = dl.read_tibble(abfs_path=OIL_ANALYSIS_ANALYTICS_PATH)
+        context.log.info(f"Read {df.height} records from {OIL_ANALYSIS_ANALYTICS_PATH}.")
+        return df
+    else:
+        context.log.warning(f"Data file not found at {OIL_ANALYSIS_ANALYTICS_PATH}. Returning empty DataFrame.")
+        return pl.DataFrame()

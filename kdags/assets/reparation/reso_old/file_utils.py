@@ -1,7 +1,8 @@
 import os
 import requests
 from pathlib import Path
-from .config import BASE_PATH
+
+# from .config import BASE_PATH
 
 
 def save_file_locally(
