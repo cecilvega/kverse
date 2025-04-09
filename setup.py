@@ -5,7 +5,6 @@ setup(
     packages=find_packages(exclude=["kdags_tests"]),
     install_requires=[
         "dagster",
-        "dagster-cloud",
         "dagster-webserver",
         "pandas",
         "polars",

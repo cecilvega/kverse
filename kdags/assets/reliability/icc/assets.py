@@ -63,9 +63,9 @@ def get_shift_dates():
 
 
 @dg.asset
-def cc_summary(read_cc):
+def cc_summary(read_component_changeouts):
     taxonomy_df = MasterData.taxonomy()
-    df = read_cc.clone()  # Polars uses clone() instead of copy()
+    df = read_component_changeouts.clone()  # Polars uses clone() instead of copy()
 
     # Filter rows
     df = df.filter(pl.col("changeout_date") >= datetime(2024, 9, 26))

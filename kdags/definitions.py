@@ -5,21 +5,34 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 
 from kdags.assets import maintenance, reparation, operation, planning, reliability
 from kdags.jobs import (
-    # === Reparation ===
+    # === PLANNING ===
+    component_changeouts_job,
+    # === REPARATION ===
     component_status_job,
     scrape_component_status_job,
-    # === Maintenance ===
+    # === MAINTENANCE ===
     attendances_job,
     oil_analysis_job,
     icc_job,
     work_order_history_job,
     pm_history_job,
     op_file_idx_job,
-    # === Operation ===
+    # === OPERATION ===
     plm_job,
     ge_job,
 )
+import warnings
 
+warnings.filterwarnings("ignore", category=Warning, module="dagster._core.definitions.metadata.source_code")
+warnings.filterwarnings(
+    "ignore", message=".*Function `with_source_code_references` is currently in beta.*", category=Warning
+)
+warnings.filterwarnings(
+    "ignore", message=".*Function `link_code_references_to_git` is currently in beta.*", category=Warning
+)
+warnings.filterwarnings(
+    "ignore", message=".*Class `AnchorBasedFilePathMapping` is currently in beta.*", category=Warning
+)
 __all__ = ["kdefs"]
 
 # warnings.filterwarnings("ignore", category=ExperimentalWarning)
@@ -54,16 +67,18 @@ all_assets = dg.link_code_references_to_git(
 kdefs = dg.Definitions(
     assets=all_assets,
     schedules=[
-        # === Reparation ===
+        # === PLANNING ===
+        component_changeouts_job,
+        # === REPARATION ===
         component_status_job,
         scrape_component_status_job,
-        # === Maintenance ===
+        # === MAINTENANCE ===
         attendances_job,
         icc_job,
         work_order_history_job,
         pm_history_job,
         oil_analysis_job,
-        # === Operation ===
+        # === OPERATION ===
         op_file_idx_job,
         plm_job,
         ge_job,

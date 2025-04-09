@@ -9,11 +9,12 @@ import os
 from pathlib import Path
 import polars as pl
 from .constants import COMPATIBILITY_MAPPING
+from kdags.resources.tidyr import MSGraph, DataLake
 
-# from kdags.resources.tidyr import MSGraph
 
-# import polars as pl
-openpyxl.reader.excel.warnings.simplefilter(action="ignore")
+COMPONENT_CHANGEOUTS_ANALYTIS_PATH = (
+    "abfs://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet"
+)
 
 
 def clean_string(s):
@@ -34,13 +35,12 @@ def clean_string(s):
 
 
 @dg.asset
-def read_cc():
-    file_bytes = open(
-        Path(os.environ["ONEDRIVE_LOCAL_PATH"])
-        / "01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
-        "rb",
-    ).read()
-
+def raw_cc():
+    msgraph = MSGraph()
+    file_content = msgraph.read_bytes(
+        site_id="KCHCLSP00022",
+        file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+    )
     columns = [
         "EQUIPO",
         "COMPONENTE",
@@ -57,17 +57,17 @@ def read_cc():
         "N/S INSTALADO",
         "OS  181",
     ]
-
-    df = (
-        pl.read_excel(
-            BytesIO(file_bytes),
-            sheet_name="Planilla Cambio Componente  960",
-            infer_schema_length=0,
-        )
-        .select(columns)  # equivalent to filter(columns)
-        .with_columns(pl.lit("MEL").alias("site_name"))
-        .with_row_index("cc_index")  # equivalent to rename_axis + reset_index
+    df = pl.read_excel(
+        BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", infer_schema_length=0, columns=columns
     )
+    return df
+
+
+@dg.asset
+def components_changeouts(context: dg.AssetExecutionContext, raw_cc: pl.DataFrame):
+    df = (
+        raw_cc.clone().with_columns(pl.lit("MEL").alias("site_name")).with_row_index("cc_index")
+    )  # equivalent to rename_axis + reset_index
 
     clean_columns = ["COMPONENTE", "SUB COMPONENTE"]
 
@@ -148,5 +148,29 @@ def read_cc():
             "equipment_name"
         )
     )
+    datalake = DataLake()  # Direct instantiation
+    context.log.info(f"Writing {df.height} records to {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}")
+
+    datalake.upload_tibble(df=df, abfs_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH, format="parquet")
+    context.add_output_metadata(
+        {  # Add metadata on success
+            "abfs_path": COMPONENT_CHANGEOUTS_ANALYTIS_PATH,
+            "rows_written": df.height,
+        }
+    )
 
     return df
+
+
+@dg.asset(
+    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
+)
+def read_component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    dl = DataLake()
+    if dl.abfs_path_exists(COMPONENT_CHANGEOUTS_ANALYTIS_PATH):
+        df = dl.read_tibble(abfs_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
+        context.log.info(f"Read {df.height} records from {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}.")
+        return df
+    else:
+        context.log.warning(f"Data file not found at {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}. Returning empty DataFrame.")
+        return pl.DataFrame()

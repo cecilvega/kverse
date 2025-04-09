@@ -5,6 +5,17 @@ from dagster import (
     DefaultScheduleStatus,
 )
 
+# === Planning ===
+component_changeouts_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="component_changeouts_job",
+        selection=AssetSelection.assets("components_changeouts").upstream(),
+        description="Cambios de componente",
+    ),
+    cron_schedule="30 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=DefaultScheduleStatus.RUNNING,
+)
 # === Reparation ===
 scrape_component_status_job = ScheduleDefinition(
     job=define_asset_job(
