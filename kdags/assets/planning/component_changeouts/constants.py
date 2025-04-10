@@ -33,3 +33,20 @@ COMPATIBILITY_MAPPING = {
     ("motor_traccion", "freno_servicio"): ("motor_traccion", "freno_servicio_trasero"),
     ("motor_traccion", "motor_electrico"): ("motor_traccion", "motor_electrico"),
 }
+
+COLUMN_MAPPING = {
+    "EQUIPO": "equipment_name",
+    "MODÉLO": "equipment_model",
+    "COMPONENTE": "component_name",
+    "SUB COMPONENTE": "subcomponent_name",
+    "POSICION": "position_name",
+    "FECHA DE CAMBIO": "changeout_date",
+    "HORA EQ": "equipment_hours",
+    "HORA CC": "component_hours",
+    "TBO": "tbo",
+    "USO": "component_usage",
+    "DESCRIPCIÓN DE FALLA": "failure_description",
+    "N/S RETIRADO": "removed_component_serial",  # removed_component_serial
+    "N/S INSTALADO": "installed_component_serial",
+    "OS  181": "customer_work_order",
+}

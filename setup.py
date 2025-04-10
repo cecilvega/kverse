@@ -27,6 +27,7 @@ setup(
         "altair",
         "fastexcel",
         "xlsx2csv",
+        "black",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

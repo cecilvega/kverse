@@ -158,8 +158,10 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
         & (pl.col(original_so_col) != "")  # Check original wasn't null/empty
     )
     if not so_failures.is_empty():
-        print(f"\n[WARNING] Found {len(so_failures)} rows where '{final_service_order_col}' integer parsing failed:")
-        print(so_failures.select("original_row_id", original_so_col, final_service_order_col).head())
+        context.log.warning(
+            f"\n[WARNING] Found {len(so_failures)} rows where '{final_service_order_col}' integer parsing failed:"
+        )
+        context.log.warning(so_failures.select("original_row_id", original_so_col, final_service_order_col).head())
         conversion_failures[final_service_order_col] = so_failures
 
     # Check other Integer Conversions
@@ -172,8 +174,10 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
             pl.col(original_col).is_not_null() & pl.col(processed_col).is_null() & (pl.col(original_col) != "")
         )
         if not failures.is_empty():
-            print(f"\n[WARNING] Found {len(failures)} rows where '{processed_col}' integer parsing failed:")
-            print(failures.select("original_row_id", original_col, processed_col).head())
+            context.log.warning(
+                f"\n[WARNING] Found {len(failures)} rows where '{processed_col}' integer parsing failed:"
+            )
+            context.log.warning(failures.select("original_row_id", original_col, processed_col).head())
             conversion_failures[processed_col] = failures
 
     # Check Date Conversions
@@ -184,17 +188,17 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
             pl.col(original_col).is_not_null() & pl.col(processed_col).is_null() & (pl.col(original_col) != "")
         )
         if not failures.is_empty():
-            print(
+            context.log.warning(
                 f"\n[WARNING] Found {len(failures)} rows where '{processed_col}' date parsing failed (unhandled format?):"
             )
-            print(failures.select("original_row_id", original_col, processed_col).head())
+            context.log.warning(failures.select("original_row_id", original_col, processed_col).head())
             conversion_failures[processed_col] = failures
 
     if not conversion_failures:
-        print("\nNo conversion failures detected (original non-null values -> converted null values).")
+        context.log.warning("\nNo conversion failures detected (original non-null values -> converted null values).")
 
     context.log.info(f"Mutation complete. Output rows: {df.height}")
-    return df
+    return df_processed
 
 
 @dg.asset(  # Changed to dg.asset

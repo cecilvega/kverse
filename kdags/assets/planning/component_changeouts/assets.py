@@ -11,6 +11,7 @@ import polars as pl
 from .constants import COMPATIBILITY_MAPPING
 from kdags.resources.tidyr import MSGraph, DataLake
 
+from .constants import *
 
 COMPONENT_CHANGEOUTS_ANALYTIS_PATH = (
     "abfs://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet"
@@ -41,22 +42,7 @@ def raw_cc():
         site_id="KCHCLSP00022",
         file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
     )
-    columns = [
-        "EQUIPO",
-        "COMPONENTE",
-        "SUB COMPONENTE",
-        "MODÉLO",
-        "POSICION",
-        "FECHA DE CAMBIO",
-        "HORA EQ",
-        "HORA CC",
-        "TBO",
-        "USO",
-        "DESCRIPCIÓN DE FALLA",
-        "N/S RETIRADO",
-        "N/S INSTALADO",
-        "OS  181",
-    ]
+    columns = list(COLUMN_MAPPING.keys())
     df = pl.read_excel(
         BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", infer_schema_length=0, columns=columns
     )
@@ -93,31 +79,12 @@ def components_changeouts(context: dg.AssetExecutionContext, raw_cc: pl.DataFram
     # 3. Coalesce the results: use the new name if found, otherwise keep the original
     df = df.with_columns(
         [
-            pl.coalesce(pl.col("new_component_name"), pl.col("COMPONENTE")).alias("component_name"),
-            pl.coalesce(pl.col("new_subcomponent_name"), pl.col("SUB COMPONENTE")).alias("subcomponent_name"),
+            pl.coalesce(pl.col("new_component_name"), pl.col("COMPONENTE")).alias("COMPONENTE"),
+            pl.coalesce(pl.col("new_subcomponent_name"), pl.col("SUB COMPONENTE")).alias("SUB COMPONENTE"),
         ]
-    )
+    ).drop(["new_component_name", "new_subcomponent_name"])
 
-    # 4. Drop temporary and original columns
-    df = df.drop(["COMPONENTE", "SUB COMPONENTE", "new_component_name", "new_subcomponent_name"])
-
-    # Rename columns
-    columns_map = {
-        "EQUIPO": "equipment_name",
-        "POSICION": "position_name",
-        "N/S RETIRADO": "removed_component_serial",
-        "N/S INSTALADO": "installed_component_serial",
-        "FECHA DE CAMBIO": "changeout_date",
-        "HORA CC": "component_hours",
-        "TBO": "tbo",
-        "OS  181": "customer_work_order",
-        "MODÉLO": "equipment_model",
-        "DESCRIPCIÓN DE FALLA": "failure_description",
-        "HORA EQ": "equipment_hours",
-        "USO": "component_usage",
-    }
-
-    df = df.rename(columns_map)
+    df = df.rename(COLUMN_MAPPING)
 
     # Extract equipment_name digits
     df = df.with_columns(pl.col("equipment_name").cast(pl.Utf8).str.extract(r"(\d+)").alias("equipment_name"))
