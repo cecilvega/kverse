@@ -36,7 +36,7 @@ COMPATIBILITY_MAPPING = {
 
 COLUMN_MAPPING = {
     "EQUIPO": "equipment_name",
-    "MODÉLO": "equipment_model",
+    "MODELO": "equipment_model",
     "COMPONENTE": "component_name",
     "SUB COMPONENTE": "subcomponent_name",
     "POSICION": "position_name",
