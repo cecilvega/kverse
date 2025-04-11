@@ -2,6 +2,9 @@ import pdfplumber
 import re
 from datetime import datetime
 import pandas as pd
+import warnings
+
+warnings.filterwarnings("ignore", message="CropBox missing from /Page, defaulting to MediaBox")
 
 
 def parse_horometer_value(value_str):

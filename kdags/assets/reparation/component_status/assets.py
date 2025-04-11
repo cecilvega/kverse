@@ -65,14 +65,10 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
     Applies renaming and type casting based on defined constants.
     Uses 'mutate_' prefix as preferred. Clones input. Minimal logging.
     """
-    if raw_component_status.is_empty():
-        context.log.warning("Input raw_component_status is empty.")
-        return pl.DataFrame()
 
     df = raw_component_status.clone()  # Clone input
 
     available_raw_cols = [col for col in SELECTED_RAW_COLUMNS if col in df.columns]
-    mapping_subset = {k: v for k, v in COLUMN_MAPPING.items() if k in available_raw_cols}
 
     if len(available_raw_cols) < len(SELECTED_RAW_COLUMNS):
         context.log.warning("Not all expected raw columns were present in the input DataFrame.")
