@@ -28,6 +28,7 @@ setup(
         "fastexcel",
         "xlsx2csv",
         "black",
+        "adlfs",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

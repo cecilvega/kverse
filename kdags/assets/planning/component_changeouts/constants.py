@@ -41,12 +41,13 @@ COLUMN_MAPPING = {
     "SUB COMPONENTE": "subcomponent_name",
     "POSICION": "position_name",
     "FECHA DE CAMBIO": "changeout_date",
+    "OS  181": "customer_work_order",
     "HORA EQ": "equipment_hours",
     "HORA CC": "component_hours",
     "TBO": "tbo",
     "USO": "component_usage",
-    "DESCRIPCIÓN DE FALLA": "failure_description",
-    "N/S RETIRADO": "removed_component_serial",  # removed_component_serial
+    "N/S RETIRADO": "component_serial",  # removed_component_serial
+    "Equipo SAP": "sap_equipment_name",
     "N/S INSTALADO": "installed_component_serial",
-    "OS  181": "customer_work_order",
+    "DESCRIPCIÓN DE FALLA": "failure_description",
 }

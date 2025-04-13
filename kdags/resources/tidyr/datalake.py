@@ -11,12 +11,24 @@ import re
 class DataLake:
     def __init__(self):
         conn_str = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
+        # Parse the connection string into a dictionary
+        conn_dict = {
+            k: v
+            for k, v in (
+                item.split("=", 1) for item in os.environ["AZURE_STORAGE_CONNECTION_STRING"].strip(";").split(";")
+            )
+        }
 
+        # Construct the desired dictionary, raising KeyError if keys are missing
+        self.storage_options = {
+            "AZURE_STORAGE_ACCOUNT_NAME": conn_dict["AccountName"],
+            "AZURE_STORAGE_ACCOUNT_KEY": conn_dict["AccountKey"],
+        }
         self.client = DataLakeServiceClient.from_connection_string(conn_str)
 
     def _parse_abfs_path(self, abfs_path: str) -> tuple:
 
-        if not abfs_path.startswith("abfs://"):
+        if not abfs_path.startswith("az://"):
             raise ValueError(f"Invalid abfs_path format: {abfs_path}. Expected format: abfs://container/path")
 
         parsed = urlparse(abfs_path)
