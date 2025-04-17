@@ -26,12 +26,12 @@ class DataLake:
         }
         self.client = DataLakeServiceClient.from_connection_string(conn_str)
 
-    def _parse_abfs_path(self, abfs_path: str) -> tuple:
+    def _parse_az_path(self, az_path: str) -> tuple:
 
-        if not abfs_path.startswith("az://"):
-            raise ValueError(f"Invalid abfs_path format: {abfs_path}. Expected format: abfs://container/path")
+        if not az_path.startswith("az://"):
+            raise ValueError(f"Invalid az_path format: {az_path}. Expected format: az://container/path")
 
-        parsed = urlparse(abfs_path)
+        parsed = urlparse(az_path)
         container = parsed.netloc
 
         # Handle the path (remove leading slash)
@@ -41,21 +41,21 @@ class DataLake:
 
         return container, path
 
-    def get_file_system_client(self, abfs_path: str):
-        container, _ = self._parse_abfs_path(abfs_path)
+    def get_file_system_client(self, az_path: str):
+        container, _ = self._parse_az_path(az_path)
         return self.client.get_file_system_client(container)
 
-    def list_paths(self, abfs_path: str, recursive: bool = True) -> pl.DataFrame:
+    def list_paths(self, az_path: str, recursive: bool = True) -> pl.DataFrame:
 
-        container, path = self._parse_abfs_path(abfs_path)
-        file_system_client = self.get_file_system_client(f"abfs://{container}")
+        container, path = self._parse_az_path(az_path)
+        file_system_client = self.get_file_system_client(f"az://{container}")
 
-        base_abfs_path = f"abfs://{container}/"
+        base_az_path = f"az://{container}/"
 
         if recursive:
             files = [
                 {
-                    "abfs_path": base_abfs_path + path.name,
+                    "az_path": base_az_path + path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
@@ -65,7 +65,7 @@ class DataLake:
         else:
             files = [
                 {
-                    "abfs_path": base_abfs_path + path.name,
+                    "az_path": base_az_path + path.name,
                     "file_size": path.content_length,
                     "last_modified": path.last_modified,
                 }
@@ -73,125 +73,88 @@ class DataLake:
             ]
         return pl.DataFrame(files)
 
-    def read_bytes(self, abfs_path: str) -> bytes:
+    def read_bytes(self, az_path: str) -> bytes:
 
-        container, file_path = self._parse_abfs_path(abfs_path)
-        file_system_client = self.get_file_system_client(f"abfs://{container}")
+        container, file_path = self._parse_az_path(az_path)
+        file_system_client = self.get_file_system_client(f"az://{container}")
         file_client = file_system_client.get_file_client(file_path)
 
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 
     def read_tibble(
-        self, abfs_path: str, use_polars: bool = True, include_abfs_path: bool = False, **kwargs
+        self, az_path: str, use_polars: bool = True, include_az_path: bool = False, **kwargs
     ) -> [pd.DataFrame, pl.DataFrame]:
 
-        try:
-            container, file_path = self._parse_abfs_path(abfs_path)
+        file_ext = az_path.split(".")[-1].lower()
 
-            # Get the file bytes
-            file_bytes = self.read_bytes(f"abfs://{container}/{file_path}")
+        if file_ext == "parquet":
+            df = pl.read_parquet(az_path, storage_options=self.storage_options, **kwargs)
+        elif file_ext == "csv":
+            df = pl.read_csv(az_path, storage_options=self.storage_options, **kwargs)
+        elif file_ext in ["xlsx", "xls"]:
+            df = pl.read_excel(az_path, read_options={"storage_options": self.storage_options}, **kwargs)
+        # elif file_ext == "json":
+        #     df = pl.read_json(buffer, **kwargs)
+        else:
+            raise ValueError(f"Unsupported file type: {file_ext}")
 
-            # Determine file type from extension
-            file_ext = file_path.split(".")[-1].lower()
+        # container, file_path = self._parse_az_path(az_path)
+        # # Get the file bytes
+        # file_bytes = self.read_bytes(f"az://{container}/{file_path}")
+        #
+        # # Create BytesIO object
+        # buffer = BytesIO(file_bytes)
 
-            # Create BytesIO object
-            buffer = BytesIO(file_bytes)
+        # Parse based on file type
 
-            # Parse based on file type
-            if file_ext == "parquet":
-                if use_polars:
-                    df = pl.read_parquet(buffer, **kwargs)
-                else:
-                    df = pd.read_parquet(buffer, **kwargs)
-
-            elif file_ext == "csv":
-                if use_polars:
-                    df = pl.read_csv(buffer, **kwargs)
-                else:
-                    df = pd.read_csv(buffer, **kwargs)
-
-            elif file_ext in ["xlsx", "xls"]:
-                if use_polars:
-                    df = pl.read_excel(buffer, **kwargs)
-                else:
-                    df = pd.read_excel(buffer, **kwargs)
-
-            elif file_ext == "json":
-                if use_polars:
-                    df = pl.read_json(buffer, **kwargs)
-                else:
-                    df = pd.read_json(buffer, **kwargs)
-
+        if include_az_path and df is not None:
+            if use_polars:
+                df = df.with_columns(pl.lit(az_path).alias("az_path"))
             else:
-                raise ValueError(f"Unsupported file format: .{file_ext}")
+                df["az_path"] = az_path
 
-            if include_abfs_path and df is not None:
-                if use_polars:
-                    df = df.with_columns(pl.lit(abfs_path).alias("abfs_path"))
-                else:
-                    df["abfs_path"] = abfs_path
+        return df
 
-            return df
+    def upload_tibble(self, df, az_path: str, format: str = "parquet", **kwargs) -> str:
 
-        except Exception as e:
-            error_message = f"Error reading file from {abfs_path}: {str(e)}"
-            # Raise a new exception with the enhanced message but preserve the original exception type
-            raise type(e)(error_message) from e
-
-    def upload_tibble(self, df, abfs_path: str, format: str = "parquet", **kwargs) -> str:
-
-        container, file_path = self._parse_abfs_path(abfs_path)
-        file_system_client = self.get_file_system_client(f"abfs://{container}")
-        file_client = file_system_client.get_file_client(file_path)
+        # container, file_path = self._parse_az_path(az_path)
+        # file_system_client = self.get_file_system_client(f"az://{container}")
+        # file_client = file_system_client.get_file_client(file_path)
 
         # Convert DataFrame to bytes based on format
         if format.lower() == "parquet":
-            buffer = BytesIO()
+            # buffer = BytesIO()
             # Handle both pandas and polars DataFrames
-            if hasattr(df, "to_pandas"):  # It's a polars DataFrame
-                df.write_parquet(buffer, **kwargs)
-            else:  # Assume it's pandas
-                df.to_parquet(buffer, **kwargs)
-            buffer.seek(0)
-            data = buffer.getvalue()
+            df.write_parquet(az_path, storage_options=self.storage_options, **kwargs)
+
+            # buffer.seek(0)
+            # data = buffer.getvalue()
 
         elif format.lower() == "csv":
             # Handle both pandas and polars DataFrames
-            if hasattr(df, "to_pandas"):  # It's a polars DataFrame
-                data = df.write_csv(**kwargs).encode("utf-8")
-            else:  # Assume it's pandas
-                data = df.to_csv(**kwargs).encode("utf-8")
+
+            df.write_csv(az_path, storage_options=self.storage_options, **kwargs).encode("utf-8")
 
         else:
             raise ValueError(f"Unsupported format: {format}")
 
         # Upload data with proper error handling
+        # try:
+        #     # Create or overwrite the file
+        #     file_client.create_file()
+        #     # Upload the data
+        #     file_client.append_data(data, 0, len(data))
+        #     # Flush to finalize the file
+        #     file_client.flush_data(len(data))
+
+        return az_path
+
+    def az_path_exists(self, az_path: str) -> bool:
+
         try:
-            # Create or overwrite the file
-            file_client.create_file()
-            # Upload the data
-            file_client.append_data(data, 0, len(data))
-            # Flush to finalize the file
-            file_client.flush_data(len(data))
-
-            return abfs_path
-        except Exception as e:
-            raise ValueError(f"Error uploading DataFrame to {abfs_path}: {str(e)}")
-
-    def abfs_path_exists(self, abfs_path: str) -> bool:
-        """
-        Check if a file exists at the specified abfs_path in Azure Data Lake.
-
-        Args:
-            abfs_path (str): abfs_path in format abfs://container/path
-
-        Returns:
-            bool: True if the file exists, False otherwise
-        """
-        try:
-            container, file_path = self._parse_abfs_path(abfs_path)
-            file_system_client = self.get_file_system_client(f"abfs://{container}")
+            container, file_path = self._parse_az_path(az_path)
+            file_system_client = self.get_file_system_client(f"az://{container}")
 
             # If file_path is empty or ends with '/', treat it as a directory check
             if not file_path or file_path.endswith("/"):
@@ -206,16 +169,16 @@ class DataLake:
                 return True
 
         except Exception:
-            # Any exception (typically ResourceNotFoundError) means the abfs_path doesn't exist
+            # Any exception (typically ResourceNotFoundError) means the az_path doesn't exist
             return False
 
-    def copy_file(self, source_abfs_path: str, destination_abfs_path: str) -> str:
+    def copy_file(self, source_az_path: str, destination_az_path: str) -> str:
 
         # Read the content from source
-        file_content = self.read_bytes(source_abfs_path)
+        file_content = self.read_bytes(source_az_path)
 
-        # Parse the destination abfs_path
-        dest_container, dest_path = self._parse_abfs_path(destination_abfs_path)
+        # Parse the destination az_path
+        dest_container, dest_path = self._parse_az_path(destination_az_path)
 
         # Get a file system client for the destination container
         file_system_client = self.client.get_file_system_client(dest_container)
@@ -238,17 +201,17 @@ class DataLake:
         # Flush to finalize the file
         file_client.flush_data(len(file_content))
 
-        return destination_abfs_path
+        return destination_az_path
 
     def list_partitioned_paths(
-        self, abfs_path: str, only_recent: bool = False, days_lookback: int = 30, cutoff_date: datetime = None
+        self, az_path: str, only_recent: bool = False, days_lookback: int = 30, cutoff_date: datetime = None
     ) -> pl.DataFrame:
 
         if cutoff_date is None:
             cutoff_date = datetime.now()
 
         # Get all files first
-        all_files_df = self.list_paths(abfs_path, recursive=True)
+        all_files_df = self.list_paths(az_path, recursive=True)
 
         # If not filtering by recency or no files found, return as is
         if not only_recent or all_files_df.shape[0] == 0:
@@ -261,7 +224,7 @@ class DataLake:
         monthly_pattern = r"y=(\d{4})/m=(\d{2})"
         daily_pattern = r"y=(\d{4})/m=(\d{2})/d=(\d{2})"
 
-        def extract_date_from_abfs_path(uri):
+        def extract_date_from_az_path(uri):
             # Try daily pattern first
             daily_match = re.search(daily_pattern, uri)
             if daily_match:
@@ -279,7 +242,7 @@ class DataLake:
             return None
 
         # Create a new column with extracted dates
-        dates = [extract_date_from_abfs_path(uri) for uri in all_files_df["abfs_path"].to_list()]
+        dates = [extract_date_from_az_path(uri) for uri in all_files_df["az_path"].to_list()]
         date_series = pl.Series("partition_date", dates)
         all_files_df = all_files_df.with_columns([date_series])
 
@@ -295,19 +258,19 @@ class DataLake:
 
         return filtered_df
 
-    def delete_files(self, abfs_paths: list) -> dict:
+    def delete_files(self, az_paths: list) -> dict:
 
-        results = {"total": len(abfs_paths), "successful": 0, "failed": 0, "errors": []}
+        results = {"total": len(az_paths), "successful": 0, "failed": 0, "errors": []}
 
-        for abfs_path in abfs_paths:
+        for az_path in az_paths:
             try:
-                container, file_path = self._parse_abfs_path(abfs_path)
-                file_system_client = self.get_file_system_client(f"abfs://{container}")
+                container, file_path = self._parse_az_path(az_path)
+                file_system_client = self.get_file_system_client(f"az://{container}")
                 file_client = file_system_client.get_file_client(file_path)
                 file_client.delete_file()
                 results["successful"] += 1
             except Exception as e:
                 results["failed"] += 1
-                results["errors"].append({"abfs_path": abfs_path, "error": str(e)})
+                results["errors"].append({"az_path": az_path, "error": str(e)})
 
         return results

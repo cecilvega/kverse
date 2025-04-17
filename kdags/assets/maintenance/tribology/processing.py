@@ -44,7 +44,7 @@ def raw_oil_analysis(
         # Get file metadata
         filename = os.path.basename(filepath)
         date_str = filename[:8] if len(filename) >= 8 and filename[:8].isdigit() else None
-        df = dl.read_tibble(abfs_path=filepath, include_abfs_path=True, use_polars=True, infer_schema_length=0)
+        df = dl.read_tibble(az_path=filepath, include_az_path=True, use_polars=True, infer_schema_length=0)
 
         # Add metadata columns
         if date_str:
@@ -171,7 +171,7 @@ def oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis):
     df = df.sort("sample_date")
 
     context.log.info(f"Writing {df.height} records to {OIL_ANALYSIS_ANALYTICS_PATH}")
-    DataLake().upload_tibble(df=df, abfs_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
+    DataLake().upload_tibble(df=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
     context.log.info("Write successful.")
     context.add_output_metadata(
         {"abfs_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}
@@ -212,8 +212,8 @@ def publish_sharepoint_oil_analysis(context: dg.AssetExecutionContext, oil_analy
 )
 def read_oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.abfs_path_exists(OIL_ANALYSIS_ANALYTICS_PATH):
-        df = dl.read_tibble(abfs_path=OIL_ANALYSIS_ANALYTICS_PATH)
+    if dl.az_path_exists(OIL_ANALYSIS_ANALYTICS_PATH):
+        df = dl.read_tibble(az_path=OIL_ANALYSIS_ANALYTICS_PATH)
         context.log.info(f"Read {df.height} records from {OIL_ANALYSIS_ANALYTICS_PATH}.")
         return df
     else:

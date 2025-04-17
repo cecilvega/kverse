@@ -11,7 +11,7 @@ import polars as pl
 from datetime import date
 
 
-ICC_ANALYTICS_PATH = "abfs://bhp-analytics-data/RELIABILITY/ICC/icc.parquet"
+ICC_ANALYTICS_PATH = "az://bhp-analytics-data/RELIABILITY/ICC/icc.parquet"
 
 
 def get_shift_dates():
@@ -223,10 +223,10 @@ def icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {ICC_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(df=df, abfs_path=ICC_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(df=df, az_path=ICC_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
-            "abfs_path": ICC_ANALYTICS_PATH,
+            "az_path": ICC_ANALYTICS_PATH,
             "rows_written": df.height,
         }
     )
@@ -267,8 +267,8 @@ def publish_sharepoint_icc(context: dg.AssetExecutionContext, icc: pl.DataFrame)
 )
 def read_icc(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.abfs_path_exists(ICC_ANALYTICS_PATH):
-        df = dl.read_tibble(abfs_path=ICC_ANALYTICS_PATH)
+    if dl.az_path_exists(ICC_ANALYTICS_PATH):
+        df = dl.read_tibble(az_path=ICC_ANALYTICS_PATH)
         context.log.info(f"Read {df.height} records from {ICC_ANALYTICS_PATH}.")
         return df
     else:

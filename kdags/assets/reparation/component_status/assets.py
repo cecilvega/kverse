@@ -9,7 +9,7 @@ import re
 
 from .constants import *
 
-COMPONENT_STATUS_ANALYTICS_PATH = "abfs://bhp-analytics-data/REPARATION/COMPONENT_STATUS/component_status.parquet"
+COMPONENT_STATUS_ANALYTICS_PATH = "az://bhp-analytics-data/REPARATION/COMPONENT_STATUS/component_status.parquet"
 
 
 @dg.asset(description="Reads raw component status parquet files based on the latest partitions.")  # Changed to dg.asset
@@ -20,7 +20,7 @@ def raw_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
     Instantiates DataLake directly. Minimal logging.
     """
     datalake = DataLake()  # Direct instantiation
-    base_raw_path = "abfs://bhp-raw-data/RESO/COMPONENT_STATUS"
+    base_raw_path = "az://bhp-raw-data/RESO/COMPONENT_STATUS"
 
     files_df = datalake.list_paths(base_raw_path)
     if files_df.is_empty():
@@ -28,13 +28,13 @@ def raw_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
         return pl.DataFrame()
 
     parsed_data = []
-    for path in files_df["abfs_path"].to_list():
+    for path in files_df["az_path"].to_list():
         component_year_match = re.search(r"component_status_(\d{4})\.parquet", path)
         component_year = int(component_year_match.group(1)) if component_year_match else None
         partition_match = re.search(r"y=(\d{4})/m=(\d{2})/d=(\d{2})", path)
         partition_date = datetime(*map(int, partition_match.groups())) if partition_match else None
         if component_year and partition_date:
-            parsed_data.append({"abfs_path": path, "component_year": component_year, "partition_date": partition_date})
+            parsed_data.append({"az_path": path, "component_year": component_year, "partition_date": partition_date})
 
     if not parsed_data:
         context.log.warning(f"No valid partitioned files found under {base_raw_path}")
@@ -46,9 +46,9 @@ def raw_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
         .agg(pl.col("partition_date").max())
         .join(paths_df, on=["component_year", "partition_date"])
     )
-    paths_to_read = latest_paths_df["abfs_path"].to_list()
+    paths_to_read = latest_paths_df["az_path"].to_list()
 
-    tibbles = [datalake.read_tibble(abfs_path=p) for p in paths_to_read]
+    tibbles = [datalake.read_tibble(az_path=p) for p in paths_to_read]
     if not tibbles:
         return pl.DataFrame()
 
@@ -61,10 +61,6 @@ def raw_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
 # Use direct parameter passing for dependency
 # Add context back for logging
 def mutate_component_status(context: dg.AssetExecutionContext, raw_component_status: pl.DataFrame) -> pl.DataFrame:
-    """
-    Applies renaming and type casting based on defined constants.
-    Uses 'mutate_' prefix as preferred. Clones input. Minimal logging.
-    """
 
     df = raw_component_status.clone()  # Clone input
 
@@ -133,6 +129,7 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
                 for c in final_date_cols
             ]
         )
+        .with_columns(pl.col("sap_equipment_name").str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1))
     )
 
     # 5. Perform Validation: Join processed data with original strings
@@ -212,10 +209,10 @@ def component_status(context: dg.AssetExecutionContext, mutate_component_status:
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {COMPONENT_STATUS_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(df=df, abfs_path=COMPONENT_STATUS_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(df=df, az_path=COMPONENT_STATUS_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
-            "abfs_path": COMPONENT_STATUS_ANALYTICS_PATH,
+            "az_path": COMPONENT_STATUS_ANALYTICS_PATH,
             "rows_written": df.height,
         }
     )
@@ -227,8 +224,8 @@ def component_status(context: dg.AssetExecutionContext, mutate_component_status:
 )
 def read_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.abfs_path_exists(COMPONENT_STATUS_ANALYTICS_PATH):
-        df = dl.read_tibble(abfs_path=COMPONENT_STATUS_ANALYTICS_PATH)
+    if dl.az_path_exists(COMPONENT_STATUS_ANALYTICS_PATH):
+        df = dl.read_tibble(az_path=COMPONENT_STATUS_ANALYTICS_PATH)
         context.log.info(f"Read {df.height} records from {COMPONENT_STATUS_ANALYTICS_PATH}.")
         return df
     else:

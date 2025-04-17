@@ -1,49 +1,49 @@
-- component_name: "motor_traccion"
-  component_code: "MT"
+- component_name: motor_traccion
+  component_code: MT
   position_name:
-    - "derecho"
-    - "izquierdo"
+    - derecho
+    - izquierdo
   subcomponent:
-    - name: "transmision"
-      code: "TRANS"
+    - name: transmision # Si
+      code: TRANS
       main: True
 #      reso:
-    - name: "motor_electrico"
-      code: "ME"
-    - name: "freno_servicio_trasero"
-    - name: "freno_estacionamiento"
-- component_name: "modulo_potencia"
-  component_code: "MP"
+    - name: motor_electrico # No
+      code: ME
+    - name: freno_servicio_trasero
+    - name: freno_estacionamiento
+- component_name: modulo_potencia
+  component_code: MP
   position_name:
-    - "unico"
+    - unico
   subcomponent:
-    - name: "motor"
+    - name: motor
       main: True
-    - name: "alternador_principal"
-      code: "AP"
-    - name: "subframe"
-    - name: "radiador"
-- component_name: "cilindro_direccion"
-  component_code: "CD"
+    - name: alternador_principal # No
+      code: AP
+    - name: subframe
+    - name: radiador
+- component_name: cilindro_direccion # Si
+  component_code: CD
   position_name:
-    - "derecho"
-    - "izquierdo"
+    - derecho
+    - izquierdo
   subcomponent:
-    - name: "cilindro_direccion"
-      code: "CD"
+    - name: cilindro_direccion
+      code: CD
       main: True
-- component_name: "blower_parrilla"
-  component_code: "BP"
+- component_name: blower_parrilla #No
+  component_code: BP
   position_name:
-    - "derecho"
-    - "izquierdo"
-- component_name: "conjunto_masa_suspension"
-  component_code: "CMS"
+    - derecho
+    - izquierdo
+- component_name: conjunto_masa_suspension
+  component_code: CMS
   position_name:
-    - "derecho"
-    - "izquierdo"
+    - derecho
+    - izquierdo
   subcomponent:
-    - name: suspension_delantera
+    - name: suspension_delantera   # Si
       reso:
         - FRONT SUSPENSION
         - asd
@@ -51,25 +51,25 @@
     - name: freno_servicio_delantero
       reso:
         - FRONT SUSPENSION
-- component_name: "cilindro_levante"
-  component_code: "CL"
+- component_name: cilindro_levante  # Si
+  component_code: CL
   position_name:
-    - "derecho"
-    - "izquierdo"
+    - derecho
+    - izquierdo
   subcomponent:
-    - name: "cilindro_levante"
-      code: "CL"
+    - name: cilindro_levante
+      code: CL
       main: True
       reso:
         - HOIST CYLINDER
-- component_name: "suspension_trasera"
-  component_code: "ST"
+- component_name: suspension_trasera # Si
+  component_code: ST
   position_name:
-    - "derecho"
-    - "izquierdo"
+    - derecho
+    - izquierdo
   subcomponent:
-    - name: "suspension_trasera"
-      code: "ST"
+    - name: suspension_trasera
+      code: ST
       main: True
       reso:
         - REAR SUSPENSION

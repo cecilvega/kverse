@@ -85,7 +85,7 @@ def spawn_events(context: dg.AssetExecutionContext, mutate_raw_events):
     }
 
     datalake_path = DataLake().upload_tibble(
-        abfs_path="abfs://bhp-analytics-data/OPERATION/GE/events.parquet",
+        az_path="abfs://bhp-analytics-data/OPERATION/GE/events.parquet",
         df=df,
         format="parquet",
     )
@@ -101,7 +101,7 @@ def spawn_events(context: dg.AssetExecutionContext, mutate_raw_events):
 def read_events():
     dl = DataLake()
     uri = "abfs://bhp-analytics-data/OPERATION/GE/events.parquet"
-    if dl.abfs_path_exists(uri):
-        return dl.read_tibble(abfs_path=uri)
+    if dl.az_path_exists(uri):
+        return dl.read_tibble(az_path=uri)
     else:
         return pl.DataFrame()

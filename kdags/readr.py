@@ -16,12 +16,15 @@ from kdags.assets.operation.ge.events.pipeline import read_events
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_history
 
+# === RELIABILITY ===
+from kdags.assets.reliability.icc.assets import read_icc
+from kdags.assets.reliability.component_reparations import read_component_reparations
+
 # === OPERATION ===
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
 from kdags.assets.operation.plm.alarms import read_alarms
 from kdags.assets.operation.plm.haul import read_haul
 
-from kdags.assets.reliability.icc.assets import read_icc
 
 # === REPARATION ===
 from kdags.assets.reparation.component_status.assets import read_component_status
@@ -62,6 +65,7 @@ class Readr:
     @dataclass
     class Reliability:
         read_icc: dg.AssetsDefinition = read_icc
+        read_component_reparations: dg.AssetsDefinition = read_component_reparations
 
     # @staticmethod
     # def get_asset_by_path(defs: dg.Definitions, path: str) -> dg.AssetsDefinition:

@@ -250,6 +250,12 @@ def upload_component_status_results(context: dg.AssetExecutionContext, abfs_path
     context.log.info(f"Identified most recent Excel file: {downloaded_file_path}")
 
     pandas_df = pd.read_html(downloaded_file_path)[0]
+    all_string_converters = {col_name: str for col_name in pandas_df.columns}
+    pandas_df = pd.read_html(
+        downloaded_file_path,
+        converters=all_string_converters,
+        dtype_backend="pyarrow",
+    )[0]
 
     context.log.info(f"Successfully read data from {downloaded_file_path.name}")
 
@@ -259,7 +265,7 @@ def upload_component_status_results(context: dg.AssetExecutionContext, abfs_path
     # Assuming DataLake resource 'datalake' is configured for the asset
     # Or initialize here if not using resources: datalake = DataLake()
     datalake = DataLake()  # Initialize directly for this example
-    datalake.upload_tibble(abfs_path=abfs_path, df=df, format="parquet")
+    datalake.upload_tibble(az_path=abfs_path, df=df, format="parquet")
     context.log.info(f"Successfully uploaded data for year {year} to {abfs_path}")
 
     # Delete local file

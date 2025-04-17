@@ -5,18 +5,18 @@ from dagster import (
     DefaultScheduleStatus,
 )
 
-# === Planning ===
+# === PLANNING ===
 component_changeouts_job = ScheduleDefinition(
     job=define_asset_job(
         name="component_changeouts_job",
-        selection=AssetSelection.assets("components_changeouts").upstream(),
+        selection=AssetSelection.assets("component_changeouts").upstream(),
         description="Cambios de componente",
     ),
     cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",
     default_status=DefaultScheduleStatus.RUNNING,
 )
-# === Reparation ===
+# === REPARATION ===
 scrape_component_status_job = ScheduleDefinition(
     job=define_asset_job(
         name="scrape_component_status_job",
@@ -40,7 +40,7 @@ component_status_job = ScheduleDefinition(
 )
 
 
-# === Maintenance ===
+# === MAINTENANCE ===
 pm_history_job = ScheduleDefinition(
     job=define_asset_job(
         name="pm_history_job",
@@ -74,6 +74,14 @@ oil_analysis_job = ScheduleDefinition(
     default_status=DefaultScheduleStatus.RUNNING,
 )
 
+attendances_job = ScheduleDefinition(
+    job=define_asset_job(name="attentances_job", selection=AssetSelection.groups("maintenance")),
+    cron_schedule="0 0 * * *",
+    execution_timezone="America/Santiago",
+    # default_status=DefaultScheduleStatus.RUNNING,
+)
+
+# === RELIABILITY ===
 
 icc_job = ScheduleDefinition(
     job=define_asset_job(
@@ -87,14 +95,18 @@ icc_job = ScheduleDefinition(
 )
 
 
-attendances_job = ScheduleDefinition(
-    job=define_asset_job(name="attentances_job", selection=AssetSelection.groups("maintenance")),
-    cron_schedule="0 0 * * *",
+component_reparations_job = ScheduleDefinition(
+    job=define_asset_job(
+        name="component_reparations_job",
+        selection=AssetSelection.assets("component_reparations").upstream(),
+        tags={"source": "icc"},
+    ),
+    cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",
-    # default_status=DefaultScheduleStatus.RUNNING,
+    default_status=DefaultScheduleStatus.RUNNING,
 )
 
-# === Operation ===
+# === OPERATION ===
 
 op_file_idx_job = ScheduleDefinition(
     job=define_asset_job(

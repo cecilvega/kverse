@@ -129,7 +129,7 @@ def spawn_op_file_idx(list_op_file_idx):
     df["partition_date"] = df.apply(lambda x: convert_date_format(x["extracted_date"], x["date_pattern"]), axis=1)
 
     DataLake().upload_tibble(
-        abfs_path="abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet",
+        az_path="abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet",
         df=df,
         format="parquet",
     )
