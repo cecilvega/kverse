@@ -1,75 +1,75 @@
 SV082:
-  equipment_model: "PC8000-6"
-  equipment_serial: "12098"
-  site_name: "MEL"
+  equipment_model: PC8000-6
+  equipment_serial: 12098
+  site_name: MEL
   operating: True
 TK284:
-  equipment_model: "930E-4"
-  equipment_serial: "A30516"
-  site_name: "MEL"
+  equipment_model: 930E-4
+  equipment_serial: A30516
+  site_name: MEL
   operating: True
 TK285:
-  equipment_model: "930E-4"
-  equipment_serial: "A30517"
-  site_name: "MEL"
+  equipment_model: 930E-4
+  equipment_serial: A30517
+  site_name: MEL
   operating: True
 TK286:
-  equipment_model: "930E-4"
-  equipment_serial: "A30528"
-  site_name: "MEL"
+  equipment_model: 930E-4
+  equipment_serial: A30528
+  site_name: MEL
   operating: True
 TK289:
-  equipment_model: "930E-4"
-  equipment_serial: "A30529"
-  site_name: "MEL"
+  equipment_model: 930E-4
+  equipment_serial: A30529
+  site_name: MEL
   operating: True
 TK291:
-  equipment_model: "930E-4"
-  equipment_serial: "A30675"
-  site_name: "MEL"
+  equipment_model: 930E-4
+  equipment_serial: A30675
+  site_name: MEL
   operating: True
 TK292:
-  equipment_model: "930E-4"
-  equipment_serial: "A30676"
-  site_name: "MEL"
+  equipment_model: 930E-4
+  equipment_serial: A30676
+  site_name: MEL
   operating: True
 TK320:
-  equipment_model: "960E"
-  equipment_serial: "A30003"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30003
+  site_name: MEL
   operating: True
 TK322:
-  equipment_model: "960E"
-  equipment_serial: "A30006"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30006
+  site_name: MEL
   operating: True
 TK396:
-  equipment_model: "960E"
-  equipment_serial: "A30039"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30039
+  site_name: MEL
   operating: True
 TK397:
-  equipment_model: "960E"
-  equipment_serial: "A30040"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30040
+  site_name: MEL
   operating: True
 TK398:
-  equipment_model: "960E"
-  equipment_serial: "A30041"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30041
+  site_name: MEL
   operating: True
 TK399:
-  equipment_model: "960E"
-  equipment_serial: "A30042"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30042
+  site_name: MEL
   operating: True
 TK847:
-  equipment_model: "960E"
-  equipment_serial: "A30044"
-  site_name: "MEL"
+  equipment_model: 960E
+  equipment_serial: A30044
+  site_name: MEL
   operating: True
 TK848:
-  equipment_model: "960E"
+  equipment_model: "960E
   equipment_serial: "A30045"
   site_name: "MEL"
   operating: True

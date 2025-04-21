@@ -1,0 +1,274 @@
+# io_map.yaml
+# Root key for the data catalog
+data_catalog:
+  # Grouping by the source system (SISTEMA)
+  GE:
+    description: "Data originating from the GE system."
+    subsystems:
+      EFFECTIVE_GRADE:
+        description: "Effective grade measurements."
+        data_format: dataframe # Or be more specific like 'partitioned_csv'
+        is_used: true
+        is_orchestrated: true
+        is_structured: true # Assuming 'ORDENADO' means cleaned/processed by source
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/EFFECTIVE_GRADE/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+        # No specific output path mentioned for direct processing in your example
+        # related_scripts: [kdags/assets/operation/archived/effective_grade/read.py] # Example link
+
+      EVENTS:
+        description: "System event logs from GE."
+        data_format: dataframe # Or 'partitioned_csv'
+        is_used: true
+        is_orchestrated: true
+        is_structured: true
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/EVENTS/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+        processed_outputs:
+          - path: "bhp-analytics-data/OPERATION/GE/events.parquet"
+            format: parquet
+            description: "Consolidated and processed event data."
+            generating_script: kdags/assets/operation/ge/events/pipeline.py # Link to script
+
+      DATAPACK:
+        description: "GE Datapack information."
+        data_format: dataframe
+        is_used: false # Marked as 'NO' in 'Utilización'
+        is_orchestrated: true
+        is_structured: false # Marked as 'NO' in 'ORDENADO'
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/DATAPACK/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+
+      TORQUE_SWING:
+        description: "Torque swing data from GE."
+        data_format: dataframe
+        is_used: true
+        is_orchestrated: true
+        is_structured: true
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/TORQUE_SWING/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+        # related_scripts: [kdags/assets/operation/archived/torque_swing/read.py] # Example link
+
+      COUNTER:
+        description: "Counter data from GE."
+        data_format: dataframe
+        is_used: false
+        is_orchestrated: true
+        is_structured: false
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/COUNTER/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+
+      PROFILE:
+        description: "Profile data from GE."
+        data_format: dataframe
+        is_used: false
+        is_orchestrated: true
+        is_structured: false
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/PROFILE/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+
+      TRIPMON:
+        description: "Trip monitoring data from GE."
+        data_format: dataframe
+        is_used: false
+        is_orchestrated: true
+        is_structured: false
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/GE/TRIPMON/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+
+  VHMS:
+    description: "Data from Vehicle Health Monitoring System."
+    subsystems:
+      TREND0:
+        description: "Trend data (type 0) from VHMS."
+        data_format: dataframe
+        is_used: true
+        is_orchestrated: false # Marked as 'NO'
+        is_structured: true # Marked as 'SI'
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/VHMS/TREND0/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+
+      FAULT: # Assuming FAUT0 was a typo for FAULT
+        description: "Fault code data from VHMS."
+        data_format: dataframe
+        is_used: true
+        is_orchestrated: false
+        is_structured: true
+        source:
+          type: datalake
+          # Corrected typo from FAUT0 to FAULT based on convention
+          path_pattern: "bhp-raw-data/VHMS/FAULT/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+
+  PLM:
+    description: "Data from Payload Monitoring system (PLM3)."
+    subsystems:
+      HAUL:
+        description: "Haul cycle data from PLM3."
+        data_format: dataframe # Likely Paradox DB originally, processed to DF?
+        is_used: true
+        is_orchestrated: true
+        is_structured: false # Marked as 'NO'
+        source:
+          # Path suggests already processed/copied data
+          type: datalake
+          path_pattern: "bhp-raw-data/PLM3/HAUL/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+        related_scripts: # Scripts likely involved
+          - kdags/assets/operation/plm/plm3/export_paradox.py
+          - kdags/assets/operation/plm/haul.py
+
+      ALARMS:
+        description: "Alarm data from PLM3."
+        data_format: dataframe
+        is_used: true
+        is_orchestrated: true
+        is_structured: false
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/PLM3/ALARMS/y={YYYY}/m={MM}/d={DD}"
+          partition_scheme: date_ymd
+        related_scripts: # Scripts likely involved
+          - kdags/assets/operation/plm/plm3/export_paradox.py
+          - kdags/assets/operation/plm/alarms.py
+
+  RESO:
+    description: "Data related to the RESO+ application (Reparation System)."
+    subsystems:
+      COMPONENT_STATUS:
+        description: "Component status report, likely scraped or downloaded."
+        # Using 'unknown' as Utilización was empty
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: false
+        data_format: excel # Assuming based on SharePoint context, adjust if needed
+        source:
+          type: sharepoint
+          url: "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/MEGA_STATUS_RESO"
+        related_scripts:
+          - kdags/assets/reparation/reso/component_status_scraper.py
+          - kdags/assets/reparation/component_status/assets.py
+
+      INFORME_TECNICO_IN:
+        description: "Initial technical report documents."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: true # Marked as 'SI'
+        data_format: document # e.g., pdf, docx
+        source:
+          type: datalake # Or perhaps SharePoint initially?
+          path_pattern: "bhp-raw-data/RESO/DOCUMENTS/{report_id}_IN.pdf" # Example pattern
+        related_scripts:
+          - kdags/assets/reparation/reso/harvest_documents.ipynb # Example link
+
+      INFORME_TECNICO_FIN:
+        description: "Final technical report documents."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: true
+        data_format: document
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/RESO/DOCUMENTS/{report_id}_FIN.pdf" # Example pattern
+        related_scripts:
+          - kdags/assets/reparation/reso/harvest_documents.ipynb # Example link
+
+      PRESUPUESTOS:
+        description: "Budget documents (Presupuestos)."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: true
+        data_format: document
+        source:
+          type: datalake
+          path_pattern: "bhp-raw-data/RESO/DOCUMENTS/PPTO_{id}.pdf" # Example pattern
+        related_scripts:
+          - kdags/assets/reparation/reso/presupuesto_scraper.py
+          - kdags/assets/reparation/reso/harvest_ppto.ipynb # Example link
+
+      FOTOS:
+        description: "Photos related to reparations."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: true
+        data_format: image # e.g., jpg, png
+        source:
+          type: unknown # Path was empty in example, needs definition
+          path_pattern: "path/to/photos/{component_id}/..." # Define pattern
+        related_scripts:
+          - kdags/assets/reparation/reso/harvest_documents.ipynb # Photos might be part of document harvest
+
+  FIORI:
+    description: "Data originating from SAP Fiori interface."
+    subsystems:
+      WORK_ORDER_HISTORY:
+        description: "Historical work order data."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: false
+        data_format: dataframe # Likely Excel/CSV download
+        source:
+          type: datalake # Assuming download destination
+          path_pattern: "bhp-raw-data/FIORI/PM_HISTORY/{filename}.xlsx" # Example pattern
+        related_scripts:
+          - kdags/assets/maintenance/fiori/work_orders_history.py
+          - kdags/assets/maintenance/fiori/pm_history.py # Might be related
+
+      PAUTAS_MANTENCION:
+        description: "Maintenance guideline documents."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: false
+        data_format: document # e.g., pdf
+        source:
+          type: datalake # Assuming download destination
+          path_pattern: "bhp-raw-data/FIORI/REPORTS/{guideline_name}.pdf" # Example pattern
+        related_scripts:
+          - kdags/assets/maintenance/fiori/pm_reports.py # Might download these
+
+  ICC:
+    description: "Data related to ICC (Integrated Command Center?)."
+    subsystems:
+      ICC_LIST:
+        description: "List related to ICC operations."
+        is_used: unknown
+        is_orchestrated: false
+        is_structured: false
+        data_format: dataframe # Likely Excel/CSV
+        source:
+          type: unknown # Path was empty in example, needs definition (e.g., SharePoint, DB)
+          path_pattern: "path/to/icc_list.xlsx" # Define location
+        related_scripts:
+          - kdags/assets/reliability/icc/assets.py
+          - kdags/assets/reliability/icc/utils.py
+
+  # Add entries for WARRANTY, QUOTATIONS, TRAZABILIDAD_COMPONENTES when defined
+  # Example:
+  # WARRANTY:
+  #   description: "Warranty claim information."
+  #   subsystems:
+  #     CLAIMS_DATA:
+  #       description: "Details of warranty claims."
+  #       data_format: database_table # Example
+  #       is_used: true
+  #       # ... other fields ...
+  #       source:
+  #         type: database
+  #         connection_id: "warranty_db"
+  #         table_name: "dbo.claims"

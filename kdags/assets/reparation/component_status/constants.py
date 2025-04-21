@@ -150,7 +150,7 @@ COLUMN_MAPPING = {
 
 # Columns to convert to integer after cleaning
 INT_CONVERSION_COLUMNS = [
-    # COL_SERVICE_ORDER,
+    COL_SERVICE_ORDER,
     COL_PREVIOUS_SERVICE_ORDER,
     COL_CUSTOMER_WORK_ORDER,
 ]

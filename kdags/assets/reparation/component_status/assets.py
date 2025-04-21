@@ -72,14 +72,7 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
     # 1. Load initial data and add a unique ID BEFORE filtering
     df = df.with_row_count("original_row_id")  # Add index
 
-    # 2. Prepare column lists and mappings based on available columns
-    available_raw_cols = [col for col in SELECTED_RAW_COLUMNS if col in df.columns]
-    mapping_subset = {k: v for k, v in COLUMN_MAPPING.items() if k in available_raw_cols}
-
-    # Get the final column names AFTER mapping/renaming
-    final_int_cols = [v for k, v in mapping_subset.items() if v in INT_CONVERSION_COLUMNS]
-    final_date_cols = [v for k, v in mapping_subset.items() if v in DATE_CONVERSION_COLUMNS]
-    final_service_order_col = mapping_subset.get("YourRawServiceOrderColumnName", "service_order")  # Get final name
+    mapping_subset = {k: v for k, v in COLUMN_MAPPING.items()}
 
     # 3. Store original string values for comparison later
     # Select the ID and the raw columns that will be converted/renamed
@@ -92,15 +85,10 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
 
     # 4. Run the main processing pipeline
     # *Use strict=False for service_order DURING analysis*
-    df_processed = (
-        df.filter(pl.col("Location").str.contains("ESCONDIDA"))  # Start with original data + row id
-        .select(["original_row_id"] + available_raw_cols)  # Keep row id
+    df = (
+        df.select(["original_row_id"] + available_raw_cols)  # Keep row id
         .rename(mapping_subset)
         .with_columns(
-            # Use strict=False for analysis to avoid stopping; use True in production if needed
-            service_order=pl.col(final_service_order_col).str.to_integer(strict=False)
-        )
-        .with_columns(  # Other Integer Conversions
             [
                 pl.col(c)
                 .str.split_exact("-", 1)
@@ -109,9 +97,7 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
                 .struct.field("field_0")
                 .str.to_integer(strict=False)  # Keep strict=False
                 .alias(c)
-                for c in final_int_cols
-                # Ensure not reprocessing service_order if it's in this list
-                if c != final_service_order_col
+                for c in INT_CONVERSION_COLUMNS
             ]
         )
         .with_columns(  # Date Conversions (using your split + coalesce method)
@@ -126,72 +112,29 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
                     .list.get(0)
                     .str.strptime(pl.Date, format="%d-%m-%Y", strict=False),  # Keep strict=False
                 ).alias(c)
-                for c in final_date_cols
+                for c in DATE_CONVERSION_COLUMNS
             ]
         )
         .with_columns(pl.col("sap_equipment_name").str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1))
-    )
-
-    # 5. Perform Validation: Join processed data with original strings
-    df_comparison = df_processed.join(
-        df_original_strings.filter(pl.col("original_row_id").is_in(df_processed["original_row_id"])),
-        on="original_row_id",
-    )
-
-    # 6. Find and Report Failures
-
-    print("\n--- Conversion Validation Report ---")
-    conversion_failures = {}
-
-    # Check Service Order Integer Conversion
-    original_so_col = f"{final_service_order_col}_original_str"
-    so_failures = df_comparison.filter(
-        pl.col(original_so_col).is_not_null()
-        & pl.col(final_service_order_col).is_null()
-        & (pl.col(original_so_col) != "")  # Check original wasn't null/empty
-    )
-    if not so_failures.is_empty():
-        context.log.warning(
-            f"\n[WARNING] Found {len(so_failures)} rows where '{final_service_order_col}' integer parsing failed:"
+        .with_columns(
+            [
+                pl.col(c)
+                .str.strip_chars()
+                .str.replace("\t", "")
+                .str.replace_all("#", "")
+                .str.split(" ")
+                .list.first()
+                .alias(c)
+                for c in ["component_serial"]
+            ]
         )
-        context.log.warning(so_failures.select("original_row_id", original_so_col, final_service_order_col).head())
-        conversion_failures[final_service_order_col] = so_failures
-
-    # Check other Integer Conversions
-    for col in final_int_cols:
-        if col == final_service_order_col:
-            continue
-        original_col = f"{col}_original_str"
-        processed_col = col
-        failures = df_comparison.filter(
-            pl.col(original_col).is_not_null() & pl.col(processed_col).is_null() & (pl.col(original_col) != "")
+        .with_columns(
+            [pl.col(col).replace(0, -1) for col in ["sap_equipment_name", "customer_work_order", "service_order"]]
         )
-        if not failures.is_empty():
-            context.log.warning(
-                f"\n[WARNING] Found {len(failures)} rows where '{processed_col}' integer parsing failed:"
-            )
-            context.log.warning(failures.select("original_row_id", original_col, processed_col).head())
-            conversion_failures[processed_col] = failures
-
-    # Check Date Conversions
-    for col in final_date_cols:
-        original_col = f"{col}_original_str"
-        processed_col = col
-        failures = df_comparison.filter(
-            pl.col(original_col).is_not_null() & pl.col(processed_col).is_null() & (pl.col(original_col) != "")
-        )
-        if not failures.is_empty():
-            context.log.warning(
-                f"\n[WARNING] Found {len(failures)} rows where '{processed_col}' date parsing failed (unhandled format?):"
-            )
-            context.log.warning(failures.select("original_row_id", original_col, processed_col).head())
-            conversion_failures[processed_col] = failures
-
-    if not conversion_failures:
-        context.log.warning("\nNo conversion failures detected (original non-null values -> converted null values).")
+    )
 
     context.log.info(f"Mutation complete. Output rows: {df.height}")
-    return df_processed
+    return df
 
 
 @dg.asset(  # Changed to dg.asset

@@ -5,3 +5,6 @@ build-backend = "setuptools.build_meta"
 [tool.dagster]
 module_name = "kdags.definitions"
 code_location_name = "kdags"
+
+[tool.black]
+line-length = 120

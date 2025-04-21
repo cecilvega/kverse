@@ -12,7 +12,7 @@ component_changeouts_job = ScheduleDefinition(
         selection=AssetSelection.assets("component_changeouts").upstream(),
         description="Cambios de componente",
     ),
-    cron_schedule="30 6 * * *",
+    cron_schedule="0 3,15 * * *",
     execution_timezone="America/Santiago",
     default_status=DefaultScheduleStatus.RUNNING,
 )

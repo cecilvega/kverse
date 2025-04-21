@@ -1,6 +1,5 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from .config import RESO_URL
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
@@ -11,6 +10,11 @@ from selenium.common.exceptions import (
 from pathlib import Path
 import os
 
+__all__ = ["DEFAULT_WAIT", "RESO_URL", "initialize_driver", "login_to_reso"]
+
+DEFAULT_WAIT = 60
+# BASE_PATH = r"C:\Users\andmn\OneDrive - Komatsu Ltd\REPARACION"
+RESO_URL = "https://resoplus.komatsu.cl/"
 CHROME_DRIVER_PATH = os.path.abspath(os.path.join(Path(__file__).parents[5], "config", "chromedriver.exe"))
 
 
@@ -26,8 +30,8 @@ def initialize_driver():
     return webdriver.Chrome(service=service, options=options)
 
 
-# Click Login Button (with retry)
-def click_element(by, value, retries=3):
+def click_element(wait, by, value, retries=3):
+    """Helper function to click elements with retry logic."""
     for attempt in range(retries):
         try:
             element = wait.until(EC.element_to_be_clickable((by, value)))
@@ -46,21 +50,6 @@ def login_to_reso(driver, wait):
     """
     Handles the login process for Reso application with retries for stale elements.
     """
-
-    def click_element(wait, by, value, retries=3):
-        """Helper function to click elements with retry logic."""
-        for attempt in range(retries):
-            try:
-                element = wait.until(EC.element_to_be_clickable((by, value)))
-                # Add a small pause to let the page stabilize
-                time.sleep(0.5)
-                element.click()
-                return True
-            except (StaleElementReferenceException, TimeoutException) as e:
-                if attempt == retries - 1:
-                    raise e
-                time.sleep(1)
-        return False
 
     # Navigate to Reso
     driver.get(RESO_URL)
@@ -88,9 +77,5 @@ def login_to_reso(driver, wait):
     # Wait for Stay Signed In screen & Click "Yes" (with extra wait)
     time.sleep(1)  # Give the page time to load the Stay Signed In screen
     click_element(wait, By.ID, "idSIButton9")
-
-    # # Navigate to Presupuesto page
-    # time.sleep(2)  # Wait for login to complete
-    # driver.get(f"{RESO_URL}/Gestion/Presupuesto")
 
     return True

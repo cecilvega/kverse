@@ -2,15 +2,10 @@ import re
 from io import BytesIO
 
 import dagster as dg
-import openpyxl
-import pandas as pd
-import unicodedata
-import os
-from pathlib import Path
 import polars as pl
-from .constants import COMPATIBILITY_MAPPING
-from kdags.resources.tidyr import MSGraph, DataLake
+import unicodedata
 
+from kdags.resources.tidyr import MSGraph, DataLake
 from .constants import *
 
 COMPONENT_CHANGEOUTS_ANALYTIS_PATH = (
@@ -56,7 +51,7 @@ def component_changeouts(context: dg.AssetExecutionContext, raw_component_change
         .drop_nulls(subset=["FECHA DE CAMBIO"])
         .with_columns(pl.lit("MEL").alias("site_name"))
         .with_row_index("cc_index")
-    )  # equivalent to rename_axis + reset_index
+    )
 
     df = df.with_columns(
         [

@@ -84,7 +84,7 @@ class DataLake:
 
     def read_tibble(
         self, az_path: str, use_polars: bool = True, include_az_path: bool = False, **kwargs
-    ) -> [pd.DataFrame, pl.DataFrame]:
+    ) -> pl.DataFrame:
 
         file_ext = az_path.split(".")[-1].lower()
 

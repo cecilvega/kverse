@@ -2,58 +2,30 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-# --- Dagster Imports ---
+# --- Default imports ---
 import dagster as dg
 import pandas as pd
 import polars as pl
 
-# --- Selenium Imports ---
+# --- Selenium imports ---
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from .config import DEFAULT_WAIT
-from .web_driver import initialize_driver, login_to_reso
-from kdags.resources.tidyr import DataLake  # Assuming DataLake is initialized via resources or globally accessible
-from selenium.webdriver.remote.webelement import WebElement
-
-
-def click_reportabilidad(driver, wait):
-    """Clicks the main 'Reportabilidad' section."""
-    print("--- Clicking Reportabilidad ---")
-    reportabilidad_locator = (
-        By.XPATH,
-        "//span[normalize-space(text())='Reportabilidad']",
-    )
-    reportabilidad_span = wait.until(EC.presence_of_element_located(reportabilidad_locator))
-    driver.execute_script("arguments[0].scrollIntoView(true);", reportabilidad_span)
-    wait.until(EC.element_to_be_clickable(reportabilidad_locator))
-    reportabilidad_span.click()
-    print("Clicked 'Reportabilidad'.")
-
-
-def click_component_status(driver, wait):
-    """Clicks the 'Estatus Componente' sub-link."""
-    estatus_componente_locator = (By.ID, "submodulo-369")
-    estatus_componente_link = wait.until(EC.presence_of_element_located(estatus_componente_locator))
-    driver.execute_script("arguments[0].scrollIntoView(true);", estatus_componente_link)
-    wait.until(EC.element_to_be_clickable(estatus_componente_locator))
-    estatus_componente_link.click()
-
-    time.sleep(1)
+# --- Relative module imports
+from kdags.resources.tidyr import DataLake
+from .main_navigation import click_reportabilidad, click_component_status
+from .web_driver import initialize_driver, login_to_reso, DEFAULT_WAIT, RESO_URL
 
 
 def set_default_component_status_filters(driver, wait: WebDriverWait):
     """Sets the default filters: Toggles 'See All', selects all workshops."""
 
-    # --- NEW: Wait for filters to finish loading ---
     # Wait for the 'Select All Workshops' checkbox to be present in the DOM.
-    # Its presence indicates the Workshop multi-select has been loaded by JS.
     select_all_locator = (By.ID, "cbxTodosTalleres")
     wait.until(EC.presence_of_element_located(select_all_locator))
-    # Add a very small static pause *just in case* there's a tiny delay
-    # between presence and full readiness for interaction, although EC should handle this.
-    time.sleep(0.5)
+    time.sleep(0.5)  # Small pause after click might help stability
 
     # 1. Click "See All" switch
     see_all_switch_locator = (By.CSS_SELECTOR, "input#verTodosOS + span.switchery")
@@ -65,7 +37,6 @@ def set_default_component_status_filters(driver, wait: WebDriverWait):
     clickable_switch.click()
 
     # 2. Open Workshop dropdown (using original overlay locator)
-    # --- Using the original overlay locator as requested ---
     overlay_locator = (
         By.XPATH,
         "//select[@id='cbxModeloDTaller']/following-sibling::div[contains(@class, 'overSelect')]",
@@ -75,35 +46,27 @@ def set_default_component_status_filters(driver, wait: WebDriverWait):
     # Ensure the underlying select element exists before scrolling
     select_element = wait.until(EC.presence_of_element_located(select_element_locator))
 
-    # print("Scrolling Workshop dropdown area into view...")
+    # Scrolling Workshop dropdown area into view...
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", select_element)
 
     # Wait for the overlay element itself to be present before trying to click
     overlay_div = wait.until(EC.presence_of_element_located(overlay_locator))
 
-    # --- IMPORTANT: Wait for the overlay to be clickable ---
-    # Even if present, it might not be immediately clickable
+    # Wait for the overlay to be clickable ---
     wait.until(EC.element_to_be_clickable(overlay_locator))
 
     overlay_div.click()  # Click the overlay div
 
     # 3. Click "SELECCIONAR TODOS" checkbox inside the dropdown
-    # select_all_locator is already defined from the initial wait
     # Wait for the checkbox to become VISIBLE now that the dropdown is open
     wait.until(EC.visibility_of_element_located(select_all_locator))
     select_all_checkbox = wait.until(EC.element_to_be_clickable(select_all_locator))
-    # Using standard click first
     select_all_checkbox.click()
-    # If standard click fails, try JS click:
-    # driver.execute_script("arguments[0].click();", select_all_checkbox)
     time.sleep(0.5)  # Small pause after click might help stability
 
     # 4. Close Workshop dropdown (using original overlay locator)
-    # print("Attempting to close Workshop dropdown by clicking overlay again...")
-    # Re-find and wait for the overlay to be clickable again
     overlay_div_to_close = wait.until(EC.element_to_be_clickable(overlay_locator))
     overlay_div_to_close.click()
-    # print("Clicked Workshop overlay again to close.")
 
     # Wait for the dropdown content (the 'Select All' checkbox) to become invisible
     wait.until(EC.invisibility_of_element_located(select_all_locator))
@@ -230,9 +193,9 @@ def export_component_status_results(driver, wait):
     time.sleep(5)  # Pause to allow download to initiate/complete
 
 
-def upload_component_status_results(context: dg.AssetExecutionContext, abfs_path: str, year: int):
+def upload_component_status_results(context: dg.AssetExecutionContext, az_path: str, year: int):
     """Finds latest download, reads as HTML table, uploads to ADLS, deletes local file."""
-    print(f"--- Uploading results for year {year} to {abfs_path} ---")
+    print(f"--- Uploading results for year {year} to {az_path} ---")
 
     download_dir = Path.home() / "Downloads"
     context.log.info(f"Checking for downloads in: {download_dir}")
@@ -262,32 +225,22 @@ def upload_component_status_results(context: dg.AssetExecutionContext, abfs_path
     df = pl.from_pandas(pandas_df, schema_overrides={c: pl.String for c in pandas_df.columns.to_list()})
 
     # Upload to Data Lake
-    # Assuming DataLake resource 'datalake' is configured for the asset
-    # Or initialize here if not using resources: datalake = DataLake()
-    datalake = DataLake()  # Initialize directly for this example
-    datalake.upload_tibble(az_path=abfs_path, df=df, format="parquet")
-    context.log.info(f"Successfully uploaded data for year {year} to {abfs_path}")
+    datalake = DataLake()
+    datalake.upload_tibble(az_path=az_path, df=df, format="parquet")
+    context.log.info(f"Successfully uploaded data for year {year} to {az_path}")
 
     # Delete local file
     context.log.info(f"Deleting local file: {downloaded_file_path}")
     downloaded_file_path.unlink(missing_ok=True)  # missing_ok=True ignores error if already gone
     context.log.info(f"Deleted local file: {downloaded_file_path.name}")
 
-    return abfs_path  # Return the URI of the uploaded file
+    return az_path
 
 
-@dg.asset()
-def scrape_component_status(context: dg.AssetExecutionContext) -> dict:  # Changed return type hint
-    """
-    Logs into RESO+, navigates to Component Status, applies filters for
-    past years, exports data to Excel, uploads it to ADLS as Parquet,
-    and cleans up the local download.
+@dg.asset
+def scrape_component_status(context: dg.AssetExecutionContext) -> dict:
 
-    Generates one Parquet file per year processed. Returns a dictionary
-    summarizing the operation.
-    """
-
-    uploaded_uris = []  # Keep track of successful uploads
+    uploaded_uris = []
     summary_data = {
         "years_processed": [],
         "uploaded_files": [],
@@ -295,6 +248,13 @@ def scrape_component_status(context: dg.AssetExecutionContext) -> dict:  # Chang
         "num_files_uploaded": 0,
         "status": "incomplete",
     }
+
+    num_years_back = 2  # Define how many years back to process
+    # --- Process Past Years ---
+    current_date = datetime.now()
+    current_year = current_date.year
+    start_loop_year = current_year
+    end_loop_year = start_loop_year - num_years_back
 
     # --- Initialize Driver ---
     context.log.info("Initializing WebDriver...")
@@ -307,22 +267,6 @@ def scrape_component_status(context: dg.AssetExecutionContext) -> dict:  # Chang
     login_to_reso(driver, wait)
     context.log.info("Login successful.")
 
-    # --- Navigate ---
-    click_reportabilidad(driver, wait)
-    click_component_status(driver, wait)
-    context.log.info("Navigated to Estatus Componente page.")
-
-    # --- Set Default Filters ---
-    set_default_component_status_filters(driver, wait)
-    context.log.info("Default filters applied.")
-
-    # --- Process Past Years ---
-    num_years_back = 20  # Define how many years back to process
-    current_date = datetime.now()
-    current_year = current_date.year
-    start_loop_year = current_year
-    end_loop_year = start_loop_year - num_years_back
-
     context.log.info(f"Starting year loop from {start_loop_year} down to {end_loop_year}...")
 
     for year in range(start_loop_year, end_loop_year - 1, -1):
@@ -330,6 +274,16 @@ def scrape_component_status(context: dg.AssetExecutionContext) -> dict:  # Chang
         summary_data["years_processed"].append(year)
         start_date_str = f"01-01-{year}"
         end_date_str = f"31-12-{year}"
+
+        # --- Navigate ---
+        driver.get(RESO_URL)
+        click_reportabilidad(driver, wait)
+        click_component_status(driver, wait)
+        context.log.info("Navigated to Estatus Componente page.")
+
+        # --- Set Default Filters ---
+        set_default_component_status_filters(driver, wait)
+        context.log.info("Default filters applied.")
 
         # Set dates for the current year
         set_component_status_dates(driver, wait, start_date_str, end_date_str)
@@ -340,14 +294,14 @@ def scrape_component_status(context: dg.AssetExecutionContext) -> dict:  # Chang
         # Define upload URI for the current year
         # Using current_date for partition, but year for filename seems intended
         partition_path = current_date.strftime("y=%Y/m=%m/d=%d")  # Partition based on run date
-        abfs_path = f"abfs://bhp-raw-data/RESO/COMPONENT_STATUS/{partition_path}/component_status_{year}.parquet"
+        az_path = f"az://bhp-raw-data/RESO/COMPONENT_STATUS/{partition_path}/component_status_{year}.parquet"
 
         # Upload results and cleanup
-        uploaded_uri = upload_component_status_results(context, abfs_path, year)
+        uploaded_uri = upload_component_status_results(context, az_path, year)
         if uploaded_uri:
             uploaded_uris.append(uploaded_uri)
             # Optionally add more details per file if needed
-            summary_data["uploaded_files"].append({"year": year, "abfs_path": uploaded_uri})
+            summary_data["uploaded_files"].append({"year": year, "az_path": uploaded_uri})
         else:
             context.log.error(f"Upload failed for year {year}")
             summary_data["failed_years"].append(year)
@@ -362,5 +316,5 @@ def scrape_component_status(context: dg.AssetExecutionContext) -> dict:  # Chang
     context.log.info("WebDriver closed.")
 
     # Return the summary dictionary
-    context.add_output_metadata(metadata=summary_data)  # Log summary as metadata
+    context.add_output_metadata(metadata=summary_data)
     return summary_data
