@@ -257,15 +257,14 @@ def scrape_component_status(context: dg.AssetExecutionContext) -> dict:
     end_loop_year = start_loop_year - num_years_back
 
     # --- Initialize Driver ---
-    context.log.info("Initializing WebDriver...")
     driver = initialize_driver()
     wait = WebDriverWait(driver, DEFAULT_WAIT)
     context.log.info("WebDriver initialized.")
 
     # --- Login ---
-    context.log.info("Logging into RESO+...")
+
     login_to_reso(driver, wait)
-    context.log.info("Login successful.")
+    context.log.info("Login RESO+ successful.")
 
     context.log.info(f"Starting year loop from {start_loop_year} down to {end_loop_year}...")
 

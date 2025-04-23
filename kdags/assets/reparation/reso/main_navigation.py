@@ -1,12 +1,12 @@
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
+from selenium.webdriver.support.ui import WebDriverWait
 
-__all__ = ["click_reportabilidad", "click_component_status", "click_presupuesto", "search_service_order"]
+__all__ = ["click_reportabilidad", "click_component_status", "click_presupuesto"]
 
 
-# --- Reportabilidad ---
-def click_reportabilidad(driver, wait):
+def click_reportabilidad(driver, wait: WebDriverWait):
     """Clicks the main 'Reportabilidad' section."""
     print("--- Clicking Reportabilidad ---")
     reportabilidad_locator = (
@@ -20,21 +20,18 @@ def click_reportabilidad(driver, wait):
     print("Clicked 'Reportabilidad'.")
 
 
-def click_component_status(driver, wait):
+def click_component_status(driver, wait: WebDriverWait):
     """Clicks the 'Estatus Componente' sub-link."""
     estatus_componente_locator = (By.ID, "submodulo-369")
     estatus_componente_link = wait.until(EC.presence_of_element_located(estatus_componente_locator))
     driver.execute_script("arguments[0].scrollIntoView(true);", estatus_componente_link)
     wait.until(EC.element_to_be_clickable(estatus_componente_locator))
     estatus_componente_link.click()
-
     time.sleep(1)
 
 
-# --- Presupuesto ---
-def click_presupuesto(driver, wait):
+def click_presupuesto(driver, wait: WebDriverWait):
     # ---  Clicking the SPAN containing "Presupuesto" ---
-    # Use XPath to find the specific <span> element containing the text
     presupuesto_locator = (By.XPATH, "//span[normalize-space(text())='Presupuesto']")
     # Wait for the span element to be present on the page
     presupuesto_span = wait.until(EC.presence_of_element_located(presupuesto_locator))

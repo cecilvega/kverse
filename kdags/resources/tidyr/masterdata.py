@@ -123,3 +123,27 @@ class MasterData:
         df = df.with_columns(pl.lit(df.columns[0]).alias("equipment_name"))
 
         return df
+
+    # @classmethod
+    # def read_io_map(cls) -> Dict[str, Any]:
+    #     """
+    #     Load the data catalog definitions from io_map.yaml.
+    #
+    #     Returns:
+    #         Dict[str, Any]: Parsed content of the io_map.yaml file.
+    #
+    #     Raises:
+    #         AssertionError: If the io_map.yaml file is not found.
+    #         yaml.YAMLError: If the file cannot be parsed as YAML.
+    #     """
+    #     config_path = cls.CONFIG_DIR / "io_map.yaml"
+    #
+    #     # Verify file exists (consistent with other methods)
+    #     assert config_path.exists(), f"IO Map config file not found at {config_path}"
+    #
+    #     # Load the YAML data - will raise YAMLError if invalid
+    #     with open(config_path, "r") as f:
+    #         data = yaml.safe_load(f)
+    #
+    #     # Return the loaded data, or an empty dict if the file was empty
+    #     return data if data is not None else {}

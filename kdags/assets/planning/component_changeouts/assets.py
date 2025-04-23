@@ -30,26 +30,10 @@ def clean_string(s):
     return s
 
 
-@dg.asset
-def raw_component_changeouts():
-    msgraph = MSGraph()
-    file_content = msgraph.read_bytes(
-        site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
-    )
-    columns = list(COLUMN_MAPPING.keys())
-    df = pl.read_excel(
-        BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", infer_schema_length=0, columns=columns
-    )
-    return df
-
-
-@dg.asset
-def component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
+def mutate_component_changeouts(df: pl.DataFrame, site_name: str):
     df = (
-        raw_component_changeouts.clone()
-        .drop_nulls(subset=["FECHA DE CAMBIO"])
-        .with_columns(pl.lit("MEL").alias("site_name"))
+        df.drop_nulls(subset=["FECHA DE CAMBIO"])
+        .with_columns(pl.lit(site_name).alias("site_name"))
         .with_row_index("cc_index")
     )
 
@@ -118,6 +102,45 @@ def component_changeouts(context: dg.AssetExecutionContext, raw_component_change
             "equipment_name"
         )
     )
+    return df
+
+
+@dg.asset
+def raw_component_changeouts():
+    msgraph = MSGraph()
+    file_content = msgraph.read_bytes(
+        site_id="KCHCLSP00022",
+        file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+    )
+    columns = list(COLUMN_MAPPING.keys())
+    df = pl.read_excel(
+        BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", infer_schema_length=0, columns=columns
+    )
+    return df
+
+
+@dg.asset
+def spence_component_changeouts():
+    msgraph = MSGraph()
+    file_content = msgraph.read_bytes(
+        site_id="KCHCLSP00060",
+        file_path="/1.-%20Gesti%C3%B3n%20de%20Componentes/2.-%20Spence/1.-%20Planilla%20Control%20cambio%20de%20componentes/Planilla%20control%20cambio%20componentes/NUEVA%20PLANILLA%20DE%20CONTROL%20CAMBIO%20DE%20COMPONENTES%20SPENCE.xlsx",
+    )
+    columns = list({k: v for k, v in COLUMN_MAPPING.items() if k not in ["MODELO", "OS  181"]}.keys())
+    df = pl.read_excel(
+        BytesIO(file_content),
+        sheet_name="Planilla Cambio Componente  980",
+        infer_schema_length=0,
+        columns=columns,
+    ).with_columns([pl.lit("980E-5").alias("MODELO"), pl.lit(-1).alias("OS  181")])
+    df = mutate_component_changeouts(df, site_name="SPENCE")
+    return df
+
+
+@dg.asset
+def component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
+    df = raw_component_changeouts.clone().pipe(mutate_component_changeouts, site_name="MEL")
+
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}")
 

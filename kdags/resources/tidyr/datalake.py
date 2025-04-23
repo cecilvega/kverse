@@ -82,9 +82,7 @@ class DataLake:
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 
-    def read_tibble(
-        self, az_path: str, use_polars: bool = True, include_az_path: bool = False, **kwargs
-    ) -> pl.DataFrame:
+    def read_tibble(self, az_path: str, include_az_path: bool = False, **kwargs) -> pl.DataFrame:
 
         file_ext = az_path.split(".")[-1].lower()
 
@@ -109,10 +107,8 @@ class DataLake:
         # Parse based on file type
 
         if include_az_path and df is not None:
-            if use_polars:
-                df = df.with_columns(pl.lit(az_path).alias("az_path"))
-            else:
-                df["az_path"] = az_path
+
+            df = df.with_columns(pl.lit(az_path).alias("az_path"))
 
         return df
 
