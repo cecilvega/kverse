@@ -109,8 +109,7 @@ def mutate_component_changeouts(df: pl.DataFrame, site_name: str):
 def raw_component_changeouts():
     msgraph = MSGraph()
     file_content = msgraph.read_bytes(
-        site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+        sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
     )
     columns = list(COLUMN_MAPPING.keys())
     df = pl.read_excel(
@@ -123,8 +122,7 @@ def raw_component_changeouts():
 def spence_component_changeouts():
     msgraph = MSGraph()
     file_content = msgraph.read_bytes(
-        site_id="KCHCLSP00060",
-        file_path="/1.-%20Gesti%C3%B3n%20de%20Componentes/2.-%20Spence/1.-%20Planilla%20Control%20cambio%20de%20componentes/Planilla%20control%20cambio%20componentes/NUEVA%20PLANILLA%20DE%20CONTROL%20CAMBIO%20DE%20COMPONENTES%20SPENCE.xlsx",
+        sp_path="sp://KCHCLSP00060/1.-%20Gesti%C3%B3n%20de%20Componentes/2.-%20Spence/1.-%20Planilla%20Control%20cambio%20de%20componentes/Planilla%20control%20cambio%20componentes/NUEVA%20PLANILLA%20DE%20CONTROL%20CAMBIO%20DE%20COMPONENTES%20SPENCE.xlsx",
     )
     columns = list({k: v for k, v in COLUMN_MAPPING.items() if k not in ["MODELO", "OS  181"]}.keys())
     df = pl.read_excel(
