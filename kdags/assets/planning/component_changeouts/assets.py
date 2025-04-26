@@ -122,7 +122,7 @@ def raw_component_changeouts():
 def spence_component_changeouts():
     msgraph = MSGraph()
     file_content = msgraph.read_bytes(
-        sp_path="sp://KCHCLSP00060/1.-%20Gesti%C3%B3n%20de%20Componentes/2.-%20Spence/1.-%20Planilla%20Control%20cambio%20de%20componentes/Planilla%20control%20cambio%20componentes/NUEVA%20PLANILLA%20DE%20CONTROL%20CAMBIO%20DE%20COMPONENTES%20SPENCE.xlsx",
+        sp_path="sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx",
     )
     columns = list({k: v for k, v in COLUMN_MAPPING.items() if k not in ["MODELO", "OS  181"]}.keys())
     df = pl.read_excel(
@@ -135,7 +135,24 @@ def spence_component_changeouts():
     return df
 
 
-@dg.asset
+@dg.asset(
+    metadata={
+        "dagster/column_schema": dg.TableSchema(
+            columns=[
+                dg.TableColumn(
+                    "name",
+                    "string",
+                    description="The name of the person",
+                ),
+                dg.TableColumn(
+                    "age",
+                    "int",
+                    description="The age of the person",
+                ),
+            ]
+        )
+    },
+)
 def component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
     df = raw_component_changeouts.clone().pipe(mutate_component_changeouts, site_name="MEL")
 

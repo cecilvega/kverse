@@ -2,9 +2,7 @@ import polars as pl
 import dagster as dg
 from kdags.resources.tidyr import MSGraph, DataLake
 
-COMPONENT_REPARATIONS_ANALYTICS_PATH = (
-    "az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_reparations.parquet"
-)
+POOL_ROTATION_ANALYTICS_PATH = "az://bhp-analytics-data/RELIABILITY/POOL_ROTATION/pool_rotation.parquet"
 
 
 @dg.asset(description="Filters the raw component changeouts data based on date and subcomponent type.")
@@ -214,25 +212,13 @@ def changeouts_unmatched(
     return asof_unmatched_df
 
 
-@dg.asset
-def component_reparations(
-    context: dg.AssetExecutionContext,
-    read_component_changeouts: pl.DataFrame,
-    component_changeouts_reso_union: pl.DataFrame,
-) -> pl.DataFrame:
-    cc_df = read_component_changeouts.clone()
-    reso_df = component_changeouts_reso_union.clone()
-    df = cc_df
-    return df
-
-
 @dg.asset(
     description=(
         "Calculates the percentage of component changeouts that were filtered out "
         "before being matched to reparation status. Currently returns the raw changeout data."
     )
 )
-def component_reparations(
+def pool_rotation(
     context: dg.AssetExecutionContext,
     read_component_changeouts: pl.DataFrame,
     changeouts_matched_direct: pl.DataFrame,
@@ -270,18 +256,18 @@ def component_reparations(
         f"Rows filtered out before matching: {rows_filtered_out} " f"({percentage_filtered_out:.2f}% of initial total)"
     )
 
-    match_df = pl.concat([changeouts_matched_direct, changeouts_matched_asof]).select(
+    df = pl.concat([changeouts_matched_direct, changeouts_matched_asof]).select(
         ["customer_work_order", "sap_equipment_name", "service_order", "reception_date"]
     )
-    df = cc_df.join(match_df, on=["customer_work_order", "sap_equipment_name"], how="left")
+    # df = cc_df.join(match_df, on=["customer_work_order", "sap_equipment_name"], how="left")
 
     datalake = DataLake()  # Direct instantiation
-    context.log.info(f"Writing {df.height} records to {COMPONENT_REPARATIONS_ANALYTICS_PATH}")
+    context.log.info(f"Writing {df.height} records to {POOL_ROTATION_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(df=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(df=df, az_path=POOL_ROTATION_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
-            "az_path": COMPONENT_REPARATIONS_ANALYTICS_PATH,
+            "az_path": POOL_ROTATION_ANALYTICS_PATH,
             "rows_written": df.height,
         }
     )
@@ -292,14 +278,12 @@ def component_reparations(
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def read_component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def read_pool_rotation(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.az_path_exists(COMPONENT_REPARATIONS_ANALYTICS_PATH):
-        df = dl.read_tibble(az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)
-        context.log.info(f"Read {df.height} records from {COMPONENT_REPARATIONS_ANALYTICS_PATH}.")
+    if dl.az_path_exists(POOL_ROTATION_ANALYTICS_PATH):
+        df = dl.read_tibble(az_path=POOL_ROTATION_ANALYTICS_PATH)
+        context.log.info(f"Read {df.height} records from {POOL_ROTATION_ANALYTICS_PATH}.")
         return df
     else:
-        context.log.warning(
-            f"Data file not found at {COMPONENT_REPARATIONS_ANALYTICS_PATH}. Returning empty DataFrame."
-        )
+        context.log.warning(f"Data file not found at {POOL_ROTATION_ANALYTICS_PATH}. Returning empty DataFrame.")
         return pl.DataFrame()

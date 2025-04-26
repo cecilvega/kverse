@@ -48,7 +48,7 @@ def spawn_work_order_history(read_raw_work_orders_history):
 
     result = {}
 
-    sharepoint_result = MSGraph().upload_tibble(
+    sharepoint_result = MSGraph().upload_tibble_deprecated(
         site_id="KCHCLSP00022",
         filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.xlsx",
         df=read_raw_work_orders_history,

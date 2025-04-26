@@ -5,12 +5,16 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 
 from kdags.assets import maintenance, reparation, operation, planning, reliability
 from kdags.jobs import (
+    # === RELIABILITY ===
+    management_job,
+    component_reparations_job,
+    quotations_job,
     # === PLANNING ===
     component_changeouts_job,
     # === REPARATION ===
     component_status_job,
     scrape_component_status_job,
-    component_reparations_job,
+    pool_rotation_job,
     # === MAINTENANCE ===
     attendances_job,
     oil_analysis_job,
@@ -68,13 +72,17 @@ all_assets = dg.link_code_references_to_git(
 kdefs = dg.Definitions(
     assets=all_assets,
     schedules=[
+        # === RELIABILITY ===
+        management_job,
+        component_reparations_job,
+        quotations_job,
         # === PLANNING ===
         component_changeouts_job,
         # === REPARATION ===
         component_status_job,
         scrape_component_status_job,
         # === RELIABILITY ===
-        component_reparations_job,
+        pool_rotation_job,
         icc_job,
         # === MAINTENANCE ===
         attendances_job,

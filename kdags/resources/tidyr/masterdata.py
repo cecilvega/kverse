@@ -115,35 +115,49 @@ class MasterData:
         with open(config_path, "r") as f:
             data = yaml.safe_load(f)
 
-        # Create DataFrame from the dictionary
-        # In Polars, we can use from_dict to create a DataFrame from a dictionary
-        df = pl.DataFrame(data).transpose()
-
-        # Rename the index column and reset index
-        df = df.with_columns(pl.lit(df.columns[0]).alias("equipment_name"))
+        equipments = []
+        for equipment, details in data.items():
+            e = {
+                "equipment": equipment,
+                "equipment_model": details.get("equipment_model"),
+                "equipment_serial": details.get("equipment_serial"),
+                "site_name": details.get("site_name"),
+                "operating": details.get("operating"),
+            }
+            equipments.append(e)
+        df = pl.DataFrame(equipments)
 
         return df
 
-    # @classmethod
-    # def read_io_map(cls) -> Dict[str, Any]:
-    #     """
-    #     Load the data catalog definitions from io_map.yaml.
-    #
-    #     Returns:
-    #         Dict[str, Any]: Parsed content of the io_map.yaml file.
-    #
-    #     Raises:
-    #         AssertionError: If the io_map.yaml file is not found.
-    #         yaml.YAMLError: If the file cannot be parsed as YAML.
-    #     """
-    #     config_path = cls.CONFIG_DIR / "io_map.yaml"
-    #
-    #     # Verify file exists (consistent with other methods)
-    #     assert config_path.exists(), f"IO Map config file not found at {config_path}"
-    #
-    #     # Load the YAML data - will raise YAMLError if invalid
-    #     with open(config_path, "r") as f:
-    #         data = yaml.safe_load(f)
-    #
-    #     # Return the loaded data, or an empty dict if the file was empty
-    #     return data if data is not None else {}
+    @classmethod
+    def read_io_map(cls) -> pl.DataFrame:
+
+        config_path = cls.CONFIG_DIR / "io_map.yaml"
+
+        # Load the YAML data - will raise YAMLError if invalid
+        with open(config_path, "r", encoding="utf-8-sig") as f:
+            data = yaml.safe_load(f)
+
+        jobs = []
+
+        for module, items in data.items():
+            for name, details in items.items():
+                input_details = details.get("input", {})
+                output_details = details.get("output", {})
+                publish_details = details.get("publish", {})
+                row = {
+                    "module": module,
+                    "job_name": name,
+                    "source": details.get("source"),
+                    "description": details.get("description"),
+                    "cron_schedule": details.get("cron_schedule"),
+                    "schedule_status": details.get("schedule_status"),
+                    "input_path": input_details.get("path").__str__(),
+                    "output_path": output_details.get("path"),
+                    "publish_path": publish_details.get("path"),
+                }
+                jobs.append(row)
+
+        df = pl.DataFrame(jobs)
+
+        return df

@@ -235,31 +235,18 @@ def icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
 
 
 @dg.asset
-def publish_sharepoint_icc(context: dg.AssetExecutionContext, icc: pl.DataFrame):
-    """
-    Takes the final ICC data and uploads it to SharePoint.
-    """
+def publish_sp_icc(context: dg.AssetExecutionContext, icc: pl.DataFrame):
     df = icc.clone()
-    if df.is_empty():
-        context.log.warning("Received empty DataFrame. Skipping SharePoint upload.")
-        context.add_output_metadata({"status": "skipped_empty_input", "sharepoint_url": None})
-        return None
-
-    context.log.info(f"Preparing to upload {df.height} records to SharePoint.")
-    msgraph = MSGraph()  # Direct instantiation
-
-    sharepoint_result = msgraph.upload_tibble(
-        site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/RELIABILITY/ICC/icc.xlsx",
-        df=df,
-        format="excel",
+    msgraph = MSGraph()
+    sp_results = []
+    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/CONFIABILIDAD/informes_cambio_componentes.xlsx", df))
+    sp_results.extend(
+        msgraph.upload_tibble(
+            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/informes_cambio_componentes.xlsx",
+            df,
+        )
     )
-    url = sharepoint_result.web_url
-    context.log.info(f"Successfully uploaded oil analysis data to SharePoint: {url}")
-    context.add_output_metadata(
-        {"sharepoint_url": url, "format": "excel", "row_count": df.height, "status": "completed"}
-    )
-    return {"sharepoint_url": url}
+    return sp_results
 
 
 @dg.asset(

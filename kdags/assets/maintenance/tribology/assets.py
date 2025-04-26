@@ -13,7 +13,7 @@ class ReadRawOilAnalysisConfig(dg.Config):
 
 
 # Define the path for the final consolidated data
-OIL_ANALYSIS_ANALYTICS_PATH = "abfs://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet"
+OIL_ANALYSIS_ANALYTICS_PATH = "az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet"
 
 
 @dg.asset
@@ -26,16 +26,16 @@ def raw_oil_analysis(
     Filters based on recency configuration.
     """
     dl = DataLake()
-    abfs_path = "abfs://bhp-raw-data/LUBE_ANALYST/SCAAE"
+    az_path = "az://bhp-raw-data/LUBE_ANALYST/SCAAE"
     # List all files in the specified path
     files_df = dl.list_partitioned_paths(
-        "abfs://bhp-raw-data/LUBE_ANALYST/SCAAE",
+        "az://bhp-raw-data/LUBE_ANALYST/SCAAE",
         only_recent=config.only_recent,
         days_lookback=config.days_lookback,
     )
-    context.log.info(f"Found {len(files_df)} files in {abfs_path}")
+    context.log.info(f"Found {len(files_df)} files in {az_path}")
 
-    filepaths = files_df["abfs_path"].to_list()
+    filepaths = files_df["az_path"].to_list()
 
     # Read all selected files
     all_dfs = []
@@ -44,7 +44,7 @@ def raw_oil_analysis(
         # Get file metadata
         filename = os.path.basename(filepath)
         date_str = filename[:8] if len(filename) >= 8 and filename[:8].isdigit() else None
-        df = dl.read_tibble(az_path=filepath, include_az_path=True, use_polars=True, infer_schema_length=0)
+        df = dl.read_tibble(az_path=filepath, include_az_path=True, infer_schema_length=0)
 
         # Add metadata columns
         if date_str:
@@ -62,7 +62,7 @@ def raw_oil_analysis(
     if not all_dfs:
         context.log.warning("No files were found or successfully processed")
         # Return an empty dataframe with expected schema
-        return pl.DataFrame(schema={"abfs_path": pl.Utf8, "file_date": pl.Date})
+        return pl.DataFrame(schema={"az_path": pl.Utf8, "file_date": pl.Date})
 
     # Concatenate all DataFrames
     result_df = pl.concat(all_dfs)
@@ -118,7 +118,7 @@ def mutate_oil_analysis(raw_oil_analysis):
         ">6": "particles_gt_6",
         ">14": "particles_gt_14",
         "Código ISO": "iso_code",
-        "abfs_path": "abfs_path",
+        "az_path": "az_path",
         "file_date": "file_date",
     }
     df = raw_oil_analysis.clone()
@@ -142,7 +142,7 @@ def mutate_oil_analysis(raw_oil_analysis):
             ]
         )
         .drop_nulls(subset=["sample_date"])
-        .drop(["component", "abfs_path", "file_date"])
+        .drop(["component", "az_path", "file_date"])
     )
     return df
 
@@ -174,37 +174,24 @@ def oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis):
     DataLake().upload_tibble(df=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
     context.log.info("Write successful.")
     context.add_output_metadata(
-        {"abfs_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}
+        {"az_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}
     )
-    return oil_analysis
+    return df
 
 
 @dg.asset
-def publish_sharepoint_oil_analysis(context: dg.AssetExecutionContext, oil_analysis: pl.DataFrame):
-    """
-    Takes the final oil_analysis data (read by read_oil_analysis) and uploads it to SharePoint.
-    """
+def publish_sp_oil_analysis(context: dg.AssetExecutionContext, oil_analysis: pl.DataFrame):
     df = oil_analysis.clone()
-    if df.is_empty():
-        context.log.warning("Received empty DataFrame. Skipping SharePoint upload.")
-        context.add_output_metadata({"status": "skipped_empty_input", "sharepoint_url": None})
-        return None
-
-    context.log.info(f"Preparing to upload {df.height} records to SharePoint.")
-    msgraph = MSGraph()  # Direct instantiation
-
-    sharepoint_result = msgraph.upload_tibble(
-        site_id="KCHCLSP00022",
-        file_path="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/OIL_ANALYSIS/oil_analysis.xlsx",
-        df=df,
-        format="excel",
+    msgraph = MSGraph()
+    sp_results = []
+    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/MANTENIMIENTO/analisis_aceite.xlsx", df))
+    sp_results.extend(
+        msgraph.upload_tibble(
+            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/MANTENIMIENTO/analisis_aceite.xlsx",
+            df,
+        )
     )
-    url = sharepoint_result.web_url
-    context.log.info(f"Successfully uploaded oil analysis data to SharePoint: {url}")
-    context.add_output_metadata(
-        {"sharepoint_url": url, "format": "excel", "row_count": df.height, "status": "completed"}
-    )
-    return {"sharepoint_url": url}
+    return sp_results
 
 
 @dg.asset(

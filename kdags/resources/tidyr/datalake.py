@@ -91,7 +91,9 @@ class DataLake:
         elif file_ext == "csv":
             df = pl.read_csv(az_path, storage_options=self.storage_options, **kwargs)
         elif file_ext in ["xlsx", "xls"]:
-            df = pl.read_excel(az_path, read_options={"storage_options": self.storage_options}, **kwargs)
+            file_content = self.read_bytes(az_path)
+            buffer = BytesIO(file_content)
+            df = pl.read_excel(buffer, **kwargs)
         # elif file_ext == "json":
         #     df = pl.read_json(buffer, **kwargs)
         else:

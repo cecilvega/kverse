@@ -11,14 +11,15 @@ import dagster as dg
 from kdags.assets.planning.component_changeouts.assets import read_component_changeouts
 
 # === MAINTENANCE ===
-from kdags.assets.maintenance.tribology.processing import read_oil_analysis
+from kdags.assets.maintenance.tribology.assets import read_oil_analysis
 from kdags.assets.operation.ge.events.pipeline import read_events
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_history
 
 # === RELIABILITY ===
 from kdags.assets.reliability.icc.assets import read_icc
-from kdags.assets.reliability.component_reparations import read_component_reparations
+from kdags.assets.reliability.pool_rotation_assets import read_pool_rotation
+from kdags.assets.reliability.component_reparations_assets import read_component_reparations
 
 # === OPERATION ===
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
@@ -65,6 +66,7 @@ class Readr:
     @dataclass
     class Reliability:
         read_icc: dg.AssetsDefinition = read_icc
+        read_pool_rotation: dg.AssetsDefinition = read_pool_rotation
         read_component_reparations: dg.AssetsDefinition = read_component_reparations
 
     # @staticmethod

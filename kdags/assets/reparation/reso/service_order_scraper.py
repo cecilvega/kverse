@@ -278,39 +278,39 @@ def run_service_orders_extraction(driver, wait: WebDriverWait, service_orders: l
     return quotations_df, documents_list_df
 
 
-@dg.asset
-def scrape_service_orders(context: dg.AssetExecutionContext, read_component_reparations: pl.DataFrame) -> dict:
-    # --- Initialize service orders to harvest
-    cr_df = read_component_reparations.clone()
-    service_orders_df = cr_df.filter(pl.col("service_order") != -1).select(["service_order"]).unique()
-    dl = DataLake()
-    quotations_df = dl.read_tibble(QUOTATIONS_RAW_PATH)
-    quotations_df = service_orders_df.join(quotations_df, on=["service_order"], how="outer")
-    dl.upload_tibble(quotations_df, az_path=QUOTATIONS_RAW_PATH)
-
-    documents_list_df = dl.read_tibble(DOCUMENTS_LIST_RAW_PATH)
-    documents_list_df = service_orders_df.join(documents_list_df, on=["service_order"], how="outer")
-    dl.upload_tibble(documents_list_df, az_path=DOCUMENTS_LIST_RAW_PATH)
-
-    quot_sos = set(quotations_df.drop_nulls(subset=["update_timestamp"])["service_order"].to_list())
-    doc_sos = set(documents_list_df.drop_nulls(subset=["update_timestamp"])["service_order"].to_list())
-    service_orders = list(quot_sos.union(doc_sos))  # service_orders to update
-
-    # --- Initialize Driver ---
-    driver = initialize_driver()
-    wait = WebDriverWait(driver, DEFAULT_WAIT)
-    context.log.info("WebDriver initialized.")
-
-    # --- Login ---
-    login_to_reso(driver, wait)
-    context.log.info("Login RESO+ successful.")
-    click_presupuesto(driver, wait)
-
-    run_service_orders_extraction(
-        driver=driver,
-        wait=wait,
-        service_orders=service_orders,
-        update_mode="skip",
-    )
-
-    return summary_data
+# @dg.asset
+# def scrape_service_orders(context: dg.AssetExecutionContext, read_component_reparations: pl.DataFrame) -> dict:
+#     # --- Initialize service orders to harvest
+#     cr_df = read_component_reparations.clone()
+#     service_orders_df = cr_df.filter(pl.col("service_order") != -1).select(["service_order"]).unique()
+#     dl = DataLake()
+#     quotations_df = dl.read_tibble(QUOTATIONS_RAW_PATH)
+#     quotations_df = service_orders_df.join(quotations_df, on=["service_order"], how="outer")
+#     dl.upload_tibble(quotations_df, az_path=QUOTATIONS_RAW_PATH)
+#
+#     documents_list_df = dl.read_tibble(DOCUMENTS_LIST_RAW_PATH)
+#     documents_list_df = service_orders_df.join(documents_list_df, on=["service_order"], how="outer")
+#     dl.upload_tibble(documents_list_df, az_path=DOCUMENTS_LIST_RAW_PATH)
+#
+#     quot_sos = set(quotations_df.drop_nulls(subset=["update_timestamp"])["service_order"].to_list())
+#     doc_sos = set(documents_list_df.drop_nulls(subset=["update_timestamp"])["service_order"].to_list())
+#     service_orders = list(quot_sos.union(doc_sos))  # service_orders to update
+#
+#     # --- Initialize Driver ---
+#     driver = initialize_driver()
+#     wait = WebDriverWait(driver, DEFAULT_WAIT)
+#     context.log.info("WebDriver initialized.")
+#
+#     # --- Login ---
+#     login_to_reso(driver, wait)
+#     context.log.info("Login RESO+ successful.")
+#     click_presupuesto(driver, wait)
+#
+#     run_service_orders_extraction(
+#         driver=driver,
+#         wait=wait,
+#         service_orders=service_orders,
+#         update_mode="skip",
+#     )
+#
+#     return summary_data

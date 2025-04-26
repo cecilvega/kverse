@@ -1,0 +1,71 @@
+@startuml
+' uncomment the line below for locally saved sample theme
+' !include https://raw.githubusercontent.com/plantuml-stdlib/themes/master/puml-themes/cerulean.puml
+
+' --- Appearance Settings (Optional, to make it look cleaner) ---
+skinparam linetype ortho
+skinparam shadowing false
+skinparam handwritten false
+skinparam backgroundColor transparent
+skinparam ArrowColor #666666
+skinparam BorderColor #666666
+
+skinparam ClassAttributeIconSize 0
+skinparam ClassFontColor #333333
+skinparam ClassBorderColor #666666
+skinparam ClassBackgroundColor #F8F8F8
+
+skinparam Entity {
+    AttributeFontColor #444444
+    AttributeFontSize 11
+    BorderColor #666666
+    BackgroundColor #F8F8F8
+    FontColor #333333
+}
+
+' Hide stereotypes like <<PK>> <<FK>> if you prefer cleaner look
+' hide stereotype
+
+' --- Entity Definitions ---
+
+entity "Users" as users {
+  + id : INT <<PK>>
+  --
+  * username : VARCHAR(50)
+  * email : VARCHAR(100) [unique]
+  created_at : TIMESTAMP [default: `now()`]
+}
+
+entity "Posts" as posts {
+ + post_id : INT <<PK>>
+ --
+ * user_id : INT <<FK>> ' Foreign key referencing Users.id
+ title : VARCHAR(255)
+ content : TEXT
+ published_at : TIMESTAMP
+}
+
+entity "Comments" as comments {
+  + comment_id : INT <<PK>>
+  --
+  * post_id : INT <<FK>> ' Foreign key referencing Posts.post_id
+  * user_id : INT <<FK>> ' Foreign key referencing Users.id
+  comment_text : TEXT
+  commented_at : TIMESTAMP
+}
+
+' --- Relationships ---
+' One User has zero or more Posts (Users.id -> Posts.user_id)
+users ||--o{ posts : "writes"
+' Corresponds roughly to DBML: Ref: posts.user_id > users.id
+
+' One Post has zero or more Comments (Posts.post_id -> Comments.post_id)
+posts ||--o{ comments : "has"
+' Corresponds roughly to DBML: Ref: comments.post_id > posts.post_id
+
+' One User has zero or more Comments (Users.id -> Comments.user_id)
+users ||--o{ comments : "authors"
+' Corresponds roughly to DBML: Ref: comments.user_id > users.id
+
+
+@enduml

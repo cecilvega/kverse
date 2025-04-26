@@ -1,12 +1,10 @@
-import polars as pl
-from kdags.resources.tidyr import DataLake
-from concurrent.futures import ThreadPoolExecutor
-import pandas as pd
-from io import StringIO
-import dagster as dg
-from datetime import datetime
 import re
+from datetime import datetime
 
+import dagster as dg
+import polars as pl
+from datetime import date
+from kdags.resources.tidyr import DataLake, MSGraph
 from .constants import *
 
 COMPONENT_STATUS_ANALYTICS_PATH = "az://bhp-analytics-data/REPARATION/COMPONENT_STATUS/component_status.parquet"
@@ -133,6 +131,25 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
         )
     )
 
+    df = df.with_columns(update_date=pl.lit(date.today()))
+    df = df.with_columns(
+        component_status=pl.when(pl.col("reso_closing_date").is_not_null())
+        .then(pl.lit("delivered"))
+        .when(pl.col("load_final_report_in_review").is_not_null())
+        .then(pl.lit("repaired"))
+        .when(pl.col("approval_date").is_not_null())
+        .then(pl.lit("assembly"))
+        .when(pl.col("latest_quotation_publication").is_not_null())
+        .then(pl.lit("awaiting_Approval"))
+        .when(pl.col("load_preliminary_report_in_review").is_not_null())
+        .then(pl.lit("preparing_quotation"))
+        .when(pl.col("opening_date").is_not_null())
+        .then(pl.lit("disassembly"))
+        .when(pl.col("reception_date").is_not_null())
+        .then(pl.lit("received"))
+        .otherwise(pl.lit(None))  # Assign Null if no condition is met
+    )
+
     context.log.info(f"Mutation complete. Output rows: {df.height}")
     return df
 
@@ -174,3 +191,18 @@ def read_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
     else:
         context.log.warning(f"Data file not found at {COMPONENT_STATUS_ANALYTICS_PATH}. Returning empty DataFrame.")
         return pl.DataFrame()
+
+
+@dg.asset
+def publish_sp_component_status(context: dg.AssetExecutionContext, component_status: pl.DataFrame):
+    df = component_status.clone()
+    msgraph = MSGraph()
+    sp_results = []
+    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/REPARACION/mega_estatus_componentes.xlsx", df))
+    sp_results.extend(
+        msgraph.upload_tibble(
+            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REPARACION/mega_estatus_componentes.xlsx",
+            df,
+        )
+    )
+    return sp_results

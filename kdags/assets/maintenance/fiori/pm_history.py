@@ -93,7 +93,7 @@ def spawn_pm_history(mutate_pm_history):
     df = df.assign(
         file_url=df["pm_id"].astype(str).str.cat(df["summary_content"], sep="_").map(lambda x: f"{base_path}/{x}.pdf")
     )
-    sharepoint_result = msgraph.upload_tibble(
+    sharepoint_result = msgraph.upload_tibble_deprecated(
         site_id="KCHCLSP00022",
         filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/PM_HISTORY/pm_history.xlsx",
         df=df,

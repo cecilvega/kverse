@@ -69,7 +69,7 @@ TK847:
   site_name: MEL
   operating: True
 TK848:
-  equipment_model: "960E
+  equipment_model: 960E
   equipment_serial: "A30045"
   site_name: "MEL"
   operating: True
