@@ -80,7 +80,7 @@ def spawn_pm_history(mutate_pm_history):
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
         az_path="abfs://bhp-analytics-data/MAINTENANCE/PM_HISTORY/pm_history.parquet",
-        df=mutate_pm_history,
+        tibble=mutate_pm_history,
         format="parquet",
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}

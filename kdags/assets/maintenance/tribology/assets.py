@@ -72,7 +72,7 @@ def raw_oil_analysis(
 
 
 @dg.asset
-def mutate_oil_analysis(raw_oil_analysis):
+def process_oil_analysis(raw_oil_analysis):
     column_mapping = {
         "ID": "sample_id",
         "Unidad": "equipment_name",
@@ -148,8 +148,8 @@ def mutate_oil_analysis(raw_oil_analysis):
 
 
 @dg.asset
-def oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis):
-    new_df = mutate_oil_analysis.clone()
+def mutate_oil_analysis(context: dg.AssetExecutionContext, process_oil_analysis):
+    new_df = process_oil_analysis.clone()
     context.log.info(f"Received {new_df.height} new/updated records for upsert.")
 
     existing_df = DataLake().read_tibble(OIL_ANALYSIS_ANALYTICS_PATH)
@@ -166,12 +166,12 @@ def oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis):
         )
     else:
         context.log.info("Consolidated dataset is empty. Skipping upsert operation.")
-        df = mutate_oil_analysis.clone()
+        df = process_oil_analysis.clone()
     # Perform upsert operation
     df = df.sort("sample_date")
 
     context.log.info(f"Writing {df.height} records to {OIL_ANALYSIS_ANALYTICS_PATH}")
-    DataLake().upload_tibble(df=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
+    DataLake().upload_tibble(tibble=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
     context.log.info("Write successful.")
     context.add_output_metadata(
         {"az_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}
@@ -180,24 +180,24 @@ def oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis):
 
 
 @dg.asset
-def publish_sp_oil_analysis(context: dg.AssetExecutionContext, oil_analysis: pl.DataFrame):
-    df = oil_analysis.clone()
+def publish_sp_oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis: pl.DataFrame):
+    df = mutate_oil_analysis.clone()
     msgraph = MSGraph()
-    sp_results = []
-    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/MANTENIMIENTO/analisis_aceite.xlsx", df))
-    sp_results.extend(
-        msgraph.upload_tibble(
-            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/MANTENIMIENTO/analisis_aceite.xlsx",
-            df,
-        )
-    )
-    return sp_results
+    upload_results = []
+    sp_paths = [
+        "sp://KCHCLGR00058/___/MANTENIMIENTO/analisis_aceite.xlsx",
+        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/MANTENIMIENTO/analisis_aceite.xlsx",
+    ]
+    for sp_path in sp_paths:
+        context.log.info(f"Publishing to {sp_path}")
+        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
+    return upload_results
 
 
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def read_oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(OIL_ANALYSIS_ANALYTICS_PATH):
         df = dl.read_tibble(az_path=OIL_ANALYSIS_ANALYTICS_PATH)

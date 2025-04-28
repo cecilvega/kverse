@@ -7,6 +7,7 @@ import unicodedata
 
 from kdags.resources.tidyr import MSGraph, DataLake
 from .constants import *
+from kdags.schemas.planning.component_changeouts import COMPONENT_CHANGEOUTS_SCHEMA
 
 COMPONENT_CHANGEOUTS_ANALYTIS_PATH = (
     "az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet"
@@ -30,7 +31,7 @@ def clean_string(s):
     return s
 
 
-def mutate_component_changeouts(df: pl.DataFrame, site_name: str):
+def process_component_changeouts(df: pl.DataFrame, site_name: str):
     df = (
         df.drop_nulls(subset=["FECHA DE CAMBIO"])
         .with_columns(pl.lit(site_name).alias("site_name"))
@@ -118,23 +119,6 @@ def raw_component_changeouts():
     return df
 
 
-@dg.asset
-def spence_component_changeouts():
-    msgraph = MSGraph()
-    file_content = msgraph.read_bytes(
-        sp_path="sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx",
-    )
-    columns = list({k: v for k, v in COLUMN_MAPPING.items() if k not in ["MODELO", "OS  181"]}.keys())
-    df = pl.read_excel(
-        BytesIO(file_content),
-        sheet_name="Planilla Cambio Componente  980",
-        infer_schema_length=0,
-        columns=columns,
-    ).with_columns([pl.lit("980E-5").alias("MODELO"), pl.lit(-1).alias("OS  181")])
-    df = mutate_component_changeouts(df, site_name="SPENCE")
-    return df
-
-
 @dg.asset(
     metadata={
         "dagster/column_schema": dg.TableSchema(
@@ -153,13 +137,13 @@ def spence_component_changeouts():
         )
     },
 )
-def component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
-    df = raw_component_changeouts.clone().pipe(mutate_component_changeouts, site_name="MEL")
+def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
+    df = raw_component_changeouts.clone().pipe(process_component_changeouts, site_name="MEL")
 
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}")
 
-    datalake.upload_tibble(df=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
     context.add_output_metadata(
         {  # Add metadata on success
             "abfs_path": COMPONENT_CHANGEOUTS_ANALYTIS_PATH,
@@ -172,13 +156,42 @@ def component_changeouts(context: dg.AssetExecutionContext, raw_component_change
 
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
+    metadata={"dagster/column_schema": COMPONENT_CHANGEOUTS_SCHEMA},
 )
-def read_component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(COMPONENT_CHANGEOUTS_ANALYTIS_PATH):
         df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
+        df = df.filter(pl.col("component_hours").is_not_null()).unique(
+            subset=[
+                "equipment_name",
+                "component_name",
+                "subcomponent_name",
+                "position_name",
+                "changeout_date",
+                "sap_equipment_name",
+                "customer_work_order",
+            ]
+        )
         context.log.info(f"Read {df.height} records from {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}.")
         return df
     else:
         context.log.warning(f"Data file not found at {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}. Returning empty DataFrame.")
         return pl.DataFrame()
+
+
+@dg.asset
+def spence_component_changeouts():
+    msgraph = MSGraph()
+    file_content = msgraph.read_bytes(
+        sp_path="sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx",
+    )
+    columns = list({k: v for k, v in COLUMN_MAPPING.items() if k not in ["MODELO", "OS  181"]}.keys())
+    df = pl.read_excel(
+        BytesIO(file_content),
+        sheet_name="Planilla Cambio Componente  980",
+        infer_schema_length=0,
+        columns=columns,
+    ).with_columns([pl.lit("980E-5").alias("MODELO"), pl.lit(-1).alias("OS  181")])
+    df = process_component_changeouts(df, site_name="SPENCE")
+    return df

@@ -58,7 +58,7 @@ def raw_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
 @dg.asset(description="Selects relevant columns, renames, and performs type conversions.")  # Changed to dg.asset
 # Use direct parameter passing for dependency
 # Add context back for logging
-def mutate_component_status(context: dg.AssetExecutionContext, raw_component_status: pl.DataFrame) -> pl.DataFrame:
+def process_component_status(context: dg.AssetExecutionContext, raw_component_status: pl.DataFrame) -> pl.DataFrame:
 
     df = raw_component_status.clone()  # Clone input
 
@@ -140,7 +140,7 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
         .when(pl.col("approval_date").is_not_null())
         .then(pl.lit("assembly"))
         .when(pl.col("latest_quotation_publication").is_not_null())
-        .then(pl.lit("awaiting_Approval"))
+        .then(pl.lit("awaiting_approval"))
         .when(pl.col("load_preliminary_report_in_review").is_not_null())
         .then(pl.lit("preparing_quotation"))
         .when(pl.col("opening_date").is_not_null())
@@ -159,17 +159,17 @@ def mutate_component_status(context: dg.AssetExecutionContext, raw_component_sta
 )
 # Use direct parameter passing for dependency, update name here
 # Add context back for logging / metadata
-def component_status(context: dg.AssetExecutionContext, mutate_component_status: pl.DataFrame) -> pl.DataFrame:
+def mutate_component_status(context: dg.AssetExecutionContext, process_component_status: pl.DataFrame) -> pl.DataFrame:
     """
     Takes the processed data from mutate_component_status and writes it to the final
     analytics path, overwriting any existing file. Instantiates DataLake directly. Minimal logging.
     """
-    df = mutate_component_status.clone()  # Use the input parameter name
+    df = process_component_status.clone()  # Use the input parameter name
 
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {COMPONENT_STATUS_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(df=df, az_path=COMPONENT_STATUS_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=COMPONENT_STATUS_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
             "az_path": COMPONENT_STATUS_ANALYTICS_PATH,
@@ -182,7 +182,7 @@ def component_status(context: dg.AssetExecutionContext, mutate_component_status:
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def read_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(COMPONENT_STATUS_ANALYTICS_PATH):
         df = dl.read_tibble(az_path=COMPONENT_STATUS_ANALYTICS_PATH)
@@ -194,15 +194,16 @@ def read_component_status(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 
 @dg.asset
-def publish_sp_component_status(context: dg.AssetExecutionContext, component_status: pl.DataFrame):
-    df = component_status.clone()
+def publish_sp_component_status(context: dg.AssetExecutionContext, mutate_component_status: pl.DataFrame):
+    df = mutate_component_status.clone()
     msgraph = MSGraph()
-    sp_results = []
-    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/REPARACION/mega_estatus_componentes.xlsx", df))
-    sp_results.extend(
-        msgraph.upload_tibble(
-            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REPARACION/mega_estatus_componentes.xlsx",
-            df,
-        )
-    )
-    return sp_results
+    upload_results = []
+    sp_paths = [
+        "sp://KCHCLGR00058/___/REPARACION/mega_estatus_componentes.xlsx",
+        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REPARACION/mega_estatus_componentes.xlsx",
+    ]
+    for sp_path in sp_paths:
+        context.log.info(f"Publishing to {sp_path}")
+        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
+
+    return upload_results

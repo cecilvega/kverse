@@ -130,7 +130,7 @@ def spawn_op_file_idx(list_op_file_idx):
 
     DataLake().upload_tibble(
         az_path="abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet",
-        df=df,
+        tibble=df,
         format="parquet",
     )
 

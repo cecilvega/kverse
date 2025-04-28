@@ -8,18 +8,18 @@ import dagster as dg
 
 
 # === PLANNING ===
-from kdags.assets.planning.component_changeouts.assets import read_component_changeouts
+from kdags.assets.planning.component_changeouts.assets import component_changeouts
 
 # === MAINTENANCE ===
-from kdags.assets.maintenance.tribology.assets import read_oil_analysis
+from kdags.assets.maintenance.tribology.assets import oil_analysis
 from kdags.assets.operation.ge.events.pipeline import read_events
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_history
 
 # === RELIABILITY ===
-from kdags.assets.reliability.icc.assets import read_icc
-from kdags.assets.reliability.pool_rotation_assets import read_pool_rotation
-from kdags.assets.reliability.component_reparations_assets import read_component_reparations
+from kdags.assets.reliability.icc.assets import icc
+from kdags.assets.reliability.linked_component_history import linked_component_history
+from kdags.assets.reliability.component_reparations_assets import component_reparations
 
 # === OPERATION ===
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
@@ -28,7 +28,7 @@ from kdags.assets.operation.plm.haul import read_haul
 
 
 # === REPARATION ===
-from kdags.assets.reparation.component_status.assets import read_component_status
+from kdags.assets.reparation.component_status.assets import component_status
 from kdags.resources.tidyr.masterdata import MasterData
 
 __all__ = ["Readr"]
@@ -41,33 +41,33 @@ class Readr:
     @dataclass
     class Maintenance:
 
-        read_oil_analysis: dg.AssetsDefinition = read_oil_analysis
-        read_work_order_history: dg.AssetsDefinition = read_work_order_history
-        read_pm_history: dg.AssetsDefinition = read_pm_history
+        oil_analysis: dg.AssetsDefinition = oil_analysis
+        work_order_history: dg.AssetsDefinition = read_work_order_history
+        pm_history: dg.AssetsDefinition = read_pm_history
 
     @dataclass
     class Operation:
 
-        read_op_file_idx: dg.AssetsDefinition = read_op_file_idx
+        op_file_idx: dg.AssetsDefinition = read_op_file_idx
 
-        read_haul: dg.AssetsDefinition = read_haul
-        read_alarms: dg.AssetsDefinition = read_alarms
+        haul: dg.AssetsDefinition = read_haul
+        alarms: dg.AssetsDefinition = read_alarms
 
-        read_events: dg.AssetsDefinition = read_events
+        events: dg.AssetsDefinition = read_events
 
     @dataclass
     class Reparation:
-        read_component_status: dg.AssetsDefinition = read_component_status
+        component_status: dg.AssetsDefinition = component_status
 
     @dataclass
     class Planning:
-        read_component_changeouts: dg.AssetsDefinition = read_component_changeouts
+        component_changeouts: dg.AssetsDefinition = component_changeouts
 
     @dataclass
     class Reliability:
-        read_icc: dg.AssetsDefinition = read_icc
-        read_pool_rotation: dg.AssetsDefinition = read_pool_rotation
-        read_component_reparations: dg.AssetsDefinition = read_component_reparations
+        icc: dg.AssetsDefinition = icc
+        pool_rotation: dg.AssetsDefinition = linked_component_history
+        component_reparations: dg.AssetsDefinition = component_reparations
 
     # @staticmethod
     # def get_asset_by_path(defs: dg.Definitions, path: str) -> dg.AssetsDefinition:

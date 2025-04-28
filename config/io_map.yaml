@@ -1,29 +1,16 @@
-#OPERATION:
-#  effective_grade:
-#    source: GE
-#    description: "Effective grade measurements."
-#    data_format: dataframe
-#    job_name: "effective_grade_job"
-#    schedule: "0 5 * * *"
-#    input:
-#      storage: datalake
-#      path: "bhp-raw-data/GE/EFFECTIVE_GRADE/y={YYYY}/m={MM}/d={DD}"
-#    output:
-#      storage: datalake
-#      path: "bhp-analytics-data/GE/EFFECTIVE_GRADE/y={YYYY}/m={MM}/d={DD}"
 # === PLANNING ===
 PLANNING:
   component_changeouts_job:
     source: MANUAL
-    description: Consolidación planilla cambio de componentes
+    description: Consolidación planilla cambio de componentes. 
+      Realiza una estandarización de nombres de componentes.
+      El objetivo de este activo de datos es que pueda unificar la planilla de CC de Spence y MEL.
     cron_schedule: "0 3,15 * * *"
     schedule_status: RUNNING
     input:
-      path:
-        - sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx
-#        - "sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx"
+      path: sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx
     output:
-      path: sp://KCHCLSP00022/PLANIFICACION/cambios_componentes.xlsx
+      path: az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet
 MAINTENANCE:
   oil_analysis_job:
     source: SCAAE
@@ -69,3 +56,39 @@ RELIABILITY:
       path: az://bhp-analytics-data/RELIABILITY/ICC/icc.parquet
     publish:
       path: sp://KCHCLSP00022/CONFIABILIDAD/informes_cambio_componentes.xlsx
+  warranties_job:
+    source: MANUAL
+    description: Asegura el levantamiento de garantías
+    cron_schedule: "0 21 * * *"
+    schedule_status: RUNNING
+    input:
+      path: sp://KCHCLSP00022/CONFIABILIDAD/GARANTIAS/warranty_input.xlsx
+    output:
+      path: az://bhp-analytics-data/RELIABILITY/WARRANTIES/warranties.parquet
+    publish:
+      path: sp://KCHCLSP00022/CONFIABILIDAD/GARANTIAS/garantias.xlsx
+  linked_component_history_job:
+    source: DATALAKE
+    description: Realiza match entre el estado de componentes de reso y la planilla de cambio de componentes de planificación
+    cron_schedule: "0 10 * * FRI"
+    schedule_status: RUNNING
+    input:
+      path:
+        - az://bhp-analytics-data/REPARATION/COMPONENT_STATUS/component_status.parquet
+        - az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet
+    output:
+      path:  az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/linked_component_history.parquet
+
+#OPERATION:
+#  effective_grade:
+#    source: GE
+#    description: "Effective grade measurements."
+#    data_format: dataframe
+#    job_name: "effective_grade_job"
+#    schedule: "0 5 * * *"
+#    input:
+#      storage: datalake
+#      path: "bhp-raw-data/GE/EFFECTIVE_GRADE/y={YYYY}/m={MM}/d={DD}"
+#    output:
+#      storage: datalake
+#      path: "bhp-analytics-data/GE/EFFECTIVE_GRADE/y={YYYY}/m={MM}/d={DD}"

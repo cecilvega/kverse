@@ -2,21 +2,24 @@ import polars as pl
 import dagster as dg
 from kdags.resources.tidyr import MSGraph, DataLake
 
-POOL_ROTATION_ANALYTICS_PATH = "az://bhp-analytics-data/RELIABILITY/POOL_ROTATION/pool_rotation.parquet"
+LINKED_COMPONENT_HISTORY_ANALYTICS_PATH = (
+    "az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/linked_component_history.parquet"
+)
 
 
 @dg.asset(description="Filters the raw component changeouts data based on date and subcomponent type.")
 def component_changeouts_filtered(
-    read_component_changeouts: pl.DataFrame,
+    component_changeouts: pl.DataFrame,
 ) -> pl.DataFrame:
     """Filters the raw component changeouts data."""
     return (
-        read_component_changeouts.clone()
+        component_changeouts.clone()
         .select(
             [
                 "equipment_name",
                 "component_name",
                 "subcomponent_name",
+                "position_name",
                 "changeout_date",
                 "customer_work_order",
                 "sap_equipment_name",
@@ -33,14 +36,14 @@ def component_changeouts_filtered(
 def component_changeouts_initial_join(
     context: dg.AssetExecutionContext,
     component_changeouts_filtered: pl.DataFrame,
-    read_component_status: pl.DataFrame,
+    component_status: pl.DataFrame,
 ) -> pl.DataFrame:
     """
     Performs the initial left join based on customer_work_order and sap_equipment_name.
     Does not yet filter based on date condition or join success.
     """
     cc_df = component_changeouts_filtered
-    cs_df = read_component_status.clone()
+    cs_df = component_status.clone()
     context.log.info(f"Performing initial join for {cc_df.height} changeout rows.")
 
     status_cols_to_join = [
@@ -126,11 +129,11 @@ def used_service_orders(
 @dg.asset(description="Component status rows not used in the direct match.")
 def reso_available_for_asof(
     context: dg.AssetExecutionContext,
-    read_component_status: pl.DataFrame,
+    component_status: pl.DataFrame,
     used_service_orders: pl.DataFrame,
 ) -> pl.DataFrame:
     """Filters component status using an anti-join against used service orders."""
-    cs_df = read_component_status
+    cs_df = component_status
     available_df = cs_df.join(used_service_orders, on="service_order", how="anti").filter(
         pl.col("sap_equipment_name") != -1
     )
@@ -218,15 +221,15 @@ def changeouts_unmatched(
         "before being matched to reparation status. Currently returns the raw changeout data."
     )
 )
-def pool_rotation(
+def mutate_linked_component_history(
     context: dg.AssetExecutionContext,
-    read_component_changeouts: pl.DataFrame,
+    component_changeouts: pl.DataFrame,
     changeouts_matched_direct: pl.DataFrame,
     changeouts_matched_asof: pl.DataFrame,
     changeouts_unmatched: pl.DataFrame,
 ) -> pl.DataFrame:
 
-    cc_df = read_component_changeouts.clone()
+    cc_df = component_changeouts.clone()
 
     # Get row counts
     total_raw_rows = cc_df.height
@@ -257,17 +260,27 @@ def pool_rotation(
     )
 
     df = pl.concat([changeouts_matched_direct, changeouts_matched_asof]).select(
-        ["customer_work_order", "sap_equipment_name", "service_order", "reception_date"]
+        [
+            "equipment_name",
+            "component_name",
+            "subcomponent_name",
+            "position_name",
+            "changeout_date",
+            "customer_work_order",
+            "sap_equipment_name",
+            "service_order",
+            "reception_date",
+        ]
     )
     # df = cc_df.join(match_df, on=["customer_work_order", "sap_equipment_name"], how="left")
 
     datalake = DataLake()  # Direct instantiation
-    context.log.info(f"Writing {df.height} records to {POOL_ROTATION_ANALYTICS_PATH}")
+    context.log.info(f"Writing {df.height} records to {LINKED_COMPONENT_HISTORY_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(df=df, az_path=POOL_ROTATION_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=LINKED_COMPONENT_HISTORY_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
-            "az_path": POOL_ROTATION_ANALYTICS_PATH,
+            "az_path": LINKED_COMPONENT_HISTORY_ANALYTICS_PATH,
             "rows_written": df.height,
         }
     )
@@ -278,12 +291,14 @@ def pool_rotation(
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def read_pool_rotation(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def linked_component_history(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.az_path_exists(POOL_ROTATION_ANALYTICS_PATH):
-        df = dl.read_tibble(az_path=POOL_ROTATION_ANALYTICS_PATH)
-        context.log.info(f"Read {df.height} records from {POOL_ROTATION_ANALYTICS_PATH}.")
+    if dl.az_path_exists(LINKED_COMPONENT_HISTORY_ANALYTICS_PATH):
+        df = dl.read_tibble(az_path=LINKED_COMPONENT_HISTORY_ANALYTICS_PATH)
+        context.log.info(f"Read {df.height} records from {LINKED_COMPONENT_HISTORY_ANALYTICS_PATH}.")
         return df
     else:
-        context.log.warning(f"Data file not found at {POOL_ROTATION_ANALYTICS_PATH}. Returning empty DataFrame.")
+        context.log.warning(
+            f"Data file not found at {LINKED_COMPONENT_HISTORY_ANALYTICS_PATH}. Returning empty DataFrame."
+        )
         return pl.DataFrame()

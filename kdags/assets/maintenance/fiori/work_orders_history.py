@@ -60,7 +60,7 @@ def spawn_work_order_history(read_raw_work_orders_history):
     datalake = DataLake()
     datalake_path = datalake.upload_tibble(
         az_path="abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
-        df=read_raw_work_orders_history,
+        tibble=read_raw_work_orders_history,
         format="parquet",
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}

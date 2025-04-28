@@ -226,7 +226,7 @@ def upload_component_status_results(context: dg.AssetExecutionContext, az_path: 
 
     # Upload to Data Lake
     datalake = DataLake()
-    datalake.upload_tibble(az_path=az_path, df=df, format="parquet")
+    datalake.upload_tibble(az_path=az_path, tibble=df, format="parquet")
     context.log.info(f"Successfully uploaded data for year {year} to {az_path}")
 
     # Delete local file

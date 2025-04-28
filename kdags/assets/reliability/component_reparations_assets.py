@@ -8,11 +8,11 @@ COMPONENT_REPARATIONS_ANALYTICS_PATH = (
 
 
 @dg.asset
-def component_reparations(read_component_changeouts, read_pool_rotation, read_component_status):
+def mutate_component_reparations(component_changeouts, linked_component_history, component_status):
     dl = DataLake()
-    pr_df = read_pool_rotation.clone()
-    cs_df = read_component_status.clone()
-    cc_df = read_component_changeouts.clone()
+    pr_df = linked_component_history.clone()
+    cs_df = component_status.clone()
+    cc_df = component_changeouts.clone()
     df = cc_df.drop(["cc_index"]).join(pr_df, on=["customer_work_order", "sap_equipment_name"], how="left")
     df = df.join(
         cs_df.select(
@@ -127,29 +127,29 @@ def component_reparations(read_component_changeouts, read_pool_rotation, read_co
     )
     df = df.with_columns(duration_expressions)
 
-    dl.upload_tibble(df=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH, format="parquet")
+    dl.upload_tibble(tibble=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH, format="parquet")
     return df
 
 
 @dg.asset
-def publish_sp_component_reparations(context: dg.AssetExecutionContext, component_reparations: pl.DataFrame):
-    df = component_reparations.clone()
+def publish_sp_component_reparations(context: dg.AssetExecutionContext, mutate_component_reparations: pl.DataFrame):
+    df = mutate_component_reparations.clone()
     msgraph = MSGraph()
-    sp_results = []
-    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx", df))
-    sp_results.extend(
-        msgraph.upload_tibble(
-            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/reparacion_componentes.xlsx",
-            df,
-        )
-    )
-    return sp_results
+    upload_results = []
+    sp_paths = [
+        "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
+        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/reparacion_componentes.xlsx",
+    ]
+    for sp_path in sp_paths:
+        context.log.info(f"Publishing to {sp_path}")
+        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
+    return upload_results
 
 
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def read_component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(COMPONENT_REPARATIONS_ANALYTICS_PATH):
         df = dl.read_tibble(az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)

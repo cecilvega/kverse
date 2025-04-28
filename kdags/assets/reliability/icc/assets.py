@@ -63,9 +63,9 @@ def get_shift_dates():
 
 
 @dg.asset
-def cc_summary(read_component_changeouts):
+def cc_summary(component_changeouts):
     taxonomy_df = MasterData.taxonomy()
-    df = read_component_changeouts.clone()  # Polars uses clone() instead of copy()
+    df = component_changeouts.clone()  # Polars uses clone() instead of copy()
 
     # Filter rows
     df = df.filter(pl.col("changeout_date") >= datetime(2024, 9, 26))
@@ -164,7 +164,7 @@ def gather_icc_reports(context: dg.AssetExecutionContext):
 
 
 @dg.asset
-def icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
+def mutate_icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
     df = (
         cc_summary.select(
             [
@@ -223,7 +223,7 @@ def icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {ICC_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(df=df, az_path=ICC_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=ICC_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
             "az_path": ICC_ANALYTICS_PATH,
@@ -235,24 +235,24 @@ def icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports):
 
 
 @dg.asset
-def publish_sp_icc(context: dg.AssetExecutionContext, icc: pl.DataFrame):
-    df = icc.clone()
+def publish_sp_icc(context: dg.AssetExecutionContext, mutate_icc: pl.DataFrame):
+    df = mutate_icc.clone()
     msgraph = MSGraph()
-    sp_results = []
-    sp_results.extend(msgraph.upload_tibble("sp://KCHCLGR00058/___/CONFIABILIDAD/informes_cambio_componentes.xlsx", df))
-    sp_results.extend(
-        msgraph.upload_tibble(
-            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/informes_cambio_componentes.xlsx",
-            df,
-        )
-    )
-    return sp_results
+    upload_results = []
+    sp_paths = [
+        "sp://KCHCLGR00058/___/CONFIABILIDAD/informes_cambio_componentes.xlsx",
+        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/informes_cambio_componentes.xlsx",
+    ]
+    for sp_path in sp_paths:
+        context.log.info(f"Publishing to {sp_path}")
+        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
+    return upload_results
 
 
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def read_icc(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def icc(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(ICC_ANALYTICS_PATH):
         df = dl.read_tibble(az_path=ICC_ANALYTICS_PATH)

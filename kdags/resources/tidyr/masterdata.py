@@ -36,12 +36,9 @@ class MasterData:
         # Create DataFrame and process the data
         df = pl.from_dicts(data)
         df = df.explode("subcomponent")
-
-        # Convert to dictionaries for normalization
         records = df.to_dicts()
 
-        # Use Polars json_normalize (equivalent to pandas json_normalize)
-        normalized_df = pl.json_normalize(records, separator="_").drop("subcomponent")
+        normalized_df = pl.json_normalize(records, separator="_")
 
         return normalized_df
 

@@ -1,0 +1,18 @@
+# --- Columns from Component Changeouts Schema ---
+cc_index: indice_cc
+equipment_name: nombre_equipo
+equipment_model: modelo_equipo
+component_name: nombre_componente
+subcomponent_name: nombre_subcomponente
+position_name: posicion
+changeout_date: fecha_cambio
+customer_work_order: orden_trabajo_cliente
+equipment_hours: horas_equipo
+component_hours: horas_componente
+tbo: tbo # Assuming TBO is understood or doesn't translate well
+component_usage: uso_componente
+component_serial: serie_componente_saliente # Or just serie_componente if context is clear
+sap_equipment_name: numero_equipo_sap
+installed_component_serial: serie_componente_entrante
+failure_description: descripcion_falla
+site_name: sitio

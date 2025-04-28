@@ -1,94 +1,104 @@
-from dagster import (
-    AssetSelection,
-    ScheduleDefinition,
-    define_asset_job,
-    DefaultScheduleStatus,
+import dagster as dg
+
+
+# === DOCS ===
+docs_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="docs_job",
+        selection=dg.AssetSelection.assets(
+            "publish_sp_io_catalog", "publish_sp_masterdata_catalog", "publish_sp_schema_catalog"
+        ).upstream(),
+        description="Job for publishing documentation.",
+    ),
+    cron_schedule="0 11 * * 0",  # sunday at 11:00
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
 # === RELIABILITY ===
-management_job = ScheduleDefinition(
-    job=define_asset_job(
-        name="management_job",
-        selection=AssetSelection.assets("publish_sp_masterdata").upstream(),
+warranties_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="warranties_job",
+        selection=dg.AssetSelection.assets("publish_sp_warranties").upstream(),
         description="...",
     ),
     cron_schedule="0 11 * * 0",  # sunday at 11:00
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
 # === PLANNING ===
-component_changeouts_job = ScheduleDefinition(
-    job=define_asset_job(
+component_changeouts_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="component_changeouts_job",
-        selection=AssetSelection.assets("component_changeouts").upstream(),
+        selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream(),
         description="Cambios de componente",
     ),
     cron_schedule="0 3,15 * * *",  # daily at 3:00 and 15:00
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 # === REPARATION ===
-scrape_component_status_job = ScheduleDefinition(
-    job=define_asset_job(
+scrape_component_status_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="scrape_component_status_job",
-        selection=AssetSelection.assets("scrape_component_status").upstream(),
+        selection=dg.AssetSelection.assets("scrape_component_status").upstream(),
         description="Component Status RESO",
     ),
     cron_schedule="0 9 * * FRI",  # viernes 09:00
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
-component_status_job = ScheduleDefinition(
-    job=define_asset_job(
+component_status_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="component_status_job",
-        selection=AssetSelection.assets("publish_sp_component_status").upstream(),
+        selection=dg.AssetSelection.assets("publish_sp_component_status").upstream(),
         description="Component Status RESO",
     ),
     cron_schedule="0 10 * * FRI",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
 
 # === MAINTENANCE ===
 
-oil_analysis_job = ScheduleDefinition(
-    job=define_asset_job(
+oil_analysis_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="oil_analysis_job",
-        selection=AssetSelection.assets("publish_sp_oil_analysis").upstream(),
+        selection=dg.AssetSelection.assets("publish_sp_oil_analysis").upstream(),
         description="Muestras aceite SCAAE",
     ),
     cron_schedule="15 11 * * *",  # daily at 11:00
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
-pm_history_job = ScheduleDefinition(
-    job=define_asset_job(
+pm_history_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="pm_history_job",
-        selection=AssetSelection.assets("spawn_pm_history").upstream(),
+        selection=dg.AssetSelection.assets("spawn_pm_history").upstream(),
         description="Archivo con listado historial de PMs",
     ),
     cron_schedule="0 9 * * FRI",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.STOPPED,
+    default_status=dg.DefaultScheduleStatus.STOPPED,
 )
 
-work_order_history_job = ScheduleDefinition(
-    job=define_asset_job(
+work_order_history_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="work_order_history_job",
-        selection=AssetSelection.assets("spawn_work_order_history").upstream(),
+        selection=dg.AssetSelection.assets("spawn_work_order_history").upstream(),
         description="Archivo con todas las OT's Fiori",
     ),
     cron_schedule="0 9 1 * *",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.STOPPED,
+    default_status=dg.DefaultScheduleStatus.STOPPED,
 )
 
-attendances_job = ScheduleDefinition(
-    job=define_asset_job(name="attentances_job", selection=AssetSelection.groups("maintenance")),
+attendances_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(name="attentances_job", selection=dg.AssetSelection.groups("maintenance")),
     cron_schedule="0 0 * * *",
     execution_timezone="America/Santiago",
     # default_status=DefaultScheduleStatus.RUNNING,
@@ -96,68 +106,74 @@ attendances_job = ScheduleDefinition(
 
 # === RELIABILITY ===
 
-icc_job = ScheduleDefinition(
-    job=define_asset_job(
+icc_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="icc_job",
-        selection=AssetSelection.assets("publish_sp_icc").upstream(),
+        selection=dg.AssetSelection.assets("publish_sp_icc").upstream(),
         tags={"source": "icc"},
     ),
     cron_schedule="0 21 * * *",  # Diario a las 21:00
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
-component_reparations_job = ScheduleDefinition(
-    job=define_asset_job(
-        name="component_reparations_job", selection=AssetSelection.assets("publish_sp_component_reparations").upstream()
+component_reparations_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="component_reparations_job",
+        selection=dg.AssetSelection.assets("publish_sp_component_reparations").upstream(),
     ),
     cron_schedule="0 10 * * FRI",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
-pool_rotation_job = ScheduleDefinition(
-    job=define_asset_job(name="pool_rotation_job", selection=AssetSelection.assets("pool_rotation").upstream()),
+linked_component_history_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="linked_component_history_job",
+        selection=dg.AssetSelection.assets("mutate_linked_component_history").upstream(),
+    ),
     cron_schedule="0 10 * * FRI",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
-quotations_job = ScheduleDefinition(
-    job=define_asset_job(name="quotations_job", selection=AssetSelection.assets("publish_sp_quotations").upstream()),
+quotations_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="quotations_job", selection=dg.AssetSelection.assets("publish_sp_quotations").upstream()
+    ),
     cron_schedule="0 10 * * FRI",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
 
 # === OPERATION ===
 
-op_file_idx_job = ScheduleDefinition(
-    job=define_asset_job(name="op_file_idx_job", selection=AssetSelection.assets("spawn_op_file_idx").upstream()),
+op_file_idx_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(name="op_file_idx_job", selection=dg.AssetSelection.assets("spawn_op_file_idx").upstream()),
     cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.STOPPED,
+    default_status=dg.DefaultScheduleStatus.STOPPED,
 )
 
-plm_job = ScheduleDefinition(
-    job=define_asset_job(
+plm_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="plm_job",
-        selection=AssetSelection.assets("spawn_plm3_haul").upstream()
-        | AssetSelection.assets("spawn_plm3_alarms").upstream(),
+        selection=dg.AssetSelection.assets("spawn_plm3_haul").upstream()
+        | dg.AssetSelection.assets("spawn_plm3_alarms").upstream(),
         description="PLM Haulcycle y alarmas",
     ),
     cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.STOPPED,
+    default_status=dg.DefaultScheduleStatus.STOPPED,
 )
 
-ge_job = ScheduleDefinition(
-    job=define_asset_job(
+ge_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
         name="ge_job",
-        selection=AssetSelection.assets("spawn_events").upstream(),
+        selection=dg.AssetSelection.assets("spawn_events").upstream(),
         description="GE Eventos",
     ),
     cron_schedule="30 6 * * *",
     execution_timezone="America/Santiago",
-    default_status=DefaultScheduleStatus.STOPPED,
+    default_status=dg.DefaultScheduleStatus.STOPPED,
 )

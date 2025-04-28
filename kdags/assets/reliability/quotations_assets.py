@@ -6,11 +6,11 @@ QUOTATIONS_ANALYTICS_PATH = "az://bhp-analytics-data/RELIABILITY/QUOTATIONS/quot
 
 
 @dg.asset
-def quotations(read_component_reparations):
+def quotations(component_reparations):
     dl = DataLake()
     quotations_df = dl.read_tibble("az://bhp-raw-data//RESO/QUOTATIONS/quotations.parquet")
 
-    cr_df = read_component_reparations.clone()
+    cr_df = component_reparations.clone()
     df = cr_df.select(
         [
             "equipment_name",
@@ -27,7 +27,7 @@ def quotations(read_component_reparations):
         ]
     ).join(quotations_df, on=["service_order"], how="inner")
 
-    dl.upload_tibble(df=df, az_path=QUOTATIONS_ANALYTICS_PATH, format="parquet")
+    dl.upload_tibble(tibble=df, az_path=QUOTATIONS_ANALYTICS_PATH, format="parquet")
     return df
 
 

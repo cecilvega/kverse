@@ -3,10 +3,13 @@ from pathlib import Path
 import dagster as dg
 from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMapping
 
-from kdags.assets import maintenance, reparation, operation, planning, reliability
+
+from kdags.assets import maintenance, reparation, operation, planning, reliability, docs
 from kdags.jobs import (
+    # === DOCS ===
+    docs_job,
     # === RELIABILITY ===
-    management_job,
+    warranties_job,
     component_reparations_job,
     quotations_job,
     # === PLANNING ===
@@ -14,7 +17,7 @@ from kdags.jobs import (
     # === REPARATION ===
     component_status_job,
     scrape_component_status_job,
-    pool_rotation_job,
+    linked_component_history_job,
     # === MAINTENANCE ===
     attendances_job,
     oil_analysis_job,
@@ -47,7 +50,7 @@ maintenance_assets = dg.load_assets_from_package_module(maintenance, group_name=
 planning_assets = dg.load_assets_from_package_module(planning, group_name="planning")
 reliability_assets = dg.load_assets_from_package_module(reliability, group_name="reliability")
 reparation_assets = dg.load_assets_from_package_module(reparation, group_name="reparation")
-
+docs_assets = dg.load_assets_from_package_module(docs, group_name="docs")
 
 all_assets = dg.with_source_code_references(
     [
@@ -56,6 +59,7 @@ all_assets = dg.with_source_code_references(
         *maintenance_assets,
         *planning_assets,
         *reliability_assets,
+        *docs_assets,
     ]
 )
 
@@ -72,8 +76,10 @@ all_assets = dg.link_code_references_to_git(
 kdefs = dg.Definitions(
     assets=all_assets,
     schedules=[
+        # === DOCS ===
+        docs_job,
         # === RELIABILITY ===
-        management_job,
+        warranties_job,
         component_reparations_job,
         quotations_job,
         # === PLANNING ===
@@ -82,7 +88,7 @@ kdefs = dg.Definitions(
         component_status_job,
         scrape_component_status_job,
         # === RELIABILITY ===
-        pool_rotation_job,
+        linked_component_history_job,
         icc_job,
         # === MAINTENANCE ===
         attendances_job,

@@ -114,7 +114,7 @@ class DataLake:
 
         return df
 
-    def upload_tibble(self, df, az_path: str, format: str = "parquet", **kwargs) -> str:
+    def upload_tibble(self, tibble, az_path: str, format: str = "parquet", **kwargs) -> str:
 
         # container, file_path = self._parse_az_path(az_path)
         # file_system_client = self.get_file_system_client(f"az://{container}")
@@ -124,7 +124,7 @@ class DataLake:
         if format.lower() == "parquet":
             # buffer = BytesIO()
             # Handle both pandas and polars DataFrames
-            df.write_parquet(az_path, storage_options=self.storage_options, **kwargs)
+            tibble.write_parquet(az_path, storage_options=self.storage_options, **kwargs)
 
             # buffer.seek(0)
             # data = buffer.getvalue()
@@ -132,7 +132,7 @@ class DataLake:
         elif format.lower() == "csv":
             # Handle both pandas and polars DataFrames
 
-            df.write_csv(az_path, storage_options=self.storage_options, **kwargs).encode("utf-8")
+            tibble.write_csv(az_path, storage_options=self.storage_options, **kwargs).encode("utf-8")
 
         else:
             raise ValueError(f"Unsupported format: {format}")

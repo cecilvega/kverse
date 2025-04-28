@@ -86,7 +86,7 @@ def spawn_events(context: dg.AssetExecutionContext, mutate_raw_events):
 
     datalake_path = DataLake().upload_tibble(
         az_path="abfs://bhp-analytics-data/OPERATION/GE/events.parquet",
-        df=df,
+        tibble=df,
         format="parquet",
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}
