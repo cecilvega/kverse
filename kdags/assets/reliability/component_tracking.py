@@ -1,7 +1,7 @@
-import polars as pl
 import dagster as dg
+import polars as pl
+
 from kdags.resources.tidyr import MSGraph, DataLake, MasterData
-from datetime import datetime
 
 COMPONENT_TRACKING_ANALYTICS_PATH = (
     "az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_tracking.parquet"
@@ -305,7 +305,7 @@ def publish_sp_component_history(
     upload_results = []
 
     sp_paths = [
-        # "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
+        "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
         "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/historial_componentes.xlsx",
     ]
     for sp_path in sp_paths:
@@ -313,7 +313,7 @@ def publish_sp_component_history(
         upload_results.append(msgraph.upload_tibble(tibble=component_history_df, sp_path=sp_path))
 
     sp_paths = [
-        # "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
+        "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
         "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/seguimiento_componentes.xlsx",
     ]
     for sp_path in sp_paths:

@@ -79,8 +79,8 @@ def warranties(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 
 @dg.asset
-def publish_sp_warranties(context: dg.AssetExecutionContext, warranties: pl.DataFrame):
-    df = warranties.clone()
+def publish_sp_warranties(context: dg.AssetExecutionContext, mutate_warranties: pl.DataFrame):
+    df = mutate_warranties.clone()
     msgraph = MSGraph()
     upload_results = []
     sp_paths = [

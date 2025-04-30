@@ -121,13 +121,6 @@ work_order_history_job = dg.ScheduleDefinition(
     default_status=dg.DefaultScheduleStatus.STOPPED,
 )
 
-# attendances_job = dg.ScheduleDefinition(
-#     job=dg.define_asset_job(name="attentances_job", selection=dg.AssetSelection.groups("maintenance")),
-#     cron_schedule="0 0 * * *",
-#     execution_timezone="America/Santiago",
-#     # default_status=DefaultScheduleStatus.RUNNING,
-# )
-
 
 # === OPERATION ===
 
