@@ -2,9 +2,7 @@ import polars as pl
 import dagster as dg
 from kdags.resources.tidyr import MSGraph, DataLake
 
-LINKED_COMPONENT_HISTORY_ANALYTICS_PATH = (
-    "az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/linked_component_history.parquet"
-)
+CHANGEOUTS_SO_ANALYTICS_PATH = "az://bhp-analytics-data/REPARATION/CHANGEOUTS_SO/changeouts_so.parquet"
 
 
 @dg.asset(description="Filters the raw component changeouts data based on date and subcomponent type.")
@@ -25,7 +23,7 @@ def component_changeouts_filtered(
                 "sap_equipment_name",
             ]
         )
-        .filter(pl.col("changeout_date").dt.year() >= 2021)
+        .filter(pl.col("changeout_date").dt.year() >= 2019)
         .filter(~(pl.col("subcomponent_name").is_in(["motor", "radiador", "subframe"])))
         .sort(["sap_equipment_name", "changeout_date"])
         .unique(subset=["customer_work_order", "sap_equipment_name"], keep="last", maintain_order=True)
@@ -36,14 +34,14 @@ def component_changeouts_filtered(
 def component_changeouts_initial_join(
     context: dg.AssetExecutionContext,
     component_changeouts_filtered: pl.DataFrame,
-    component_status: pl.DataFrame,
+    mutate_so_report: pl.DataFrame,
 ) -> pl.DataFrame:
     """
     Performs the initial left join based on customer_work_order and sap_equipment_name.
     Does not yet filter based on date condition or join success.
     """
     cc_df = component_changeouts_filtered
-    cs_df = component_status.clone()
+    cs_df = mutate_so_report.clone()
     context.log.info(f"Performing initial join for {cc_df.height} changeout rows.")
 
     status_cols_to_join = [
@@ -129,11 +127,11 @@ def used_service_orders(
 @dg.asset(description="Component status rows not used in the direct match.")
 def reso_available_for_asof(
     context: dg.AssetExecutionContext,
-    component_status: pl.DataFrame,
+    mutate_so_report: pl.DataFrame,
     used_service_orders: pl.DataFrame,
 ) -> pl.DataFrame:
     """Filters component status using an anti-join against used service orders."""
-    cs_df = component_status
+    cs_df = mutate_so_report
     available_df = cs_df.join(used_service_orders, on="service_order", how="anti").filter(
         pl.col("sap_equipment_name") != -1
     )
@@ -221,7 +219,7 @@ def changeouts_unmatched(
         "before being matched to reparation status. Currently returns the raw changeout data."
     )
 )
-def mutate_linked_component_history(
+def mutate_changeouts_so(
     context: dg.AssetExecutionContext,
     component_changeouts: pl.DataFrame,
     changeouts_matched_direct: pl.DataFrame,
@@ -275,12 +273,12 @@ def mutate_linked_component_history(
     # df = cc_df.join(match_df, on=["customer_work_order", "sap_equipment_name"], how="left")
 
     datalake = DataLake()  # Direct instantiation
-    context.log.info(f"Writing {df.height} records to {LINKED_COMPONENT_HISTORY_ANALYTICS_PATH}")
+    context.log.info(f"Writing {df.height} records to {CHANGEOUTS_SO_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(tibble=df, az_path=LINKED_COMPONENT_HISTORY_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=CHANGEOUTS_SO_ANALYTICS_PATH, format="parquet")
     context.add_output_metadata(
         {  # Add metadata on success
-            "az_path": LINKED_COMPONENT_HISTORY_ANALYTICS_PATH,
+            "az_path": CHANGEOUTS_SO_ANALYTICS_PATH,
             "rows_written": df.height,
         }
     )
@@ -291,14 +289,12 @@ def mutate_linked_component_history(
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def linked_component_history(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def changeouts_so(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.az_path_exists(LINKED_COMPONENT_HISTORY_ANALYTICS_PATH):
-        df = dl.read_tibble(az_path=LINKED_COMPONENT_HISTORY_ANALYTICS_PATH)
-        context.log.info(f"Read {df.height} records from {LINKED_COMPONENT_HISTORY_ANALYTICS_PATH}.")
+    if dl.az_path_exists(CHANGEOUTS_SO_ANALYTICS_PATH):
+        df = dl.read_tibble(az_path=CHANGEOUTS_SO_ANALYTICS_PATH)
+        context.log.info(f"Read {df.height} records from {CHANGEOUTS_SO_ANALYTICS_PATH}.")
         return df
     else:
-        context.log.warning(
-            f"Data file not found at {LINKED_COMPONENT_HISTORY_ANALYTICS_PATH}. Returning empty DataFrame."
-        )
+        context.log.warning(f"Data file not found at {CHANGEOUTS_SO_ANALYTICS_PATH}. Returning empty DataFrame.")
         return pl.DataFrame()

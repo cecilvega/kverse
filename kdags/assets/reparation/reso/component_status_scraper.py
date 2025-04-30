@@ -237,83 +237,85 @@ def upload_component_status_results(context: dg.AssetExecutionContext, az_path: 
     return az_path
 
 
-@dg.asset
-def scrape_component_status(context: dg.AssetExecutionContext) -> dict:
-
-    uploaded_uris = []
-    summary_data = {
-        "years_processed": [],
-        "uploaded_files": [],
-        "failed_years": [],
-        "num_files_uploaded": 0,
-        "status": "incomplete",
-    }
-
-    num_years_back = 2  # Define how many years back to process
-    # --- Process Past Years ---
-    current_date = datetime.now()
-    current_year = current_date.year
-    start_loop_year = current_year
-    end_loop_year = start_loop_year - num_years_back
-
-    # --- Initialize Driver ---
-    driver = initialize_driver()
-    wait = WebDriverWait(driver, DEFAULT_WAIT)
-    context.log.info("WebDriver initialized.")
-
-    # --- Login ---
-
-    login_to_reso(driver, wait)
-    context.log.info("Login RESO+ successful.")
-
-    context.log.info(f"Starting year loop from {start_loop_year} down to {end_loop_year}...")
-
-    for year in range(start_loop_year, end_loop_year - 1, -1):
-        context.log.info(f"Processing Year: {year}")
-        summary_data["years_processed"].append(year)
-        start_date_str = f"01-01-{year}"
-        end_date_str = f"31-12-{year}"
-
-        # --- Navigate ---
-        driver.get(RESO_URL)
-        click_reportabilidad(driver, wait)
-        click_component_status(driver, wait)
-        context.log.info("Navigated to Estatus Componente page.")
-
-        # --- Set Default Filters ---
-        set_default_component_status_filters(driver, wait)
-        context.log.info("Default filters applied.")
-
-        # Set dates for the current year
-        set_component_status_dates(driver, wait, start_date_str, end_date_str)
-
-        # Export the results for the current year
-        export_component_status_results(driver, wait)
-
-        # Define upload URI for the current year
-        # Using current_date for partition, but year for filename seems intended
-        partition_path = current_date.strftime("y=%Y/m=%m/d=%d")  # Partition based on run date
-        az_path = f"az://bhp-raw-data/RESO/COMPONENT_STATUS/{partition_path}/component_status_{year}.parquet"
-
-        # Upload results and cleanup
-        uploaded_uri = upload_component_status_results(context, az_path, year)
-        if uploaded_uri:
-            uploaded_uris.append(uploaded_uri)
-            # Optionally add more details per file if needed
-            summary_data["uploaded_files"].append({"year": year, "az_path": uploaded_uri})
-        else:
-            context.log.error(f"Upload failed for year {year}")
-            summary_data["failed_years"].append(year)
-            # Decide if you want to stop or continue if one year fails
-
-    context.log.info("Year loop finished.")
-    summary_data["status"] = "completed" if not summary_data["failed_years"] else "completed_with_errors"
-    summary_data["num_files_uploaded"] = len(uploaded_uris)
-
-    context.log.info("Closing WebDriver...")
-    driver.quit()
-    context.log.info("WebDriver closed.")
-
-    # Return the summary dictionary
-    context.add_output_metadata(metadata=summary_data)
-    return summary_data
+#
+#
+# @dg.asset
+# def scrape_component_status(context: dg.AssetExecutionContext) -> dict:
+#
+#     uploaded_uris = []
+#     summary_data = {
+#         "years_processed": [],
+#         "uploaded_files": [],
+#         "failed_years": [],
+#         "num_files_uploaded": 0,
+#         "status": "incomplete",
+#     }
+#
+#     num_years_back = 2  # Define how many years back to process
+#     # --- Process Past Years ---
+#     current_date = datetime.now()
+#     current_year = current_date.year
+#     start_loop_year = current_year
+#     end_loop_year = start_loop_year - num_years_back
+#
+#     # --- Initialize Driver ---
+#     driver = initialize_driver()
+#     wait = WebDriverWait(driver, DEFAULT_WAIT)
+#     context.log.info("WebDriver initialized.")
+#
+#     # --- Login ---
+#
+#     login_to_reso(driver, wait)
+#     context.log.info("Login RESO+ successful.")
+#
+#     context.log.info(f"Starting year loop from {start_loop_year} down to {end_loop_year}...")
+#
+#     for year in range(start_loop_year, end_loop_year - 1, -1):
+#         context.log.info(f"Processing Year: {year}")
+#         summary_data["years_processed"].append(year)
+#         start_date_str = f"01-01-{year}"
+#         end_date_str = f"31-12-{year}"
+#
+#         # --- Navigate ---
+#         driver.get(RESO_URL)
+#         click_reportabilidad(driver, wait)
+#         click_component_status(driver, wait)
+#         context.log.info("Navigated to Estatus Componente page.")
+#
+#         # --- Set Default Filters ---
+#         set_default_component_status_filters(driver, wait)
+#         context.log.info("Default filters applied.")
+#
+#         # Set dates for the current year
+#         set_component_status_dates(driver, wait, start_date_str, end_date_str)
+#
+#         # Export the results for the current year
+#         export_component_status_results(driver, wait)
+#
+#         # Define upload URI for the current year
+#         # Using current_date for partition, but year for filename seems intended
+#         partition_path = current_date.strftime("y=%Y/m=%m/d=%d")  # Partition based on run date
+#         az_path = f"az://bhp-raw-data/RESO/COMPONENT_STATUS/{partition_path}/component_status_{year}.parquet"
+#
+#         # Upload results and cleanup
+#         uploaded_uri = upload_component_status_results(context, az_path, year)
+#         if uploaded_uri:
+#             uploaded_uris.append(uploaded_uri)
+#             # Optionally add more details per file if needed
+#             summary_data["uploaded_files"].append({"year": year, "az_path": uploaded_uri})
+#         else:
+#             context.log.error(f"Upload failed for year {year}")
+#             summary_data["failed_years"].append(year)
+#             # Decide if you want to stop or continue if one year fails
+#
+#     context.log.info("Year loop finished.")
+#     summary_data["status"] = "completed" if not summary_data["failed_years"] else "completed_with_errors"
+#     summary_data["num_files_uploaded"] = len(uploaded_uris)
+#
+#     context.log.info("Closing WebDriver...")
+#     driver.quit()
+#     context.log.info("WebDriver closed.")
+#
+#     # Return the summary dictionary
+#     context.add_output_metadata(metadata=summary_data)
+#     return summary_data

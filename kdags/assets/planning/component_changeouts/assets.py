@@ -162,16 +162,21 @@ def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(COMPONENT_CHANGEOUTS_ANALYTIS_PATH):
         df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
-        df = df.filter(pl.col("component_hours").is_not_null()).unique(
-            subset=[
-                "equipment_name",
-                "component_name",
-                "subcomponent_name",
-                "position_name",
-                "changeout_date",
-                "sap_equipment_name",
-                "customer_work_order",
-            ]
+        df = (
+            df.filter((pl.col("component_hours").is_not_null()) & (pl.col("equipment_name") != "TK853"))
+            .filter(pl.col("changeout_date").dt.year() >= 2019)
+            .filter(~(pl.col("subcomponent_name").is_in(["motor", "radiador", "subframe"])))
+            .unique(
+                subset=[
+                    "equipment_name",
+                    "component_name",
+                    "subcomponent_name",
+                    "position_name",
+                    "changeout_date",
+                    "sap_equipment_name",
+                    "customer_work_order",
+                ]
+            )
         )
         context.log.info(f"Read {df.height} records from {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}.")
         return df

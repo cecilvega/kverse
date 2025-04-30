@@ -33,17 +33,29 @@ REPARATION:
       path: https://resoplus.komatsu.cl/WF/Reportabilidad/EstatusComponente.aspx
     output:
       path: az://bhp-raw-data/COMPONENT_STATUS/y={YYYY}/m={MM}/d={DD}
-  component_status_job:
+  so_report_job:
     source: RESO
     description: Consolida el mega estatus componentes RESO
     cron_schedule: "0 10 * * FRI"
     schedule_status: RUNNING
     input:
-      path: az://bhp-raw-data/COMPONENT_STATUS/y={YYYY}/m={MM}/d={DD}
+      path: az://bhp-raw-data/SERVICE_ORDER_REPORT/y={YYYY}/m={MM}/d={DD}
     output:
-      path: az://bhp-analytics-data/REPARATION/COMPONENT_STATUS/component_status.parquet
+      path: az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet
     publish:
-      path: sp://KCHCLSP00022/REPARACION/mega_estatus_componentes.xlsx
+      path: sp://KCHCLSP00022/REPARACION/reporte_ordenes_servicio.xlsx
+  changeouts_so_job:
+    source: DATALAKE
+    description: Realiza match entre el estado de componentes de reso y la planilla de cambio de componentes de planificación
+    cron_schedule: "0 10 * * FRI"
+    schedule_status: RUNNING
+    input:
+      path:
+        - az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet
+        - az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet
+    output:
+      path:  az://bhp-analytics-data/RELIABILITY/CHANGEOUTS_SO/changeouts_so.parquet
+
 RELIABILITY:
   icc_job:
     source: MANUAL
@@ -67,17 +79,7 @@ RELIABILITY:
       path: az://bhp-analytics-data/RELIABILITY/WARRANTIES/warranties.parquet
     publish:
       path: sp://KCHCLSP00022/CONFIABILIDAD/GARANTIAS/garantias.xlsx
-  linked_component_history_job:
-    source: DATALAKE
-    description: Realiza match entre el estado de componentes de reso y la planilla de cambio de componentes de planificación
-    cron_schedule: "0 10 * * FRI"
-    schedule_status: RUNNING
-    input:
-      path:
-        - az://bhp-analytics-data/REPARATION/COMPONENT_STATUS/component_status.parquet
-        - az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet
-    output:
-      path:  az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/linked_component_history.parquet
+
 
 #OPERATION:
 #  effective_grade:

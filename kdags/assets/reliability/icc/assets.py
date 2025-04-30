@@ -241,7 +241,7 @@ def publish_sp_icc(context: dg.AssetExecutionContext, mutate_icc: pl.DataFrame):
     upload_results = []
     sp_paths = [
         "sp://KCHCLGR00058/___/CONFIABILIDAD/informes_cambio_componentes.xlsx",
-        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/informes_cambio_componentes.xlsx",
+        # "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/informes_cambio_componentes.xlsx",
     ]
     for sp_path in sp_paths:
         context.log.info(f"Publishing to {sp_path}")

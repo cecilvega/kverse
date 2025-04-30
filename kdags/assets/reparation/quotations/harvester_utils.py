@@ -10,17 +10,17 @@ from selenium.common.exceptions import (
 )  # Keep this import for potential future use or other parts of your code
 from selenium.webdriver.support.ui import WebDriverWait
 
-from .web_driver import initialize_driver, login_to_reso, DEFAULT_WAIT, retry_on_interception
-from .main_navigation import click_presupuesto
+from ..reso.web_driver import initialize_driver, login_to_reso, DEFAULT_WAIT, retry_on_interception
+from ..reso.main_navigation import click_presupuesto
 
-from .presupuesto_navigation import (
+from ..reso.presupuesto_navigation import (
     search_service_order,
     click_see_service_order,
     navigate_to_quotation_tab,
     navigate_to_documents_tab,
     close_service_order_view,
 )
-from .service_order_harvester import extract_quotation_details, extract_document_links, has_quotation, has_documents
+from ..reso.so_utils import extract_quotation_details, extract_document_links, has_quotation, has_documents
 
 # from .service_order_harvester import
 import polars as pl
@@ -39,7 +39,7 @@ from kdags.resources.tidyr import DataLake
 # )
 
 # --- Constants ---
-QUOTATIONS_RAW_PATH = f"az://bhp-raw-data/RESO/QUOTATIONS/quotations.parquet"
+QUOTATIONS_RAW_PATH = "az://bhp-raw-data/RESO/QUOTATIONS/quotations.parquet"
 DOCUMENTS_LIST_RAW_PATH = f"az://bhp-raw-data/RESO/DOCUMENTS/documents_list.parquet"
 
 BATCH_SIZE = 5  # Adjust as needed

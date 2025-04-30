@@ -8,124 +8,67 @@ COMPONENT_REPARATIONS_ANALYTICS_PATH = (
 
 
 @dg.asset
-def mutate_component_reparations(component_changeouts, linked_component_history, component_status):
+def mutate_component_reparations(component_changeouts, mutate_changeouts_so, mutate_so_report, mutate_quotations):
     dl = DataLake()
-    pr_df = linked_component_history.clone()
-    cs_df = component_status.clone()
+    cso_df = mutate_changeouts_so.clone()
+    so_df = mutate_so_report.clone()
     cc_df = component_changeouts.clone()
-    df = cc_df.drop(["cc_index"]).join(pr_df, on=["customer_work_order", "sap_equipment_name"], how="left")
+    quotations_df = mutate_quotations.clone()
+    df = cc_df.select(
+        [
+            "equipment_name",
+            "component_name",
+            "subcomponent_name",
+            "position_name",
+            "changeout_date",
+            "component_serial",
+            "sap_equipment_name",
+            "customer_work_order",
+            "component_hours",
+            "component_usage",
+        ]
+    )
+    # Add linked component_changeouts with service_orders
     df = df.join(
-        cs_df.select(
+        cso_df.select(
             [
+                "equipment_name",
+                "component_name",
+                "subcomponent_name",
+                "position_name",
+                "changeout_date",
                 "service_order",
-                "reception_date",
-                "update_date",
-                "component_status",
-                "opening_date",
-                "load_preliminary_report_in_review",
-                "latest_quotation_publication",
-                "approval_date",
-                "load_final_report_in_review",
-                "reso_closing_date",
             ]
         ),
         on=[
-            "service_order",
-            "reception_date",
+            "equipment_name",
+            "component_name",
+            "subcomponent_name",
+            "position_name",
+            "changeout_date",
         ],
         how="left",
     )
-
-    # List to hold duration calculation expressions
-    duration_expressions = []
-
-    # --- Days in received ---
-    duration_expressions.append(
-        pl.when(pl.col("reception_date").is_not_null())  # Must have started
-        .then(
-            pl.when(pl.col("opening_date").is_not_null())  # Check if next step started
-            .then(pl.col("opening_date") - pl.col("reception_date"))  # Duration = Next Start - Start
-            .otherwise(pl.col("update_date") - pl.col("reception_date"))  # Duration = Update Date - Start
-        )
-        .otherwise(None)  # Not received yet
-        .dt.total_days()  # Get duration as integer days
-        .alias("days_in_received")
+    # Adding information specific to the service order
+    df = df.join(
+        so_df.sort(["service_order", "reception_date"])
+        .unique(subset=["service_order"], keep="last", maintain_order=True)
+        .select(
+            [
+                "service_order",
+                "component_status",
+                "reception_date",
+                "latest_quotation_publication",
+                "load_preliminary_report_date",
+                "load_final_report_date",
+                "quotation_status",
+            ]
+        ),
+        on=["service_order"],
+        how="left",
     )
-
-    # --- Days in disassembly ---
-    duration_expressions.append(
-        pl.when(pl.col("opening_date").is_not_null())  # Must have started
-        .then(
-            pl.when(pl.col("load_preliminary_report_in_review").is_not_null())  # Check if next step started
-            .then(pl.col("load_preliminary_report_in_review") - pl.col("opening_date"))
-            .otherwise(pl.col("update_date") - pl.col("opening_date"))
-        )
-        .otherwise(None)  # Not in disassembly yet
-        .dt.total_days()
-        .alias("days_in_disassembly")
-    )
-
-    # --- Days in preparing_quotation ---
-    duration_expressions.append(
-        pl.when(pl.col("load_preliminary_report_in_review").is_not_null())  # Must have started
-        .then(
-            pl.when(pl.col("latest_quotation_publication").is_not_null())  # Check if next step started
-            .then(pl.col("latest_quotation_publication") - pl.col("load_preliminary_report_in_review"))
-            .otherwise(pl.col("update_date") - pl.col("load_preliminary_report_in_review"))
-        )
-        .otherwise(None)
-        .dt.total_days()
-        .alias("days_in_preparing_quotation")
-    )
-
-    # --- Days in awaiting_approval ---
-    duration_expressions.append(
-        pl.when(pl.col("latest_quotation_publication").is_not_null())  # Must have started
-        .then(
-            pl.when(pl.col("approval_date").is_not_null())  # Check if next step started
-            .then(pl.col("approval_date") - pl.col("latest_quotation_publication"))
-            .otherwise(pl.col("update_date") - pl.col("latest_quotation_publication"))
-        )
-        .otherwise(None)
-        .dt.total_days()
-        .alias("days_in_awaiting_approval")
-    )
-
-    # --- Days in assembly ---
-    duration_expressions.append(
-        pl.when(pl.col("approval_date").is_not_null())  # Must have started
-        .then(
-            pl.when(pl.col("load_final_report_in_review").is_not_null())  # Check if next step started
-            .then(pl.col("load_final_report_in_review") - pl.col("approval_date"))
-            .otherwise(pl.col("update_date") - pl.col("approval_date"))
-        )
-        .otherwise(None)
-        .dt.total_days()
-        .alias("days_in_assembly")
-    )
-
-    # --- Days in repaired ---
-    duration_expressions.append(
-        pl.when(pl.col("load_final_report_in_review").is_not_null())  # Must have started
-        .then(
-            pl.when(pl.col("reso_closing_date").is_not_null())  # Check if next step started (Delivery)
-            .then(pl.col("reso_closing_date") - pl.col("load_final_report_in_review"))
-            .otherwise(pl.col("update_date") - pl.col("load_final_report_in_review"))
-        )
-        .otherwise(None)
-        .dt.total_days()
-        .alias("days_in_repaired")
-    )
-
-    # --- Time Since delivered ---
-    duration_expressions.append(
-        pl.when(pl.col("reso_closing_date").is_not_null())
-        .then(pl.col("update_date") - pl.col("reso_closing_date"))
-        .otherwise(None)
-        .dt.total_days()
-        .alias("days_since_delivered")
-    )
-    df = df.with_columns(duration_expressions)
+    # Adding quotation info
+    df = df.join(quotations_df.select(["service_order", "amount"]), on=["service_order"], how="left")
 
     dl.upload_tibble(tibble=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH, format="parquet")
     return df
@@ -137,7 +80,7 @@ def publish_sp_component_reparations(context: dg.AssetExecutionContext, mutate_c
     msgraph = MSGraph()
     upload_results = []
     sp_paths = [
-        "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
+        # "sp://KCHCLGR00058/___/CONFIABILIDAD/reparacion_componentes.xlsx",
         "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/reparacion_componentes.xlsx",
     ]
     for sp_path in sp_paths:
