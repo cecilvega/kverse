@@ -35,6 +35,7 @@ def quotations(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(QUOTATIONS_ANALYTICS_PATH):
         df = dl.read_tibble(az_path=QUOTATIONS_ANALYTICS_PATH)
+        df = df.rename({"amount": "repair_cost"})
         context.log.info(f"Read {df.height} records from {QUOTATIONS_ANALYTICS_PATH}.")
         return df
     else:
