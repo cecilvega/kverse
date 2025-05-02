@@ -26,7 +26,7 @@ def mutate_quotations(changeouts_so):
         .cast(pl.Float64, strict=False)  # Convert to float to handle both integer and decimal values
     )
 
-    dl.upload_tibble(tibble=df, az_path=QUOTATIONS_ANALYTICS_PATH, format="parquet")
+    dl.upload_tibble(tibble=df, az_path=QUOTATIONS_ANALYTICS_PATH)
     return df
 
 

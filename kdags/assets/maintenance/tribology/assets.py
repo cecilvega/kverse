@@ -171,7 +171,7 @@ def mutate_oil_analysis(context: dg.AssetExecutionContext, process_oil_analysis)
     df = df.sort("sample_date")
 
     context.log.info(f"Writing {df.height} records to {OIL_ANALYSIS_ANALYTICS_PATH}")
-    DataLake().upload_tibble(tibble=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH, format="parquet")
+    DataLake().upload_tibble(tibble=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH)
     context.log.info("Write successful.")
     context.add_output_metadata(
         {"az_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}

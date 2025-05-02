@@ -223,7 +223,7 @@ def mutate_icc(context: dg.AssetExecutionContext, cc_summary, gather_icc_reports
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {ICC_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(tibble=df, az_path=ICC_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=ICC_ANALYTICS_PATH)
     context.add_output_metadata(
         {  # Add metadata on success
             "az_path": ICC_ANALYTICS_PATH,

@@ -93,6 +93,7 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
             ]
         )
         .filter(pl.col("equipment_model") != "PC8000")
+        .with_columns(equipment_model=pl.col("equipment_model").replace({"960E-1": "960E", "960E-2": "960E"}))
         .with_columns(pl.col("sap_equipment_name").str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1))
     )
 

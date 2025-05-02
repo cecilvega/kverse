@@ -132,23 +132,22 @@ def mutate_plm3_alarms(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 @dg.asset
 def spawn_plm3_haul(context: dg.AssetExecutionContext, mutate_plm3_haul: pl.DataFrame) -> dict:
-    df = mutate_plm3_haul.clone()
+    df = mutate_plm3_haul.to_pandas()
     result = {}
-    MSGraph().delete_file(
-        site_id="KCHCLSP00022", filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv"
-    )
-    mutate_plm3_haul.write_csv(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "OPERATION/PLM/haul.csv")
-
-    result["sharepoint"] = {
-        "file_url": "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD"
-        + "/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
-        "format": "csv",
-    }
+    # MSGraph().delete_file(
+    #     site_id="KCHCLSP00022", filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv"
+    # )
+    # mutate_plm3_haul.write_csv(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "OPERATION/PLM/haul.csv")
+    #
+    # result["sharepoint"] = {
+    #     "file_url": "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD"
+    #     + "/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
+    #     "format": "csv",
+    # }
 
     datalake_path = DataLake().upload_tibble(
-        az_path="abfs://bhp-analytics-data/OPERATION/PLM3/haul.parquet",
+        az_path="az://bhp-analytics-data/OPERATION/PLM3/haul.parquet",
         tibble=df,
-        format="parquet",
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}
 
@@ -159,23 +158,22 @@ def spawn_plm3_haul(context: dg.AssetExecutionContext, mutate_plm3_haul: pl.Data
 
 @dg.asset
 def spawn_plm3_alarms(context: dg.AssetExecutionContext, mutate_plm3_alarms: pl.DataFrame) -> dict:
-    df = mutate_plm3_alarms.clone()
+    df = mutate_plm3_alarms.to_pandas()
     result = {}
 
-    MSGraph().delete_file(
-        site_id="KCHCLSP00022", filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/alarms.csv"
-    )
-    mutate_plm3_alarms.write_csv(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "OPERATION/PLM/alarms.csv")
-    result["sharepoint"] = {
-        "file_url": "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD"
-        + "/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
-        "format": "csv",
-    }
+    # MSGraph().delete_file(
+    #     site_id="KCHCLSP00022", filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/OPERATION/PLM/alarms.csv"
+    # )
+    # mutate_plm3_alarms.write_csv(Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "OPERATION/PLM/alarms.csv")
+    # result["sharepoint"] = {
+    #     "file_url": "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD"
+    #     + "/CAEX/ANTECEDENTES/OPERATION/PLM/haul.csv",
+    #     "format": "csv",
+    # }
 
     datalake_path = DataLake().upload_tibble(
-        az_path="abfs://bhp-analytics-data/OPERATION/PLM3/alarms.parquet",
+        az_path="az://bhp-analytics-data/OPERATION/PLM3/alarms.parquet",
         tibble=df,
-        format="parquet",
     )
     result["datalake"] = {"path": datalake_path, "format": "parquet"}
 

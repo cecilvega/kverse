@@ -70,7 +70,7 @@ def mutate_component_reparations(component_changeouts, mutate_changeouts_so, mut
     # Adding quotation info
     df = df.join(quotations_df.select(["service_order", "amount"]), on=["service_order"], how="left")
 
-    dl.upload_tibble(tibble=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH, format="parquet")
+    dl.upload_tibble(tibble=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)
     return df
 
 
