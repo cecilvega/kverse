@@ -26,7 +26,7 @@ def mutate_quotations(changeouts_so):
         .cast(pl.Float64, strict=False)  # Convert to float to handle both integer and decimal values
     )
 
-    dl.upload_tibble(tibble=df, az_path=QUOTATIONS_ANALYTICS_PATH, format="parquet")
+    dl.upload_tibble(tibble=df, az_path=QUOTATIONS_ANALYTICS_PATH)
     return df
 
 
@@ -35,6 +35,7 @@ def quotations(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
     if dl.az_path_exists(QUOTATIONS_ANALYTICS_PATH):
         df = dl.read_tibble(az_path=QUOTATIONS_ANALYTICS_PATH)
+        df = df.rename({"amount": "repair_cost"})
         context.log.info(f"Read {df.height} records from {QUOTATIONS_ANALYTICS_PATH}.")
         return df
     else:

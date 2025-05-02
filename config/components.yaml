@@ -46,7 +46,7 @@
     - name: blower_parrilla
       code: BP
       main: True
-- component_name: conjunto_masa_suspension
+- component_name: conjunto_maza_suspension
   component_code: CMS
   position_name:
     - derecho
@@ -57,7 +57,7 @@
     - name: suspension_delantera
       code: SD
       main: True
-    - name: masa
+    - name: maza
     - name: freno_servicio_delantero
 - component_name: cilindro_levante
   component_code: CL

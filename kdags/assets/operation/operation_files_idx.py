@@ -5,6 +5,7 @@ import os
 from .utils import extract_equipment_name
 from kdags.resources.tidyr import DataLake
 import re
+import polars as pl
 
 
 @dg.asset
@@ -127,11 +128,10 @@ def spawn_op_file_idx(list_op_file_idx):
         df.at[idx, "data_source"] = patterns["data_source"]
 
     df["partition_date"] = df.apply(lambda x: convert_date_format(x["extracted_date"], x["date_pattern"]), axis=1)
-
+    df = pl.from_pandas(df)
     DataLake().upload_tibble(
         az_path="abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet",
         tibble=df,
-        format="parquet",
     )
 
     return df

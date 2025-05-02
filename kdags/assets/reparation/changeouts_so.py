@@ -275,7 +275,7 @@ def mutate_changeouts_so(
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {CHANGEOUTS_SO_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(tibble=df, az_path=CHANGEOUTS_SO_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=CHANGEOUTS_SO_ANALYTICS_PATH)
     context.add_output_metadata(
         {  # Add metadata on success
             "az_path": CHANGEOUTS_SO_ANALYTICS_PATH,

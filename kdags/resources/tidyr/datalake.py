@@ -114,24 +114,17 @@ class DataLake:
 
         return df
 
-    def upload_tibble(self, tibble, az_path: str, format: str = "parquet", **kwargs) -> str:
-
-        # container, file_path = self._parse_az_path(az_path)
-        # file_system_client = self.get_file_system_client(f"az://{container}")
-        # file_client = file_system_client.get_file_client(file_path)
+    def upload_tibble(self, tibble, az_path: str, **kwargs) -> str:
+        format = az_path.split(".")[-1].lower()
 
         # Convert DataFrame to bytes based on format
         if format.lower() == "parquet":
-            # buffer = BytesIO()
-            # Handle both pandas and polars DataFrames
-            tibble.write_parquet(az_path, storage_options=self.storage_options, **kwargs)
-
-            # buffer.seek(0)
-            # data = buffer.getvalue()
+            if hasattr(tibble, "to_parquet"):
+                tibble.to_parquet(az_path, storage_options=self.storage_options, **kwargs)
+            else:
+                tibble.write_parquet(az_path, storage_options=self.storage_options, **kwargs)
 
         elif format.lower() == "csv":
-            # Handle both pandas and polars DataFrames
-
             tibble.write_csv(az_path, storage_options=self.storage_options, **kwargs).encode("utf-8")
 
         else:

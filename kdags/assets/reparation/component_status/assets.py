@@ -169,7 +169,7 @@ def mutate_component_status(context: dg.AssetExecutionContext, process_component
     datalake = DataLake()  # Direct instantiation
     context.log.info(f"Writing {df.height} records to {COMPONENT_STATUS_ANALYTICS_PATH}")
 
-    datalake.upload_tibble(tibble=df, az_path=COMPONENT_STATUS_ANALYTICS_PATH, format="parquet")
+    datalake.upload_tibble(tibble=df, az_path=COMPONENT_STATUS_ANALYTICS_PATH)
     context.add_output_metadata(
         {  # Add metadata on success
             "az_path": COMPONENT_STATUS_ANALYTICS_PATH,
