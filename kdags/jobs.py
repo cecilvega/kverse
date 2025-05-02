@@ -16,6 +16,19 @@ docs_job = dg.ScheduleDefinition(
 )
 
 # === RELIABILITY ===
+
+ep_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="ep_job",
+        selection=dg.AssetSelection.assets("publish_sp_ep").upstream(),
+        description="...",
+    ),
+    cron_schedule="0 11 * * 0",  # sunday at 11:00
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+
 warranties_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="warranties_job",

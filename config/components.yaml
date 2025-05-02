@@ -6,13 +6,17 @@
   warranty_hours: 3000
 #  960E_unique: True
   subcomponent:
-    - name: transmision
+    - name: motor_mecanico
       code: TRANS
       main: True
+      ep: True
     - name: motor_electrico
       code: ME
+      ep: True
     - name: freno_servicio_trasero
+      ep: False
     - name: freno_estacionamiento
+      ep: False
 - component_name: modulo_potencia
   component_code: MP
   position_name:
@@ -22,9 +26,13 @@
     - name: alternador_principal
       code: AP
       main: True
+      ep: True
     - name: motor
+      ep: False
     - name: subframe
+      ep: False
     - name: radiador
+      ep: False
 - component_name: cilindro_direccion
   component_code: CD
   position_name:
@@ -36,6 +44,7 @@
     - name: cilindro_direccion
       code: CD
       main: True
+      ep: True
 - component_name: blower_parrilla
   component_code: BP
   position_name:
@@ -46,6 +55,7 @@
     - name: blower_parrilla
       code: BP
       main: True
+      ep: True
 - component_name: conjunto_maza_suspension
   component_code: CMS
   position_name:
@@ -57,8 +67,11 @@
     - name: suspension_delantera
       code: SD
       main: True
+      ep: True
     - name: maza
+      ep: False
     - name: freno_servicio_delantero
+      ep: False
 - component_name: cilindro_levante
   component_code: CL
   position_name:
@@ -70,6 +83,7 @@
     - name: cilindro_levante
       code: CL
       main: True
+      ep: True
 - component_name: suspension_trasera
   component_code: ST
   position_name:
@@ -81,3 +95,4 @@
     - name: suspension_trasera
       code: ST
       main: True
+      ep: True
