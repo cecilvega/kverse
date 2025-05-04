@@ -8,7 +8,7 @@ from kdags.resources.tidyr import DataLake, MSGraph
 
 
 class ReadRawOilAnalysisConfig(dg.Config):
-    only_recent: bool = False
+    only_recent: bool = True
     days_lookback: int = 30
 
 

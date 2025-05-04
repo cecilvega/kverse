@@ -35,6 +35,7 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
     df = cc_df.select(
         [
             # Esta es una operación del cecil para sumar una lista con otros elementos (notar el *)
+            "cc_index",
             *changeout_columns,
             "equipment_model",
             "component_usage",
@@ -46,10 +47,31 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
         components_df.select(["component_name", "subcomponent_name", "subcomponent_ep"]),
         on=["component_name", "subcomponent_name"],
         how="left",
-    )
+    ).with_columns(subcomponent_ep=pl.col("subcomponent_ep").fill_null(pl.lit(False)))
 
     # Aplicamos el filtro por fecha, esto es para hacerlo más fácil de revisar a partir de la fecha que empezamos a controlar los cambios de componentes
-    df = df.filter(pl.col("changeout_date") >= datetime.datetime(2024, 9, 26))
+    df = df.filter(
+        (pl.col("changeout_date") >= datetime(2024, 9, 26))
+        | (
+            pl.col("cc_index").is_in(
+                [
+                    2618,
+                    2619,
+                    2620,
+                    2621,
+                    2647,
+                    2648,
+                    2649,
+                    2650,
+                    2496,
+                    2497,
+                    2498,
+                    2675,
+                    2730,
+                ]
+            )
+        )
+    )
 
     ### ETAPA2: AGREGAR OS140 a planilla haydee
 
@@ -71,6 +93,7 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
                 "approval_date",
                 "first_quotation_publication",
                 "service_order_status",
+                "component_status",
             ]
         ),
         how="left",
@@ -100,7 +123,7 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
         repair_cost=pl.col("repair_cost").cast(pl.Int64),
         mean_repair_cost=pl.col("mean_repair_cost").cast(pl.Int64),
     ).with_columns(
-        economical_impact=(pl.col("repair_cost") - (pl.col("component_usage") * pl.col("mean_repair_cost"))).cast(
+        economical_impact=(pl.col("repair_cost") - pl.col("component_usage") * pl.col("mean_repair_cost")).cast(
             pl.Int64
         )
     )
@@ -108,7 +131,7 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
     # Columnas calculadas extras
     df = df.with_columns(
         USO=pl.col("component_usage") > 0.9,
-        IMPACT=pl.col("economical_impact") - 3000 > 0,
+        IMPACT=pl.col("economical_impact") - 5000 > 0,
     )
     df = (
         df.with_columns(
@@ -125,9 +148,9 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
             )
         )
         .with_columns(
-            aplica_ep=pl.when(pl.col("category").is_in(["PLANIFICADO_BAJO_COSTO"]))
-            .then(pl.lit(False))
-            .otherwise(pl.lit(True))
+            aplica_ep=pl.when(~pl.col("category").is_in(["PLANIFICADO_BAJO_COSTO"]) & (pl.col("subcomponent_ep")))
+            .then(pl.lit(True))
+            .otherwise(pl.lit(False))
         )
         .with_columns(
             prioridad_inicial=pl.when(pl.col("category") == "PLANIFICADO_ALTO_COSTO")
@@ -158,6 +181,7 @@ def mutate_ep(component_changeouts: pl.DataFrame, so_report, changeouts_so, quot
         how="left",
         on=changeout_columns,
     )
+    df = df.with_columns(component_usage=(pl.col("component_usage") * 100).cast(pl.Int64))
     return df
 
 

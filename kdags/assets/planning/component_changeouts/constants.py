@@ -46,7 +46,7 @@ COLUMN_MAPPING = {
     "HORA CC": "component_hours",
     "TBO": "tbo",
     "USO": "component_usage",
-    "N/S RETIRADO": "component_serial",  # removed_component_serial
+    "N/S RETIRADO": "component_serial",
     "Equipo SAP": "sap_equipment_name",
     "N/S INSTALADO": "installed_component_serial",
     "DESCRIPCIÓN DE FALLA": "failure_description",

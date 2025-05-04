@@ -143,15 +143,16 @@ class MasterData:
                 output_details = details.get("output", {})
                 publish_details = details.get("publish", {})
                 row = {
+                    "name": name,
+                    "publish_path": details.get("publish_path"),
                     "module": module,
-                    "job_name": name,
+                    "job_name": details.get("job_name"),
                     "source": details.get("source"),
                     "description": details.get("description"),
                     "cron_schedule": details.get("cron_schedule"),
                     "schedule_status": details.get("schedule_status"),
                     "input_path": input_details.get("path").__str__(),
                     "output_path": output_details.get("path"),
-                    "publish_path": publish_details.get("path"),
                 }
                 jobs.append(row)
 

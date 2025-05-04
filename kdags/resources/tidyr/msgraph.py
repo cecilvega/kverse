@@ -7,6 +7,7 @@ import requests
 from office365.graph_client import GraphClient
 import polars as pl
 from office365.runtime.client_object import ClientObject
+import dagster as dg
 
 # --- Define Constants for Consistent Formatting ---
 _BASE_TABLE_STYLE = "TableStyleMedium9"  # Base style for banded rows etc.
@@ -111,7 +112,7 @@ class MSGraph:
         tibble,  # Can be pandas or polars DataFrame
         sp_path: str,  # Use the sp_path convention
         sheet_name: str = "Sheet1",
-        # overwrite parameter removed - function always overwrites via upload_file
+        context: dg.AssetExecutionContext = None,
     ) -> dict:
         """
         Uploads a DataFrame to SharePoint as a consistently formatted Excel file,
@@ -139,6 +140,10 @@ class MSGraph:
             Exception: Propagates exceptions from the MSGraph upload call.
         """
         # --- Input Validation ---
+        context_check = isinstance(context, dg.AssetExecutionContext)
+        if context_check:
+            context.log.info(f"Writing {tibble.height} rows, {tibble.width} columns to {sp_path}")
+        assert not tibble.is_empty()
         if not sp_path.startswith("sp://"):
             raise ValueError(f"Invalid sp_path format: {sp_path}. Expected format: sp://<site_id>/<file_path>")
         path_part = sp_path.split("/", 3)[-1]
@@ -152,9 +157,6 @@ class MSGraph:
             df_pd = tibble
         else:
             raise TypeError("Input 'df' must be a pandas DataFrame or convertible to one (like Polars).")
-
-        if df_pd.empty:
-            print(f"Warning: DataFrame for '{sp_path}' is empty. Uploading an empty formatted file.")
 
         buffer = BytesIO()
 
@@ -256,13 +258,12 @@ class MSGraph:
         buffer.seek(0)
         content = buffer.getvalue()
 
-        print(f"Uploading formatted Excel file to {sp_path}...")
         # Use the refactored upload_file method which accepts sp_path and content
         upload_result = self.upload_file(
             sp_path=sp_path,
             content=content,
         )
-        print(f"Upload complete for {sp_path}. Result: {upload_result}")
+
         return upload_result
 
     def read_tibble(self, sp_path: str, **kwargs) -> pd.DataFrame:

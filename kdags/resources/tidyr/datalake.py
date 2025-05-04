@@ -6,6 +6,7 @@ from io import BytesIO
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
 import re
+import dagster as dg
 
 
 class DataLake:
@@ -82,22 +83,35 @@ class DataLake:
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 
-    def read_tibble(self, az_path: str, include_az_path: bool = False, **kwargs) -> pl.DataFrame:
+    def read_tibble(
+        self, az_path: str, context: dg.AssetExecutionContext = None, include_az_path: bool = False, **kwargs
+    ) -> pl.DataFrame:
+        context_check = isinstance(context, dg.AssetExecutionContext)
+        if context_check:
+            context.log.info(f"Reading data from Azure path: {az_path}")
 
-        file_ext = az_path.split(".")[-1].lower()
+        ext = az_path.split(".")[-1].lower()
 
-        if file_ext == "parquet":
+        if ext == "parquet":
             df = pl.read_parquet(az_path, storage_options=self.storage_options, **kwargs)
-        elif file_ext == "csv":
+        elif ext == "csv":
             df = pl.read_csv(az_path, storage_options=self.storage_options, **kwargs)
-        elif file_ext in ["xlsx", "xls"]:
+        elif ext in ["xlsx", "xls"]:
             file_content = self.read_bytes(az_path)
             buffer = BytesIO(file_content)
             df = pl.read_excel(buffer, **kwargs)
-        # elif file_ext == "json":
-        #     df = pl.read_json(buffer, **kwargs)
         else:
-            raise ValueError(f"Unsupported file type: {file_ext}")
+            raise ValueError(f"Unsupported file type: {ext}")
+        if include_az_path and not df.is_empty():
+            df = df.with_columns(pl.lit(az_path).alias("az_path"))
+
+        if context_check and not df.is_empty():  # Check df is not None before accessing shape
+
+            context.log.info(f"Successfully read data from: {az_path}")
+
+            context.log.info(f"Data shape: {df.height} rows, {df.width} columns")
+        elif context_check and df.is_empty():
+            context.log.warning(f"Read operation for '{az_path}' resulted in a None DataFrame.")
 
         # container, file_path = self._parse_az_path(az_path)
         # # Get the file bytes
@@ -108,13 +122,13 @@ class DataLake:
 
         # Parse based on file type
 
-        if include_az_path and df is not None:
-
-            df = df.with_columns(pl.lit(az_path).alias("az_path"))
-
         return df
 
-    def upload_tibble(self, tibble, az_path: str, **kwargs) -> str:
+    def upload_tibble(self, tibble, az_path: str, context: dg.AssetExecutionContext = None, **kwargs) -> str:
+        context_check = isinstance(context, dg.AssetExecutionContext)
+        if context_check:
+            context.log.info(f"Writing {tibble.height} rows, {tibble.width} columns to {az_path}")
+
         format = az_path.split(".")[-1].lower()
 
         # Convert DataFrame to bytes based on format

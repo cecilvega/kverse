@@ -6,7 +6,7 @@
   warranty_hours: 3000
 #  960E_unique: True
   subcomponent:
-    - name: motor_mecanico
+    - name: transmision
       code: TRANS
       main: True
       ep: True

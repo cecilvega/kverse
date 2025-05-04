@@ -33,9 +33,9 @@ def clean_string(s):
 
 def process_component_changeouts(df: pl.DataFrame, site_name: str):
     df = (
-        df.drop_nulls(subset=["FECHA DE CAMBIO"])
-        .with_columns(pl.lit(site_name).alias("site_name"))
+        df.with_columns(pl.lit(site_name).alias("site_name"))
         .with_row_index("cc_index")
+        .drop_nulls(subset=["FECHA DE CAMBIO"])
     )
 
     df = df.with_columns(
@@ -74,7 +74,7 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
     df = df.with_columns(pl.col("equipment_name").cast(pl.Utf8).str.extract(r"(\d+)").alias("equipment_name"))
 
     # Drop rows with null values in specific columns
-    df = df.drop_nulls(subset=["equipment_name", "position_name", "changeout_date"])
+    # df = df.drop_nulls(subset=["equipment_name", "position_name", "changeout_date"])
 
     # Process various columns
     df = (
@@ -92,13 +92,14 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
                 pl.col("changeout_date").str.to_date("%Y-%m-%d %H:%M:%S", strict=False).alias("changeout_date"),
             ]
         )
-        .filter(pl.col("equipment_model") != "PC8000")
-        .with_columns(equipment_model=pl.col("equipment_model").replace({"960E-1": "960E", "960E-2": "960E"}))
-        .with_columns(pl.col("sap_equipment_name").str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1))
+        # .filter(pl.col("equipment_model") != "PC8000")
+        .with_columns(
+            equipment_model=pl.col("equipment_model").replace({"960E-1": "960E", "960E-2": "960E"})
+        ).with_columns(pl.col("sap_equipment_name").str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1))
     )
 
     # Map equipment model to prefix and concatenate with equipment_name
-    model_mapping = {"980E-5": "CEX", "960E-2": "TK", "960E-1": "TK", "930E-4": "TK"}
+    model_mapping = {"980E-5": "CEX", "960E": "TK", "930E-4": "TK"}
     df = df.with_columns(
         (pl.col("equipment_model").replace(model_mapping) + pl.col("equipment_name").cast(pl.String)).alias(
             "equipment_name"
@@ -140,17 +141,8 @@ def raw_component_changeouts():
 )
 def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
     df = raw_component_changeouts.clone().pipe(process_component_changeouts, site_name="MEL")
-
     datalake = DataLake()  # Direct instantiation
-    context.log.info(f"Writing {df.height} records to {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}")
-
-    datalake.upload_tibble(tibble=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
-    context.add_output_metadata(
-        {  # Add metadata on success
-            "abfs_path": COMPONENT_CHANGEOUTS_ANALYTIS_PATH,
-            "rows_written": df.height,
-        }
-    )
+    datalake.upload_tibble(tibble=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH, context=context)
 
     return df
 
@@ -161,43 +153,27 @@ def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component
 )
 def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake()
-    if dl.az_path_exists(COMPONENT_CHANGEOUTS_ANALYTIS_PATH):
-        df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
-        df = (
-            df.filter((pl.col("component_hours").is_not_null()) & (pl.col("equipment_name") != "TK853"))
-            .filter(pl.col("changeout_date").dt.year() >= 2019)
-            .filter(~(pl.col("subcomponent_name").is_in(["motor", "radiador", "subframe"])))
-            .unique(
-                subset=[
-                    "equipment_name",
-                    "component_name",
-                    "subcomponent_name",
-                    "position_name",
-                    "changeout_date",
-                    "sap_equipment_name",
-                    "customer_work_order",
-                ]
-            )
-        )
-        context.log.info(f"Read {df.height} records from {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}.")
-        return df
-    else:
-        context.log.warning(f"Data file not found at {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}. Returning empty DataFrame.")
-        return pl.DataFrame()
-
-
-@dg.asset
-def spence_component_changeouts():
-    msgraph = MSGraph()
-    file_content = msgraph.read_bytes(
-        sp_path="sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx",
-    )
-    columns = list({k: v for k, v in COLUMN_MAPPING.items() if k not in ["MODELO", "OS  181"]}.keys())
-    df = pl.read_excel(
-        BytesIO(file_content),
-        sheet_name="Planilla Cambio Componente  980",
-        infer_schema_length=0,
-        columns=columns,
-    ).with_columns([pl.lit("980E-5").alias("MODELO"), pl.lit(-1).alias("OS  181")])
-    df = process_component_changeouts(df, site_name="SPENCE")
+    df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH, context=context)
     return df
+    # df = (
+    #     df.filter((pl.col("component_hours").is_not_null()) & (pl.col("equipment_name") != "TK853"))
+    #     .filter(pl.col("changeout_date").dt.year() >= 2019)
+    #     # .filter(~(pl.col("subcomponent_name").is_in(["motor", "radiador", "subframe"])))
+    #     .unique(
+    #         subset=[
+    #             "equipment_name",
+    #             "component_name",
+    #             "subcomponent_name",
+    #             "position_name",
+    #             "changeout_date",
+    #             "sap_equipment_name",
+    #             "customer_work_order",
+    #         ]
+    #     )
+    # )
+
+    #     context.log.info(f"Read {df.height} records from {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}.")
+    #     return df
+    # else:
+    #     context.log.warning(f"Data file not found at {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}. Returning empty DataFrame.")
+    #     return pl.DataFrame()
