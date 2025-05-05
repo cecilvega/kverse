@@ -8,11 +8,11 @@ WARRANTIES_ANALYTIS_PATH = "az://bhp-analytics-data/RELIABILITY/WARRANTIES/warra
 
 
 @dg.asset
-def mutate_warranties(component_changeouts: pl.DataFrame):
-    msgraph = MSGraph()
-    datalake = DataLake()
+def mutate_warranties(context: dg.AssetExecutionContext, component_changeouts: pl.DataFrame):
+    msgraph = MSGraph(context=context)
+    datalake = DataLake(context=context)
     warranty_df = msgraph.read_tibble(
-        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/GARANTIAS/warranty_input.xlsx"
+        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/INPUTS/warranty_input.xlsx"
     )
     components_df = MasterData.components()
     components_df = components_df.filter(pl.col("subcomponent_main") == True).select(
@@ -68,26 +68,21 @@ def mutate_warranties(component_changeouts: pl.DataFrame):
     # metadata={"dagster/column_schema": COMPONENT_CHANGEOUTS_SCHEMA},
 )
 def warranties(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake()
-    if dl.az_path_exists(WARRANTIES_ANALYTIS_PATH):
-        df = dl.read_tibble(az_path=WARRANTIES_ANALYTIS_PATH)
-        context.log.info(f"Read {df.height} records from {WARRANTIES_ANALYTIS_PATH}.")
-        return df
-    else:
-        context.log.warning(f"Data file not found at {WARRANTIES_ANALYTIS_PATH}. Returning empty DataFrame.")
-        return pl.DataFrame()
+    dl = DataLake(context=context)
+    df = dl.read_tibble(az_path=WARRANTIES_ANALYTIS_PATH)
+    return df
 
 
 @dg.asset
 def publish_sp_warranties(context: dg.AssetExecutionContext, mutate_warranties: pl.DataFrame):
+    msgraph = MSGraph(context=context)
     df = mutate_warranties.clone()
-    msgraph = MSGraph()
+
     upload_results = []
     sp_paths = [
-        "sp://KCHCLGR00058/___/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
+        # "sp://KCHCLGR00058/___/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
         "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
     ]
     for sp_path in sp_paths:
-        context.log.info(f"Publishing to {sp_path}")
         upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
     return upload_results

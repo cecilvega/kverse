@@ -109,8 +109,8 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
 
 
 @dg.asset
-def raw_component_changeouts():
-    msgraph = MSGraph()
+def raw_component_changeouts(context):
+    msgraph = MSGraph(context=context)
     file_content = msgraph.read_bytes(
         sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
     )
@@ -141,8 +141,8 @@ def raw_component_changeouts():
 )
 def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
     df = raw_component_changeouts.clone().pipe(process_component_changeouts, site_name="MEL")
-    datalake = DataLake()  # Direct instantiation
-    datalake.upload_tibble(tibble=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH, context=context)
+    datalake = DataLake(context=context)  # Direct instantiation
+    datalake.upload_tibble(tibble=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
 
     return df
 
@@ -152,8 +152,8 @@ def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component
     metadata={"dagster/column_schema": COMPONENT_CHANGEOUTS_SCHEMA},
 )
 def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake()
-    df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH, context=context)
+    dl = DataLake(context=context)
+    df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
     return df
     # df = (
     #     df.filter((pl.col("component_hours").is_not_null()) & (pl.col("equipment_name") != "TK853"))

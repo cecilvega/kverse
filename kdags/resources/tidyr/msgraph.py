@@ -19,7 +19,9 @@ _MAX_COLUMN_WIDTH = 60  # Max width in characters before wrapping
 
 
 class MSGraph:
-    def __init__(self):
+    def __init__(self, context: dg.AssetExecutionContext = None):
+        self.context_check = isinstance(context, dg.AssetExecutionContext)
+        self.context = context
         self.client = GraphClient(self.acquire_token_func)
         self._client_id = "d50ca740-c83f-4d1b-b616-12c519384f0c"
 
@@ -109,10 +111,9 @@ class MSGraph:
 
     def upload_tibble(
         self,
-        tibble,  # Can be pandas or polars DataFrame
-        sp_path: str,  # Use the sp_path convention
+        tibble,
+        sp_path: str,
         sheet_name: str = "Sheet1",
-        context: dg.AssetExecutionContext = None,
     ) -> dict:
         """
         Uploads a DataFrame to SharePoint as a consistently formatted Excel file,
@@ -140,9 +141,9 @@ class MSGraph:
             Exception: Propagates exceptions from the MSGraph upload call.
         """
         # --- Input Validation ---
-        context_check = isinstance(context, dg.AssetExecutionContext)
-        if context_check:
-            context.log.info(f"Writing {tibble.height} rows, {tibble.width} columns to {sp_path}")
+        self.context_check = isinstance(self.context, dg.AssetExecutionContext)
+        if self.context_check:
+            self.context.log.info(f"Writing {tibble.height} rows, {tibble.width} columns to {sp_path}")
         assert not tibble.is_empty()
         if not sp_path.startswith("sp://"):
             raise ValueError(f"Invalid sp_path format: {sp_path}. Expected format: sp://<site_id>/<file_path>")
