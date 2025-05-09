@@ -5,17 +5,84 @@ import dagster as dg
 import polars as pl
 from datetime import date
 from kdags.resources.tidyr import DataLake, MSGraph
-
+import os
 from .constants import *
 
 SO_REPORT_ANALYTICS_PATH = "az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet"
 
 
+def get_year_and_new_path(az_path: str, datalake_instance):
+
+    print(f"Processing: {az_path}")
+
+    df_excel = datalake_instance.read_tibble(
+        az_path,
+        columns=["Reception Date"],
+        # sheet_name='YourSheet' # Add if needed
+    )
+
+    if not isinstance(df_excel["Reception Date"].dtype, (pl.Date, pl.Datetime)):
+        df_excel = df_excel.with_columns(pl.col("Reception Date").str.strptime(pl.Datetime, strict=False).cast(pl.Date))
+
+    unique_years = df_excel.get_column("Reception Date").dt.year().drop_nulls().unique().to_list()
+
+    # === Condition Check ===
+    # Check the logical condition: exactly one unique year
+    if len(unique_years) == 1:
+        reception_year = unique_years[0]
+        print(f"  -> Found unique reception year: {reception_year}")
+
+        # === Path Generation ===
+        dir_path = os.path.dirname(az_path)
+        original_filename = os.path.basename(az_path)
+
+        # Regex to replace content of the last parentheses before .xlsx
+        new_filename, n_subs = re.subn(
+            r"\([^)]*\)(\.xlsx)$",
+            f"({reception_year})\\1",
+            original_filename,
+            flags=re.IGNORECASE,
+        )
+
+        # Check if regex substitution worked - raise error if it failed unexpectedly
+        if n_subs != 1:
+            raise RuntimeError(
+                f"Regex substitution failed for filename '{original_filename}' in path {az_path}. Pattern not found as expected."
+            )
+
+        new_az_path = f"{dir_path}/{new_filename}"
+        print(f"  -> Proposed new path: {new_az_path}")
+        return new_az_path
+    else:
+        raise ValueError(f"Expected exactly one unique year, found {unique_years}")
+
+
+def fix_naming():
+    dl = DataLake()
+    base_raw_path = "az://bhp-raw-data/RESO/SERVICE_ORDER_REPORT"
+
+    files_df = dl.list_paths(base_raw_path)
+    files_df = files_df.with_columns(
+        partition_date=pl.col("az_path")
+        .str.extract(r"(y=\d{4}/m=\d{2}/d=\d{2})", 1)
+        .str.strptime(pl.Date, format="y=%Y/m=%m/d=%d", strict=False),
+        component_year=pl.col("az_path").str.extract(r"\((\d{4})\)", 1).cast(pl.Int32, strict=False),
+    )
+    to_rename_files = files_df.filter(pl.col("component_year").is_null())["az_path"].to_list()
+    if to_rename_files:
+        for az_path in to_rename_files:
+            new_az_path = get_year_and_new_path(az_path, dl)
+            dl.rename_file(
+                source_az_path=az_path,
+                destination_az_path=new_az_path,
+            )
+
+
 @dg.asset
 # Add context back for logging
 def raw_so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
-
-    datalake = DataLake()  # Direct instantiation
+    fix_naming()
+    datalake = DataLake(context=context)  # Direct instantiation
     base_raw_path = "az://bhp-raw-data/RESO/SERVICE_ORDER_REPORT"
 
     files_df = datalake.list_paths(base_raw_path)
@@ -48,7 +115,6 @@ def raw_so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     return df
 
 
-@dg.asset
 def process_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFrame) -> pl.DataFrame:
 
     df = raw_so_report.clone()
@@ -109,9 +175,11 @@ def process_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataF
 
 
 @dg.asset
-def mutate_so_report(context: dg.AssetExecutionContext, process_so_report: pl.DataFrame) -> pl.DataFrame:
+def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFrame) -> pl.DataFrame:
 
-    df = process_so_report.clone()  # Use the input parameter name
+    df = raw_so_report.clone()  # Use the input parameter name
+    df = process_so_report(context, df)
+
     df = df.with_columns(
         load_preliminary_report_date=pl.col("load_preliminary_report_in_review").fill_null(
             pl.col("load_preliminary_report_revised")
@@ -119,42 +187,14 @@ def mutate_so_report(context: dg.AssetExecutionContext, process_so_report: pl.Da
         load_final_report_date=pl.col("load_final_report_in_review").fill_null(pl.col("load_final_report_revised")),
         component_status=pl.col("component_status").replace({"Delivery Proccess": "Delivered"}),
     )
-    datalake = DataLake()  # Direct instantiation
-    context.log.info(f"Writing {df.height} records to {SO_REPORT_ANALYTICS_PATH}")
-
+    datalake = DataLake(context=context)
     datalake.upload_tibble(tibble=df, az_path=SO_REPORT_ANALYTICS_PATH)
-    context.add_output_metadata(
-        {  # Add metadata on success
-            "az_path": SO_REPORT_ANALYTICS_PATH,
-            "rows_written": df.height,
-        }
-    )
+
     return df
 
 
 @dg.asset
 def so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake()
-    if dl.az_path_exists(SO_REPORT_ANALYTICS_PATH):
-        df = dl.read_tibble(az_path=SO_REPORT_ANALYTICS_PATH)
-        context.log.info(f"Read {df.height} records from {SO_REPORT_ANALYTICS_PATH}.")
-        return df
-    else:
-        context.log.warning(f"Data file not found at {SO_REPORT_ANALYTICS_PATH}. Returning empty DataFrame.")
-        return pl.DataFrame()
-
-
-@dg.asset
-def publish_sp_so_report(context: dg.AssetExecutionContext, mutate_so_report: pl.DataFrame):
-    df = mutate_so_report.clone()
-    msgraph = MSGraph()
-    upload_results = []
-    sp_paths = [
-        # "sp://KCHCLGR00058/___/REPARACION/reporte_orden_servicio.xlsx",
-        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REPARACION/reporte_orden_servicio.xlsx",
-    ]
-    for sp_path in sp_paths:
-        context.log.info(f"Publishing to {sp_path}")
-        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
-
-    return upload_results
+    dl = DataLake(context=context)
+    df = dl.read_tibble(az_path=SO_REPORT_ANALYTICS_PATH)
+    return df

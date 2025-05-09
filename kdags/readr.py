@@ -18,7 +18,8 @@ from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_h
 
 # === RELIABILITY ===
 from kdags.assets.reliability.icc.assets import icc
-from kdags.assets.reliability.component_reparations_assets import component_reparations
+from kdags.assets.reliability.deprecated import component_reparations
+from kdags.assets.reliability.component_reparations import component_reparations
 
 # === OPERATION ===
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
@@ -28,9 +29,10 @@ from kdags.assets.operation.plm.haul import read_haul
 
 # === REPARATION ===
 from kdags.assets.reparation.so_report.assets import so_report
-from kdags.assets.reparation.component_status.assets import component_status
-from kdags.assets.reparation.quotations.assets import quotations
-from kdags.assets.reparation.changeouts_so import changeouts_so
+
+# from kdags.assets.reparation.component_status.assets import component_status
+from kdags.assets.reparation.so_details.assets import quotations
+
 from kdags.resources.tidyr.masterdata import MasterData
 
 __all__ = ["Readr"]
@@ -60,8 +62,8 @@ class Readr:
     @dataclass
     class Reparation:
         so_report: dg.AssetsDefinition = so_report
-        component_status: dg.AssetsDefinition = component_status
-        changeouts_so: dg.AssetsDefinition = changeouts_so
+        # component_status: dg.AssetsDefinition = component_status
+
         quotations: dg.AssetsDefinition = quotations
 
     @dataclass
@@ -71,7 +73,7 @@ class Readr:
     @dataclass
     class Reliability:
         icc: dg.AssetsDefinition = icc
-
+        changeouts_so: dg.AssetsDefinition = component_reparations
         component_reparations: dg.AssetsDefinition = component_reparations
 
     # @staticmethod

@@ -39,8 +39,8 @@ from kdags.resources.tidyr import DataLake
 # )
 
 # --- Constants ---
-QUOTATIONS_RAW_PATH = "az://bhp-raw-data/RESO/QUOTATIONS/quotations.parquet"
-DOCUMENTS_LIST_RAW_PATH = f"az://bhp-raw-data/RESO/DOCUMENTS/documents_list.parquet"
+QUOTATIONS_RAW_PATH = "az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/quotations.parquet"
+DOCUMENTS_LIST_RAW_PATH = f"az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/documents_list.parquet"
 
 BATCH_SIZE = 5  # Adjust as needed
 

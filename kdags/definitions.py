@@ -11,12 +11,11 @@ from kdags.jobs import (
     # === RELIABILITY ===
     ep_job,
     warranties_job,
-    component_reparations_job,
+    quotations_job,
     # === PLANNING ===
-    component_changeouts_job,
     # === REPARATION ===
-    harvest_quotations_job,
-    component_history_job,
+    harvest_reso_job,
+    component_reparations_job,
     # === MAINTENANCE ===
     oil_analysis_job,
     icc_job,
@@ -79,13 +78,12 @@ kdefs = dg.Definitions(
         # === RELIABILITY ===
         ep_job,
         warranties_job,
-        component_reparations_job,
+        quotations_job,
         icc_job,
         # === PLANNING ===
-        component_changeouts_job,
         # === REPARATION ===
-        harvest_quotations_job,
-        component_history_job,
+        harvest_reso_job,
+        component_reparations_job,
         # === MAINTENANCE ===
         work_order_history_job,
         pm_history_job,

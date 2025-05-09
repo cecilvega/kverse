@@ -7,13 +7,14 @@ from urllib.parse import urlparse
 from datetime import datetime, timedelta
 import re
 import dagster as dg
+from azure.storage.blob import BlobClient
 
 
 class DataLake:
     def __init__(self, context: dg.AssetExecutionContext = None):
         self.context_check = isinstance(context, dg.AssetExecutionContext)
         self.context = context
-        conn_str = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
+        self._conn_str = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
         # Parse the connection string into a dictionary
         conn_dict = {
             k: v
@@ -23,11 +24,12 @@ class DataLake:
         }
 
         # Construct the desired dictionary, raising KeyError if keys are missing
-        self.storage_options = {
+        self._storage_options = {
             "AZURE_STORAGE_ACCOUNT_NAME": conn_dict["AccountName"],
             "AZURE_STORAGE_ACCOUNT_KEY": conn_dict["AccountKey"],
         }
-        self.client = DataLakeServiceClient.from_connection_string(conn_str)
+
+        self.client = DataLakeServiceClient.from_connection_string(self._conn_str)
 
     def _parse_az_path(self, az_path: str) -> tuple:
 
@@ -47,6 +49,14 @@ class DataLake:
     def get_file_system_client(self, az_path: str):
         container, _ = self._parse_az_path(az_path)
         return self.client.get_file_system_client(container)
+
+    def get_blob_client(self, az_path: str):
+        container, file_path = self._parse_az_path(az_path)
+        return BlobClient.from_connection_string(
+            conn_str=self._conn_str,
+            container_name=container,
+            blob_name=file_path,
+        )
 
     def list_paths(self, az_path: str, recursive: bool = True) -> pl.DataFrame:
 
@@ -93,9 +103,9 @@ class DataLake:
         ext = az_path.split(".")[-1].lower()
 
         if ext == "parquet":
-            df = pl.read_parquet(az_path, storage_options=self.storage_options, **kwargs)
+            df = pl.read_parquet(az_path, storage_options=self._storage_options, **kwargs)
         elif ext == "csv":
-            df = pl.read_csv(az_path, storage_options=self.storage_options, **kwargs)
+            df = pl.read_csv(az_path, storage_options=self._storage_options, **kwargs)
         elif ext in ["xlsx", "xls"]:
             file_content = self.read_bytes(az_path)
             buffer = BytesIO(file_content)
@@ -134,12 +144,12 @@ class DataLake:
         # Convert DataFrame to bytes based on format
         if format.lower() == "parquet":
             if hasattr(tibble, "to_parquet"):
-                tibble.to_parquet(az_path, storage_options=self.storage_options, **kwargs)
+                tibble.to_parquet(az_path, storage_options=self._storage_options, **kwargs)
             else:
-                tibble.write_parquet(az_path, storage_options=self.storage_options, **kwargs)
+                tibble.write_parquet(az_path, storage_options=self._storage_options, **kwargs)
 
         elif format.lower() == "csv":
-            tibble.write_csv(az_path, storage_options=self.storage_options, **kwargs).encode("utf-8")
+            tibble.write_csv(az_path, storage_options=self._storage_options, **kwargs).encode("utf-8")
 
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -176,6 +186,47 @@ class DataLake:
         except Exception:
             # Any exception (typically ResourceNotFoundError) means the az_path doesn't exist
             return False
+
+    def rename_file(self, source_az_path: str, destination_az_path: str) -> str:
+        """
+        Renames (moves) a file from a source Azure Data Lake path to a destination path
+        within the same container.
+
+        Args:
+            source_az_path (str): The full Azure path of the source file (e.g., "az://container/path/to/source.parquet").
+            destination_az_path (str): The full Azure path for the destination (e.g., "az://container/path/to/destination.parquet").
+
+        Returns:
+            str: The destination_az_path if successful.
+
+        Raises:
+            ValueError: If source and destination paths are not in the same container or format is invalid.
+            Exception: Propagates errors from the Azure SDK during the rename operation.
+        """
+        if self.context_check:
+            self.context.log.info(f"Attempting to rename '{source_az_path}' to '{destination_az_path}'")
+
+        # Parse source and destination paths
+        source_container, source_path = self._parse_az_path(source_az_path)
+        dest_container, dest_path = self._parse_az_path(destination_az_path)
+
+        # Get the file system client
+        file_system_client = self.get_file_system_client(f"az://{source_container}")
+
+        # Get the file client for the source file
+        file_client = file_system_client.get_file_client(source_path)
+
+        # Perform the rename operation
+        # The new_name parameter requires the full path within the container
+        renamed_file_client = file_client.rename_file(new_name=f"{dest_container}/{dest_path}")
+
+        if self.context_check:
+            self.context.log.info(f"Successfully renamed '{source_az_path}' to '{destination_az_path}'")
+
+        # The rename_file method returns the new DataLakeFileClient,
+        # confirming the operation was successful at the SDK level.
+        # We return the requested destination path string for consistency.
+        return destination_az_path
 
     def copy_file(self, source_az_path: str, destination_az_path: str) -> str:
 

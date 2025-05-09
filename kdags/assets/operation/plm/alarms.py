@@ -6,7 +6,7 @@ import dagster as dg
 @dg.asset
 def read_alarms():
     dl = DataLake()
-    uri = "abfs://bhp-analytics-data/OPERATION/PLM3/alarms.parquet"
+    uri = "az://bhp-analytics-data/OPERATION/PLM3/alarms.parquet"
     if dl.az_path_exists(uri):
         return dl.read_tibble(az_path=uri)
     else:

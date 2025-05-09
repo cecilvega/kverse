@@ -120,12 +120,12 @@ def extract_technical_report_data(pdf_path):
         "equipment_serial": results["datos_equipo"].get("serie", "").strip(),
         # Process horometro: remove dots and "HRS" and convert to integer
         # "horometro": results["datos_equipo"].get("horometro", "").strip(),
-        "equipment_hours": parse_horometer_value(results["datos_equipo"].get("horometro", "-1")),
+        "equipment_hours": parse_horometer_value(results.get("datos_equipo", {}).get("horometro", "-1")),
         # Format dates in dd-mm-yyyy format
-        "report_date": format_date(results["datos_generales"].get("report_date", "")),
-        "failure_date": format_date(results["datos_generales"].get("failure_date", "")),
-        "descripcion_caso": results["descripcion_caso"].strip(),
-        "causas_falla": results["causas_falla"].strip(),
+        "report_date": results.get("datos_generales", {}).get("report_date", ""),
+        "failure_date": results.get("datos_generales", {}).get("failure_date", ""),
+        "descripcion_caso": results.get("descripcion_caso", {}).strip(),
+        "causas_falla": results.get("causas_falla", {}).strip(),
     }
 
     return data
@@ -142,7 +142,7 @@ def format_date(date_str):
         raise ValueError("Empty date string provided")
 
     # Try different date formats
-    formats = ["%d-%m-%Y", "%d-%m-%y"]  # 08-10-2024  # 08-10-24
+    formats = ["%Y-%m-%d", "%d-%m-%Y", "%d-%m-%y"]  # 08-10-2024  # 08-10-24
 
     for fmt in formats:
         try:

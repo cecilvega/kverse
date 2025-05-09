@@ -51,46 +51,36 @@ icc_job = dg.ScheduleDefinition(
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
+
 component_reparations_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="component_reparations_job",
-        selection=dg.AssetSelection.assets(["publish_sp_component_reparations"]).upstream()
-        | dg.AssetSelection.assets(["mutate_changeouts_so"]).upstream()
-        | dg.AssetSelection.assets(["publish_sp_so_report"]).upstream()
-        | dg.AssetSelection.assets(["publish_sp_quotations"]).upstream(),
+        selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream()
+        | dg.AssetSelection.assets("mutate_so_report").upstream()
+        | dg.AssetSelection.assets("mutate_component_reparations").upstream(),
+        description="Cambios de componente",
+    ),
+    cron_schedule="0 3,15 * * *",  # daily at 3:00 and 15:00
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+
+# === REPARATION ===
+quotations_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="quotations_job",
+        selection=dg.AssetSelection.assets(["mutate_quotations"]).upstream(),
     ),
     cron_schedule="0 10 * * FRI",
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
-component_history_job = dg.ScheduleDefinition(
-    job=dg.define_asset_job(
-        name="component_history_job",
-        selection=dg.AssetSelection.assets("publish_sp_component_history").upstream(),
-        description="Cambios de componente",
-    ),
-    cron_schedule="0 3,15 * * *",  # daily at 3:00 and 15:00
-    execution_timezone="America/Santiago",
-    default_status=dg.DefaultScheduleStatus.RUNNING,
-)
 
-# === PLANNING ===
-component_changeouts_job = dg.ScheduleDefinition(
+harvest_reso_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
-        name="component_changeouts_job",
-        selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream(),
-        description="Cambios de componente",
-    ),
-    cron_schedule="0 3,15 * * *",  # daily at 3:00 and 15:00
-    execution_timezone="America/Santiago",
-    default_status=dg.DefaultScheduleStatus.RUNNING,
-)
-
-# === REPARATION ===
-harvest_quotations_job = dg.ScheduleDefinition(
-    job=dg.define_asset_job(
-        name="harvest_quotations_job",
-        selection=dg.AssetSelection.assets("harvest_quotations").upstream(),
+        name="harvest_reso_job",
+        selection=dg.AssetSelection.assets("harvest_so_details").upstream(),
         description="Component Status RESO",
     ),
     cron_schedule="0 9 * * FRI",  # viernes 09:00
@@ -159,7 +149,7 @@ plm_job = dg.ScheduleDefinition(
 ge_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="ge_job",
-        selection=dg.AssetSelection.assets("spawn_events").upstream(),
+        selection=dg.AssetSelection.assets("mutate_raw_events").upstream(),
         description="GE Eventos",
     ),
     cron_schedule="30 6 * * *",

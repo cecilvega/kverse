@@ -24,7 +24,7 @@ from ..reso.presupuesto_navigation import (
     close_service_order_view,
 )
 from ..reso.web_driver import initialize_driver, login_to_reso, DEFAULT_WAIT, RESO_URL, retry_on_interception
-from .harvester_utils import (
+from .so_details_utils import (
     QUOTATIONS_RAW_PATH,
     DOCUMENTS_LIST_RAW_PATH,
     ensure_schema_and_defaults,
@@ -38,14 +38,15 @@ from ..reso.so_utils import extract_quotation_details, extract_document_links, h
 
 
 @dg.asset
-def select_so_to_update(changeouts_so: pl.DataFrame, so_report: pl.DataFrame):
-    cso_df = changeouts_so.clone()
+def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataFrame):
+    cr_df = component_reparations.clone()
     so_df = so_report.clone()
     dl = DataLake()
     quotations_df = dl.read_tibble(QUOTATIONS_RAW_PATH)
     # quotations_df = cso_df.select(["service_order"]).unique().join(quotations_df, on=["service_order"], how="left")
     df = (
-        cso_df.join(
+        cr_df.filter(pl.col("service_order").is_not_null())
+        .join(
             so_df.select(
                 [
                     "service_order",
@@ -57,8 +58,8 @@ def select_so_to_update(changeouts_so: pl.DataFrame, so_report: pl.DataFrame):
                     "quotation_status",
                     "component_status",
                 ]
-            ).unique(subset=["service_order", "reception_date"]),
-            on=["service_order", "reception_date"],
+            ).unique("service_order"),
+            on="service_order",
             how="left",
             # validate="1:1",
         )
@@ -82,7 +83,7 @@ def select_so_to_update(changeouts_so: pl.DataFrame, so_report: pl.DataFrame):
 
 
 @dg.asset
-def harvest_quotations(context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame) -> dict:
+def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame) -> dict:
     service_orders = select_so_to_update["service_order"].to_list()
 
     driver = initialize_driver()

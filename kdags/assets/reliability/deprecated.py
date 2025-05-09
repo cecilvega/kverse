@@ -7,7 +7,7 @@ COMPONENT_REPARATIONS_ANALYTICS_PATH = (
 )
 
 
-@dg.asset
+# @dg.asset
 def mutate_component_reparations(component_changeouts, mutate_changeouts_so, mutate_so_report, mutate_quotations):
     dl = DataLake()
     cso_df = mutate_changeouts_so.clone()
@@ -74,7 +74,7 @@ def mutate_component_reparations(component_changeouts, mutate_changeouts_so, mut
     return df
 
 
-@dg.asset
+# @dg.asset
 def publish_sp_component_reparations(context: dg.AssetExecutionContext, mutate_component_reparations: pl.DataFrame):
     df = mutate_component_reparations.clone()
     msgraph = MSGraph()
@@ -89,17 +89,10 @@ def publish_sp_component_reparations(context: dg.AssetExecutionContext, mutate_c
     return upload_results
 
 
-@dg.asset(
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-)
+# @dg.asset(
+#     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
+# )
 def component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake()
-    if dl.az_path_exists(COMPONENT_REPARATIONS_ANALYTICS_PATH):
-        df = dl.read_tibble(az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)
-        context.log.info(f"Read {df.height} records from {COMPONENT_REPARATIONS_ANALYTICS_PATH}.")
-        return df
-    else:
-        context.log.warning(
-            f"Data file not found at {COMPONENT_REPARATIONS_ANALYTICS_PATH}. Returning empty DataFrame."
-        )
-        return pl.DataFrame()
+    dl = DataLake(context=context)
+    df = dl.read_tibble(az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)
+    return df

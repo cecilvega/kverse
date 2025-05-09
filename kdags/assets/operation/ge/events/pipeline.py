@@ -64,6 +64,8 @@ def mutate_raw_events(context: dg.AssetExecutionContext, read_raw_events):
         .with_columns(header_equipment_name="TK" + pl.col("header_equipment_name").str.strip_chars(" "))
         .sort(["record_dt", "recording_type", "parameter_code"])
     )
+    dl = DataLake()
+    dl.upload_tibble(az_path="az://bhp-analytics-data/OPERATION/GE/events.parquet", tibble=df)
     return df
 
 

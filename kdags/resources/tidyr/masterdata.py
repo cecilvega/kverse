@@ -141,7 +141,7 @@ class MasterData:
             for name, details in items.items():
                 input_details = details.get("input", {})
                 output_details = details.get("output", {})
-                publish_details = details.get("publish", {})
+
                 row = {
                     "name": name,
                     "publish_path": details.get("publish_path"),
@@ -152,7 +152,7 @@ class MasterData:
                     "cron_schedule": details.get("cron_schedule"),
                     "schedule_status": details.get("schedule_status"),
                     "input_path": input_details.get("path").__str__(),
-                    "output_path": output_details.get("path"),
+                    "output_path": output_details.get("path").__str__(),
                 }
                 jobs.append(row)
 
