@@ -2,6 +2,7 @@ import re
 from io import BytesIO
 
 import dagster as dg
+import pandas as pd
 import polars as pl
 import unicodedata
 
@@ -110,14 +111,21 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
 
 @dg.asset
 def raw_component_changeouts(context):
-    msgraph = MSGraph(context=context)
-    file_content = msgraph.read_bytes(
-        sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
-    )
+    dl = DataLake(context=context)
+    file_content = dl.read_bytes(az_path="az://bhp-raw-data/PLANNING/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx")
+    # msgraph = MSGraph(context=context)
+    # file_content = msgraph.read_bytes(
+    #     sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+    # )
     columns = list(COLUMN_MAPPING.keys())
     df = pl.read_excel(
         BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", infer_schema_length=0, columns=columns
     )
+    # df = pd.read_excel(
+    #     BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", dtype=str, usecols=columns, nrows=4000
+    # )
+    # df = pl.DataFrame(df)
+
     return df
 
 

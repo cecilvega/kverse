@@ -7,13 +7,48 @@ from datetime import datetime
 WARRANTIES_ANALYTIS_PATH = "az://bhp-analytics-data/RELIABILITY/WARRANTIES/warranties.parquet"
 
 
+def merge_component_reparations(df: pl.DataFrame, component_reparations: pl.DataFrame):
+    df = df.join(
+        component_reparations.select(
+            [
+                "equipment_name",
+                "component_name",
+                "position_name",
+                "changeout_date",
+                "sap_equipment_name",
+                "service_order",
+            ]
+        ),
+        how="left",
+        on=["equipment_name", "component_name", "position_name", "changeout_date", "sap_equipment_name"],
+    )
+    return df
+
+
+def merge_so_report(df, so_report):
+    df = df.join(
+        so_report.unique("service_order").select(["service_order", "service_order_status"]),
+        how="left",
+        on=["service_order"],
+    )
+    return df
+
+
 @dg.asset
-def mutate_warranties(context: dg.AssetExecutionContext, component_changeouts: pl.DataFrame):
+def mutate_warranties(
+    context: dg.AssetExecutionContext,
+    component_changeouts: pl.DataFrame,
+    component_reparations: pl.DataFrame,
+    so_report: pl.DataFrame,
+):
     msgraph = MSGraph(context=context)
     datalake = DataLake(context=context)
-    warranty_df = msgraph.read_tibble(
-        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/INPUTS/warranty_input.xlsx"
+    warranty_df = pl.read_excel(
+        r"C:\Users\andmn\OneDrive - Komatsu Ltd\DRS MEL - JEFE_CONFIABILIDAD\INPUTS\warranty_input.xlsx"
     )
+    # warranty_df = msgraph.read_tibble(
+    #     "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/INPUTS/warranty_input.xlsx"
+    # )
     components_df = MasterData.components()
     components_df = components_df.filter(pl.col("subcomponent_main") == True).select(
         ["component_name", "subcomponent_name", "warranty_hours"]
@@ -51,7 +86,6 @@ def mutate_warranties(context: dg.AssetExecutionContext, component_changeouts: p
         on=[
             "equipment_name",
             "component_name",
-            "subcomponent_name",
             "position_name",
             "sap_equipment_name",
             "changeout_date",
@@ -59,6 +93,8 @@ def mutate_warranties(context: dg.AssetExecutionContext, component_changeouts: p
         how="full",
         coalesce=True,
     )
+    df = merge_component_reparations(df, component_reparations)
+    df = merge_so_report(df, so_report).sort("changeout_date")
     datalake.upload_tibble(tibble=df, az_path=WARRANTIES_ANALYTIS_PATH)
     return df
 
@@ -79,10 +115,10 @@ def publish_sp_warranties(context: dg.AssetExecutionContext, mutate_warranties: 
     df = mutate_warranties.clone()
 
     upload_results = []
-    sp_paths = [
-        # "sp://KCHCLGR00058/___/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
-        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
-    ]
-    for sp_path in sp_paths:
-        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
+    # sp_paths = [
+    #     # "sp://KCHCLGR00058/___/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
+    #     "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/GARANTIAS/garantias.xlsx",
+    # ]
+    # for sp_path in sp_paths:
+    #     upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
     return upload_results

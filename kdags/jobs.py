@@ -32,7 +32,7 @@ ep_job = dg.ScheduleDefinition(
 warranties_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="warranties_job",
-        selection=dg.AssetSelection.assets("publish_sp_warranties").upstream(),
+        selection=dg.AssetSelection.assets("mutate_warranties").upstream(),
         description="...",
     ),
     cron_schedule="0 11 * * 0",  # sunday at 11:00
