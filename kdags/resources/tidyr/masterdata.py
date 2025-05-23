@@ -14,7 +14,7 @@ class MasterData:
     """
 
     # Class variable to store the config directory path
-    CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parents[2] / "config"
+    CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parents[1] / "config"
 
     @classmethod
     def components(cls) -> pl.DataFrame:
@@ -115,7 +115,7 @@ class MasterData:
         equipments = []
         for equipment, details in data.items():
             e = {
-                "equipment": equipment,
+                "equipment_name": equipment,
                 "equipment_model": details.get("equipment_model"),
                 "equipment_serial": details.get("equipment_serial"),
                 "site_name": details.get("site_name"),

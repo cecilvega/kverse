@@ -60,7 +60,7 @@ component_reparations_job = dg.ScheduleDefinition(
         | dg.AssetSelection.assets("mutate_component_reparations").upstream(),
         description="Cambios de componente",
     ),
-    cron_schedule="0 3,15 * * *",  # daily at 3:00 and 15:00
+    cron_schedule="0 9,21 * * *",  # daily at 9:00 and 21:00
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
@@ -80,10 +80,12 @@ quotations_job = dg.ScheduleDefinition(
 harvest_reso_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="harvest_reso_job",
-        selection=dg.AssetSelection.assets("harvest_so_details").upstream(),
+        selection=dg.AssetSelection.assets(  # dg.AssetSelection.assets("harvest_so_report").upstream()
+            "harvest_so_details"
+        ).upstream(),
         description="Component Status RESO",
     ),
-    cron_schedule="0 9 * * FRI",  # viernes 09:00
+    cron_schedule="0 7 * * *",
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
@@ -94,10 +96,10 @@ harvest_reso_job = dg.ScheduleDefinition(
 oil_analysis_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="oil_analysis_job",
-        selection=dg.AssetSelection.assets("publish_sp_oil_analysis").upstream(),
+        selection=dg.AssetSelection.assets("mutate_oil_analysis").upstream(),
         description="Muestras aceite SCAAE",
     ),
-    cron_schedule="15 11 * * *",  # daily at 11:00
+    cron_schedule="15 11 * * *",  # daily at 11:15
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
@@ -150,6 +152,18 @@ ge_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
         name="ge_job",
         selection=dg.AssetSelection.assets("mutate_raw_events").upstream(),
+        description="GE Eventos",
+    ),
+    cron_schedule="30 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.STOPPED,
+)
+
+
+test_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="test_job",
+        selection=dg.AssetSelection.assets("hola").upstream(),
         description="GE Eventos",
     ),
     cron_schedule="30 6 * * *",

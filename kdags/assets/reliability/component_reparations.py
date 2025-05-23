@@ -1,6 +1,7 @@
 import polars as pl
 import dagster as dg
 from kdags.resources.tidyr import MSGraph, DataLake, MasterData
+from kdags.config import DATA_CATALOG
 
 COMPONENT_REPARATIONS_ANALYTICS_PATH = (
     "az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_reparations.parquet"
@@ -161,10 +162,11 @@ def changeouts_unmatched(
 
 
 @dg.asset(
+    group_name="reliability",
     description=(
         "Calculates the percentage of component changeouts that were filtered out "
         "before being matched to reparation status. Currently returns the raw changeout data."
-    )
+    ),
 )
 def mutate_component_reparations(
     context: dg.AssetExecutionContext, mutate_component_changeouts: pl.DataFrame, mutate_so_report: pl.DataFrame
@@ -301,19 +303,21 @@ def mutate_component_reparations(
             ]
         )
         .unique(subset=MERGE_COLUMNS, keep="last")
+        .sort(["changeout_date", "equipment_name", "component_name", "subcomponent_name", "position_name"])
     )
 
     dl = DataLake(context=context)
 
-    dl.upload_tibble(tibble=df, az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)
+    dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_reparations"]["analytics_path"])
 
     return df
 
 
 @dg.asset(
+    group_name="readr",
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
 def component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=COMPONENT_REPARATIONS_ANALYTICS_PATH)
+    df = dl.read_tibble(az_path=DATA_CATALOG["component_reparations"]["analytics_path"])
     return df

@@ -1,0 +1,41 @@
+planning:
+  component_changeouts:
+    raw_path: ...
+    analytics_path: az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet
+    description: ...
+    source: ...
+    responsible: asdasd
+maintenance:
+  oil_analysis:
+    raw_path: az://bhp-raw-data/LUBE_ANALYST/SCAAE
+    analytics_path: az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet
+    publish_path:
+      - sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/MANTENIMIENTO/analisis_aceite.xlsx
+      - sp://KCHCLGR00058/___/MANTENIMIENTO/analisis_aceite.xlsx
+    description: ...
+    source: sad
+    responsible: .asd
+reparation:
+  so_report:
+    analytics_path: az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet
+  so_quotations:
+    raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_quotations.parquet
+  so_documents:
+    raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
+reliability:
+  component_reparations:
+    analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_reparations.parquet
+
+
+
+#MAINTENANCE:
+#  analisis_aceite:
+#    publish_path: sp://KCHCLSP00022/MANTENIMIENTO/analisis_aceite.xlsx
+#    source: SCAAE
+#    description: Consolidado muestras de aceite MT
+#    job_name: oil_analysis_job
+#    cron_schedule: Todo los días a las 07:00
+#    input:
+#      path: az://bhp-raw-data/LUBE_ANALYST/SCAAE/y={YYYY}/m={MM}/d={DD}/{YYYYMMDD}SCAAE.xls
+#    output:
+#      path: az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet

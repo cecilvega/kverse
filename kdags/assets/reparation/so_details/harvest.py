@@ -15,18 +15,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 # --- Relative module imports
 from kdags.resources.tidyr import DataLake
-from ..reso.main_navigation import click_reportabilidad, click_component_status, click_presupuesto
-from ..reso.presupuesto_navigation import (
-    search_service_order,
-    click_see_service_order,
-    navigate_to_quotation_tab,
-    navigate_to_documents_tab,
-    close_service_order_view,
-)
-from ..reso.web_driver import initialize_driver, login_to_reso, DEFAULT_WAIT, RESO_URL, retry_on_interception
+from kdags.config import DATA_CATALOG
+from ..reso import *
 from .so_details_utils import (
-    QUOTATIONS_RAW_PATH,
-    DOCUMENTS_LIST_RAW_PATH,
     ensure_schema_and_defaults,
     DOCUMENTS_LIST_SCHEMA,
     QUOTATION_SCHEMA,
@@ -34,38 +25,48 @@ from .so_details_utils import (
     process_and_save_batch,
     BATCH_SIZE,
 )
-from ..reso.so_utils import extract_quotation_details, extract_document_links, has_quotation, has_documents
 
 
-@dg.asset
+@dg.asset(group_name="reparation")
 def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataFrame):
     cr_df = component_reparations.clone()
     so_df = so_report.clone()
-    dl = DataLake()
-    quotations_df = dl.read_tibble(QUOTATIONS_RAW_PATH)
-    # quotations_df = cso_df.select(["service_order"]).unique().join(quotations_df, on=["service_order"], how="left")
-    df = (
-        cr_df.filter(pl.col("service_order").is_not_null())
-        .join(
-            so_df.select(
-                [
-                    "service_order",
-                    "reception_date",
-                    "load_final_report_date",
-                    "update_date",
-                    "reso_closing_date",
-                    "reso_repair_reason",
-                    "quotation_status",
-                    "component_status",
-                ]
-            ).unique("service_order"),
-            on="service_order",
-            how="left",
-            # validate="1:1",
+    merge_columns = [
+        "equipment_name",
+        "component_name",
+        "subcomponent_name",
+        "position_name",
+        "changeout_date",
+    ]
+    so_df = (
+        so_df.select(
+            [
+                "service_order",
+                "reception_date",
+                "load_final_report_date",
+                "update_date",
+                "reso_closing_date",
+                "reso_repair_reason",
+                "quotation_status",
+                "component_status",
+                "site_name",
+            ]
         )
         .with_columns(reso_closing_date=pl.col("reso_closing_date").fill_null(pl.col("load_final_report_date")))
         .with_columns(days_diff=(pl.col("update_date") - pl.col("reso_closing_date")).dt.total_days())
         .drop(["load_final_report_date"])
+    )
+
+    cr_df = (
+        cr_df.select([*merge_columns, "service_order"])
+        .filter(pl.col("service_order").is_not_null())
+        .unique("service_order")
+    )
+    df = cr_df.join(
+        so_df,
+        on="service_order",
+        how="left",
+        # validate="1:1",
     )
     df = pl.concat(
         [
@@ -82,8 +83,8 @@ def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataF
     return df
 
 
-@dg.asset
-def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame) -> dict:
+@dg.asset(group_name="reparation")
+def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame) -> list:
     service_orders = select_so_to_update["service_order"].to_list()
 
     driver = initialize_driver()
@@ -96,8 +97,8 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
     click_presupuesto(driver, wait)
 
     dl = DataLake()
-    quotations_df = dl.read_tibble(QUOTATIONS_RAW_PATH)
-    documents_list_df = dl.read_tibble(DOCUMENTS_LIST_RAW_PATH)
+    quotations_df = dl.read_tibble(DATA_CATALOG["so_quotations"]["raw_path"])
+    documents_list_df = dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
 
     # --- Main Extraction Loop ---
     batch_quotations = []

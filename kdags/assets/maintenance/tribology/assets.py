@@ -5,6 +5,7 @@ import polars as pl
 
 from kdags.resources.dplyr import upsert_tibbles
 from kdags.resources.tidyr import DataLake, MSGraph
+from kdags.config import DATA_CATALOG
 
 
 class ReadRawOilAnalysisConfig(dg.Config):
@@ -12,11 +13,7 @@ class ReadRawOilAnalysisConfig(dg.Config):
     days_lookback: int = 30
 
 
-# Define the path for the final consolidated data
-OIL_ANALYSIS_ANALYTICS_PATH = "az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet"
-
-
-@dg.asset
+@dg.asset(group_name="maintenance")
 def raw_oil_analysis(
     context: dg.AssetExecutionContext,
     config: ReadRawOilAnalysisConfig,
@@ -71,7 +68,6 @@ def raw_oil_analysis(
     return result_df
 
 
-@dg.asset
 def process_oil_analysis(raw_oil_analysis):
     column_mapping = {
         "ID": "sample_id",
@@ -147,12 +143,14 @@ def process_oil_analysis(raw_oil_analysis):
     return df
 
 
-@dg.asset
-def mutate_oil_analysis(context: dg.AssetExecutionContext, process_oil_analysis):
-    new_df = process_oil_analysis.clone()
+@dg.asset(group_name="maintenance")
+def mutate_oil_analysis(context: dg.AssetExecutionContext, raw_oil_analysis: pl.DataFrame):
+    process_df = process_oil_analysis(raw_oil_analysis)
+    oil_analysis_analytics_path = DATA_CATALOG["oil_analysis"]["analytics_path"]
+    new_df = process_df.clone()
     context.log.info(f"Received {new_df.height} new/updated records for upsert.")
 
-    existing_df = DataLake().read_tibble(OIL_ANALYSIS_ANALYTICS_PATH)
+    existing_df = DataLake().read_tibble(oil_analysis_analytics_path)
     key_columns = ["sample_id"]
 
     context.log.info(f"Performing upsert operation with {new_df.height} incoming records")
@@ -166,43 +164,42 @@ def mutate_oil_analysis(context: dg.AssetExecutionContext, process_oil_analysis)
         )
     else:
         context.log.info("Consolidated dataset is empty. Skipping upsert operation.")
-        df = process_oil_analysis.clone()
+        df = process_df.clone()
     # Perform upsert operation
     df = df.sort("sample_date")
 
-    context.log.info(f"Writing {df.height} records to {OIL_ANALYSIS_ANALYTICS_PATH}")
-    DataLake().upload_tibble(tibble=df, az_path=OIL_ANALYSIS_ANALYTICS_PATH)
+    context.log.info(f"Writing {df.height} records to {oil_analysis_analytics_path}")
+    DataLake().upload_tibble(tibble=df, az_path=oil_analysis_analytics_path)
     context.log.info("Write successful.")
     context.add_output_metadata(
-        {"az_path": OIL_ANALYSIS_ANALYTICS_PATH, "rows_written": df.height, "status": "completed"}
+        {"az_path": oil_analysis_analytics_path, "rows_written": df.height, "status": "completed"}
     )
     return df
 
 
-@dg.asset
+@dg.asset(
+    group_name="readr",
+    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
+)
+def oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
+
+    dl = DataLake(context)
+
+    df = dl.read_tibble(az_path=DATA_CATALOG["oil_analysis"]["analytics_path"])
+
+    return df
+
+
+@dg.asset(group_name="sp_publishers")
 def publish_sp_oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis: pl.DataFrame):
     df = mutate_oil_analysis.clone()
     msgraph = MSGraph()
     upload_results = []
     sp_paths = [
-        "sp://KCHCLGR00058/___/MANTENIMIENTO/analisis_aceite.xlsx",
         "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/MANTENIMIENTO/analisis_aceite.xlsx",
+        DATA_CATALOG["oil_analysis"]["publish_path"],
     ]
     for sp_path in sp_paths:
         context.log.info(f"Publishing to {sp_path}")
         upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
     return upload_results
-
-
-@dg.asset(
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-)
-def oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake()
-    if dl.az_path_exists(OIL_ANALYSIS_ANALYTICS_PATH):
-        df = dl.read_tibble(az_path=OIL_ANALYSIS_ANALYTICS_PATH)
-        context.log.info(f"Read {df.height} records from {OIL_ANALYSIS_ANALYTICS_PATH}.")
-        return df
-    else:
-        context.log.warning(f"Data file not found at {OIL_ANALYSIS_ANALYTICS_PATH}. Returning empty DataFrame.")
-        return pl.DataFrame()

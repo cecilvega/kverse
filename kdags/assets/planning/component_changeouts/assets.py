@@ -9,10 +9,22 @@ import unicodedata
 from kdags.resources.tidyr import MSGraph, DataLake
 from .constants import *
 from kdags.schemas.planning.component_changeouts import COMPONENT_CHANGEOUTS_SCHEMA
+from kdags.config import *
 
-COMPONENT_CHANGEOUTS_ANALYTIS_PATH = (
-    "az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet"
-)
+
+@dg.asset(group_name="planning")
+def raw_component_changeouts(context):
+    msgraph = MSGraph(context=context)
+    file_content = msgraph.read_bytes(
+        sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+    )
+    columns = list(COLUMN_MAPPING.keys())
+    df = pd.read_excel(
+        BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", dtype=str, usecols=columns, nrows=4000
+    )
+    df = pl.DataFrame(df)
+
+    return df
 
 
 def clean_string(s):
@@ -74,9 +86,6 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
     # Extract equipment_name digits
     df = df.with_columns(pl.col("equipment_name").cast(pl.Utf8).str.extract(r"(\d+)").alias("equipment_name"))
 
-    # Drop rows with null values in specific columns
-    # df = df.drop_nulls(subset=["equipment_name", "position_name", "changeout_date"])
-
     # Process various columns
     df = (
         df.with_columns(
@@ -109,27 +118,8 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
     return df
 
 
-@dg.asset
-def raw_component_changeouts(context):
-    dl = DataLake(context=context)
-    file_content = dl.read_bytes(az_path="az://bhp-raw-data/PLANNING/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx")
-    # msgraph = MSGraph(context=context)
-    # file_content = msgraph.read_bytes(
-    #     sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
-    # )
-    columns = list(COLUMN_MAPPING.keys())
-    df = pl.read_excel(
-        BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", infer_schema_length=0, columns=columns
-    )
-    # df = pd.read_excel(
-    #     BytesIO(file_content), sheet_name="Planilla Cambio Componente  960", dtype=str, usecols=columns, nrows=4000
-    # )
-    # df = pl.DataFrame(df)
-
-    return df
-
-
 @dg.asset(
+    group_name="planning",
     metadata={
         "dagster/column_schema": dg.TableSchema(
             columns=[
@@ -150,38 +140,17 @@ def raw_component_changeouts(context):
 def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
     df = raw_component_changeouts.clone().pipe(process_component_changeouts, site_name="MEL")
     datalake = DataLake(context=context)  # Direct instantiation
-    datalake.upload_tibble(tibble=df, az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
+    datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_changeouts"]["analytics_path"])
 
     return df
 
 
 @dg.asset(
+    group_name="readr",
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
     metadata={"dagster/column_schema": COMPONENT_CHANGEOUTS_SCHEMA},
 )
 def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=COMPONENT_CHANGEOUTS_ANALYTIS_PATH)
+    df = dl.read_tibble(az_path=DATA_CATALOG["component_changeouts"]["analytics_path"])
     return df
-    # df = (
-    #     df.filter((pl.col("component_hours").is_not_null()) & (pl.col("equipment_name") != "TK853"))
-    #     .filter(pl.col("changeout_date").dt.year() >= 2019)
-    #     # .filter(~(pl.col("subcomponent_name").is_in(["motor", "radiador", "subframe"])))
-    #     .unique(
-    #         subset=[
-    #             "equipment_name",
-    #             "component_name",
-    #             "subcomponent_name",
-    #             "position_name",
-    #             "changeout_date",
-    #             "sap_equipment_name",
-    #             "customer_work_order",
-    #         ]
-    #     )
-    # )
-
-    #     context.log.info(f"Read {df.height} records from {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}.")
-    #     return df
-    # else:
-    #     context.log.warning(f"Data file not found at {COMPONENT_CHANGEOUTS_ANALYTIS_PATH}. Returning empty DataFrame.")
-    #     return pl.DataFrame()

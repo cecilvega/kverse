@@ -1,14 +1,14 @@
+import os
 import re
+from datetime import date
 from datetime import datetime
 
 import dagster as dg
 import polars as pl
-from datetime import date
-from kdags.resources.tidyr import DataLake, MSGraph
-import os
-from .constants import *
 
-SO_REPORT_ANALYTICS_PATH = "az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet"
+from kdags.config import DATA_CATALOG
+from kdags.resources.tidyr import DataLake
+from .constants import *
 
 
 def get_year_and_new_path(az_path: str, datalake_instance):
@@ -78,7 +78,7 @@ def fix_naming():
             )
 
 
-@dg.asset
+@dg.asset(group_name="reparation")
 # Add context back for logging
 def raw_so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     fix_naming()
@@ -174,7 +174,7 @@ def process_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataF
     return df
 
 
-@dg.asset
+@dg.asset(group_name="reparation")
 def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFrame) -> pl.DataFrame:
 
     df = raw_so_report.clone()  # Use the input parameter name
@@ -188,13 +188,17 @@ def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFr
         component_status=pl.col("component_status").replace({"Delivery Proccess": "Delivered"}),
     )
     datalake = DataLake(context=context)
-    datalake.upload_tibble(tibble=df, az_path=SO_REPORT_ANALYTICS_PATH)
+    datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["so_report"]["analytics_path"])
 
     return df
 
 
-@dg.asset
+@dg.asset(group_name="readr")
 def so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=SO_REPORT_ANALYTICS_PATH)
+    df = (
+        dl.read_tibble(az_path=DATA_CATALOG["so_report"]["analytics_path"])
+        .sort("reception_date")
+        .unique(subset=["service_order", "main_component", "sap_equipment_name"], keep="last", maintain_order=True)
+    )
     return df

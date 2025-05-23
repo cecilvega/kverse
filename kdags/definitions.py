@@ -25,6 +25,7 @@ from kdags.jobs import (
     # === OPERATION ===
     plm_job,
     ge_job,
+    test_job,
 )
 import warnings
 
@@ -40,14 +41,13 @@ warnings.filterwarnings(
 )
 __all__ = ["kdefs"]
 
-# warnings.filterwarnings("ignore", category=ExperimentalWarning)
 
-operation_assets = dg.load_assets_from_package_module(operation, group_name="operation")
-maintenance_assets = dg.load_assets_from_package_module(maintenance, group_name="maintenance")
-planning_assets = dg.load_assets_from_package_module(planning, group_name="planning")
-reliability_assets = dg.load_assets_from_package_module(reliability, group_name="reliability")
-reparation_assets = dg.load_assets_from_package_module(reparation, group_name="reparation")
-docs_assets = dg.load_assets_from_package_module(docs, group_name="docs")
+operation_assets = dg.load_assets_from_package_module(operation)
+maintenance_assets = dg.load_assets_from_package_module(maintenance)
+planning_assets = dg.load_assets_from_package_module(planning)
+reliability_assets = dg.load_assets_from_package_module(reliability)
+reparation_assets = dg.load_assets_from_package_module(reparation)
+docs_assets = dg.load_assets_from_package_module(docs)
 
 all_assets = dg.with_source_code_references(
     [
@@ -92,5 +92,6 @@ kdefs = dg.Definitions(
         op_file_idx_job,
         plm_job,
         ge_job,
+        test_job,
     ],
 )
