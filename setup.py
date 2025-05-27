@@ -30,7 +30,6 @@ setup(
         "black",
         "adlfs",
         "plotnine",
-        "plotnine-prism",
         "scipy",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},

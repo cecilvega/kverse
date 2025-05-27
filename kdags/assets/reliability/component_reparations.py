@@ -26,6 +26,7 @@ def component_changeouts_initial_join(
     status_cols_to_join = [
         "customer_work_order",
         "sap_equipment_name",
+        "component_serial",
         "reception_date",
         "service_order",
     ]
@@ -37,6 +38,7 @@ def component_changeouts_initial_join(
             on=[
                 "customer_work_order",
                 "sap_equipment_name",
+                "component_serial",
             ],
             how="left",
             suffix="_reso",  # Suffix applied to right df cols if names collide
@@ -85,10 +87,10 @@ def reso_available_for_asof(
     changeouts_matched_direct: pl.DataFrame,
 ) -> pl.DataFrame:
     """Filters component status using an anti-join against used service orders."""
-    so_df = mutate_so_report
-    available_df = so_df.join(
+
+    available_df = mutate_so_report.clone().join(
         changeouts_matched_direct, on=["service_order", "customer_work_order"], how="anti"
-    ).filter(pl.col("sap_equipment_name") != -1)
+    )
     context.log.info(f"Component status rows available for ASOF join: {available_df.height}")
     return available_df
 
@@ -111,7 +113,7 @@ def component_changeouts_asof_join_results(
         reso_available_for_asof_sorted,
         left_on="changeout_date",
         right_on="reception_date",
-        by="sap_equipment_name",
+        by=["component_serial"],
         strategy="forward",
         tolerance="70d",
     )
@@ -138,27 +140,12 @@ def changeouts_matched_asof(
     return asof_matched_df
 
 
-def changeouts_unmatched(
-    context: dg.AssetExecutionContext,
-    component_changeouts_asof_join_results: pl.DataFrame,
-    component_changeouts_filtered: pl.DataFrame,  # Needed for original columns
-) -> pl.DataFrame:
-    """
-    Filters the ASOF join results for unsuccessful matches.
-    Equivalent to 'asof_unmatched_df'. Output Schema: Original columns + service_order=-1.
-    """
-    asof_results_df = component_changeouts_asof_join_results
-    original_cc_columns = component_changeouts_filtered.columns
-
-    asof_match_condition = pl.col("reception_date").is_not_null()
-    asof_unmatched_df = (
-        asof_results_df.filter(~asof_match_condition)
-        .select(original_cc_columns)
-        .with_columns(service_order=pl.lit(-1, dtype=pl.Int64))
-    )
-
-    context.log.info(f"Filtered for final unmatched rows: {asof_unmatched_df.height} rows.")
-    return asof_unmatched_df
+@dg.asset(group_name="reliability")
+def publish_unmatched_reparations(context: dg.AssetExecutionContext, mutate_component_reparations: pl.DataFrame):
+    unmatched_df = mutate_component_reparations.filter(pl.col("reso_merge").is_null())
+    dl = DataLake(context=context)
+    dl.upload_tibble(tibble=unmatched_df, az_path=DATA_CATALOG["unmatched_reparations"]["analytics_path"])
+    return unmatched_df
 
 
 @dg.asset(
@@ -220,41 +207,24 @@ def mutate_component_reparations(
         changeouts_matched_direct_df,
     )
 
-    changeouts_unmatched_df = changeouts_unmatched(
-        context,
-        component_changeouts_asof_join_results_df,
-        component_changeouts_filtered_df,
-    )
-
     # Get row counts
-    total_raw_rows = cc_df.height
+    total_raw_rows = component_changeouts_filtered_df.height
     matched_direct_rows = changeouts_matched_direct_df.height
     matched_asof_rows = changeouts_matched_asof_df.height
-    unmatched_rows = changeouts_unmatched_df.height
 
-    # Calculate total rows accounted for by the matching process
-    total_accounted_rows = matched_direct_rows + matched_asof_rows + unmatched_rows
-    # Calculate rows not considered (filtered out before/during matching)
-    rows_filtered_out = total_raw_rows - total_accounted_rows
     perc_direct = (matched_direct_rows / total_raw_rows) * 100
     perc_asof = (matched_asof_rows / total_raw_rows) * 100
-    perc_unmatched = (unmatched_rows / total_raw_rows) * 100
-    perc_accounted = (total_accounted_rows / total_raw_rows) * 100
-    percentage_filtered_out = (rows_filtered_out / total_raw_rows) * 100
 
     context.log.info(f"Initial Changeouts: {total_raw_rows} rows.")
     context.log.info(f" -> Matched Direct: {matched_direct_rows} ({perc_direct:.1f}%).")
     context.log.info(f" -> Matched ASOF: {matched_asof_rows} ({perc_asof:.1f}%).")
-    context.log.info(f" -> Unmatched: {unmatched_rows} ({perc_unmatched:.1f}%).")
-    context.log.info(f" -> Total Accounted by Matching: {total_accounted_rows} ({perc_accounted:.1f}%).")
-    context.log.info(
-        f" -> Rows Filtered Out (Not Accounted): {rows_filtered_out} " f"({percentage_filtered_out:.1f}%)."
-    )
-    context.log.info(
-        f"Rows filtered out before matching: {rows_filtered_out} " f"({percentage_filtered_out:.2f}% of initial total)"
-    )
 
-    df = pl.concat([changeouts_matched_direct_df, changeouts_matched_asof_df]).drop(
+    df = pl.concat(
+        [
+            changeouts_matched_direct_df.with_columns(reso_merge=pl.lit("direct")),
+            changeouts_matched_asof_df.with_columns(reso_merge=pl.lit("asof")),
+        ]
+    ).drop(
         [
             "cc_index",
             "component_serial",
@@ -264,6 +234,7 @@ def mutate_component_reparations(
             "sap_equipment_name",
         ]
     )
+    # Agregar todos los filtrados
     df = (
         component_changeouts_filtered_df.select(
             [
@@ -292,7 +263,7 @@ def mutate_component_reparations(
                 "customer_work_order",
                 "sap_equipment_name",
                 "component_hours",
-                "component_usage",
+                "reso_merge",
                 "cc_index",
             ]
         )

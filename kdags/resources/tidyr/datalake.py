@@ -149,7 +149,11 @@ class DataLake:
                 tibble.write_parquet(az_path, storage_options=self._storage_options, **kwargs)
 
         elif format.lower() == "csv":
-            tibble.write_csv(az_path, storage_options=self._storage_options, **kwargs).encode("utf-8")
+            if hasattr(tibble, "to_csv"):
+                tibble.to_csv(az_path, storage_options=self._storage_options, **kwargs)
+            else:
+                tibble.write_csv(az_path, storage_options=self._storage_options, **kwargs)
+            # tibble.write_csv(az_path, storage_options=self._storage_options, **kwargs).encode("utf-8")
 
         else:
             raise ValueError(f"Unsupported format: {format}")

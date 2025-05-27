@@ -49,5 +49,6 @@ COLUMN_MAPPING = {
     "N/S RETIRADO": "component_serial",
     "Equipo SAP": "sap_equipment_name",
     "N/S INSTALADO": "installed_component_serial",
+    "Equipo SAP.1": "installed_sap_equipment_name",
     "DESCRIPCIÓN DE FALLA": "failure_description",
 }

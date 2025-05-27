@@ -2,11 +2,14 @@
 from datetime import datetime
 
 import dagster as dg
+import re
 
 # --- Selenium imports ---
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
+from kdags.resources.tidyr import DataLake
 
 # --- Relative module imports
 from ..reso import *
@@ -14,6 +17,7 @@ from ..reso import *
 
 @dg.asset(group_name="reparation")
 def harvest_so_report(context: dg.AssetExecutionContext):
+    dl = DataLake(context=context)
     driver = initialize_driver()
     context.log.info("WebDriver initialized.")
 
@@ -24,7 +28,12 @@ def harvest_so_report(context: dg.AssetExecutionContext):
     context.log.info("Navigated to 'Presupuesto' section.")
 
     # --- Determine years for the loop ---
-    current_year = datetime.now().year
+    current_date = datetime.now()
+    current_year = current_date.year
+    current_date_az_path = f"az://bhp-raw-data/RESO/SERVICE_ORDER_REPORT/y={current_date.year}/m={current_date.month.__str__().zfill(2)}/d={(current_date.day).__str__().zfill(2)}"
+    check_az_path_stored = dl.az_path_exists(current_date_az_path)
+    assert check_az_path_stored is False, f"Data already exists in the target path. Aborting.\n{current_date_az_path}"
+
     years_to_process = [current_year, current_year - 1, current_year - 2, current_year - 3]
     context.log.info(f"Starting report harvest for {len(years_to_process)} years: {years_to_process}")
 

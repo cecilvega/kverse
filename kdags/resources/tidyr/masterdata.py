@@ -17,6 +17,17 @@ class MasterData:
     CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parents[1] / "config"
 
     @classmethod
+    def retired_components(cls) -> pl.DataFrame:
+        """
+        Load retired component data from retired_components.yaml.
+        """
+        filepath = cls.CONFIG_DIR / "retired_components.yaml"
+        with open(filepath, "r") as f:
+            data = yaml.safe_load(f)
+        df = pl.DataFrame(data).filter(pl.col("is_retired") == True)
+        return df
+
+    @classmethod
     def components(cls) -> pl.DataFrame:
         """
         Load and process component data from components.yaml.

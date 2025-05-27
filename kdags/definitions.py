@@ -9,13 +9,15 @@ from kdags.jobs import (
     # === DOCS ===
     docs_job,
     # === RELIABILITY ===
+    pool_monitoring_job,
     ep_job,
     warranties_job,
     quotations_job,
     # === PLANNING ===
     # === REPARATION ===
-    harvest_reso_job,
+    harvest_so_report_job,
     component_reparations_job,
+    harvest_reso_job,
     # === MAINTENANCE ===
     oil_analysis_job,
     icc_job,
@@ -25,7 +27,7 @@ from kdags.jobs import (
     # === OPERATION ===
     plm_job,
     ge_job,
-    test_job,
+    publish_sp_job,
 )
 import warnings
 
@@ -76,12 +78,14 @@ kdefs = dg.Definitions(
         # === DOCS ===
         docs_job,
         # === RELIABILITY ===
+        pool_monitoring_job,
         ep_job,
         warranties_job,
         quotations_job,
         icc_job,
         # === PLANNING ===
         # === REPARATION ===
+        harvest_so_report_job,
         harvest_reso_job,
         component_reparations_job,
         # === MAINTENANCE ===
@@ -92,6 +96,6 @@ kdefs = dg.Definitions(
         op_file_idx_job,
         plm_job,
         ge_job,
-        test_job,
+        publish_sp_job,
     ],
 )

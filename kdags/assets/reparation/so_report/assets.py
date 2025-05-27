@@ -122,7 +122,7 @@ def process_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataF
     available_raw_cols = [col for col in SELECTED_RAW_COLUMNS if col in df.columns]
 
     # 1. Load initial data and add a unique ID BEFORE filtering
-    df = df.with_row_count("original_row_id")  # Add index
+    df = df.with_row_index("original_row_id")  # Add index
 
     mapping_subset = {k: v for k, v in COLUMN_MAPPING.items()}
 
@@ -187,6 +187,27 @@ def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFr
         load_final_report_date=pl.col("load_final_report_in_review").fill_null(pl.col("load_final_report_revised")),
         component_status=pl.col("component_status").replace({"Delivery Proccess": "Delivered"}),
     )
+
+    # Reparar serie componentes
+    df = df.with_columns(component_serial=pl.col("component_serial").str.replace(r"\s*\([^)]*\)", ""))
+
+    df = (
+        df.sort("reception_date")
+        .filter((pl.col("service_order") != -1))
+        .unique(
+            subset=["service_order", "main_component", "component_serial", "sap_equipment_name"],
+            keep="last",
+            maintain_order=True,
+        )
+    )
+
+    assert (
+        df.filter(
+            pl.struct(["service_order", "main_component", "component_serial", "sap_equipment_name"]).is_duplicated()
+        ).height
+        == 0
+    )
+
     datalake = DataLake(context=context)
     datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["so_report"]["analytics_path"])
 
@@ -196,9 +217,5 @@ def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFr
 @dg.asset(group_name="readr")
 def so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
-    df = (
-        dl.read_tibble(az_path=DATA_CATALOG["so_report"]["analytics_path"])
-        .sort("reception_date")
-        .unique(subset=["service_order", "main_component", "sap_equipment_name"], keep="last", maintain_order=True)
-    )
+    df = dl.read_tibble(az_path=DATA_CATALOG["so_report"]["analytics_path"])
     return df

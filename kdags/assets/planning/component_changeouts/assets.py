@@ -27,6 +27,17 @@ def raw_component_changeouts(context):
     return df
 
 
+@dg.asset(group_name="planning")
+def patched_component_changeouts(context):
+    dl = DataLake(context)
+    df = (
+        dl.read_tibble(az_path="az://bhp-raw-data/INPUTS/patched_component_changeouts.csv")
+        .drop_nulls()
+        .with_columns(changeout_date=pl.col("changeout_date").str.to_date("%Y-%m-%d"))
+    )
+    return df
+
+
 def clean_string(s):
     # Remove accents
     s = str(s)
@@ -105,7 +116,12 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
         # .filter(pl.col("equipment_model") != "PC8000")
         .with_columns(
             equipment_model=pl.col("equipment_model").replace({"960E-1": "960E", "960E-2": "960E"})
-        ).with_columns(pl.col("sap_equipment_name").str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1))
+        ).with_columns(
+            [
+                pl.col(c).str.strip_suffix(".0").cast(pl.Int64, strict=False).fill_null(-1).alias(c)
+                for c in ["sap_equipment_name", "installed_sap_equipment_name"]
+            ]
+        )
     )
 
     # Map equipment model to prefix and concatenate with equipment_name
@@ -137,8 +153,29 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
         )
     },
 )
-def mutate_component_changeouts(context: dg.AssetExecutionContext, raw_component_changeouts: pl.DataFrame):
+def mutate_component_changeouts(
+    context: dg.AssetExecutionContext,
+    raw_component_changeouts: pl.DataFrame,
+    patched_component_changeouts: pl.DataFrame,
+):
     df = raw_component_changeouts.clone().pipe(process_component_changeouts, site_name="MEL")
+    # Reparar serie componentes
+    cs_columns = ["component_serial", "installed_component_serial"]
+    df = df.with_columns([pl.col(c).str.strip_prefix("#").alias(c) for c in cs_columns])
+    df = df.join(
+        patched_component_changeouts,
+        on=["equipment_name", "component_name", "subcomponent_name", "position_name", "changeout_date"],
+        how="left",
+        suffix="_patched",
+    )
+    patched_columns = ["component_serial", "installed_component_serial"]
+    df = df.with_columns(
+        [
+            pl.when(pl.col(f"{c}_patched").is_not_null()).then(pl.col(f"{c}_patched")).otherwise(pl.col(c)).alias(c)
+            for c in patched_columns
+        ]
+    ).drop([f"{c}_patched" for c in patched_columns])
+
     datalake = DataLake(context=context)  # Direct instantiation
     datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_changeouts"]["analytics_path"])
 
