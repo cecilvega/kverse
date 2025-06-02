@@ -20,11 +20,19 @@ reparation:
     analytics_path: az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet
   so_quotations:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_quotations.parquet
+    analytics_path: az://bhp-analytics-data/RELIABILITY/QUOTATIONS/quotations.parquet
   so_documents:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
+
 reliability:
   component_reparations:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_reparations.parquet
+  component_lifeline:
+    analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_LIFELINE/component_lifeline.parquet
+  component_snapshots:
+    analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_SNAPSHOTS/component_snapshots.parquet
+  component_states:
+    analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_STATES/component_states.parquet
   icc:
     analytics_path: az://bhp-analytics-data/RELIABILITY/ICC/icc.parquet
 

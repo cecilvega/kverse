@@ -2,7 +2,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
-
+from selenium.webdriver.ie.webdriver import WebDriver
 
 __all__ = [
     "search_service_order",
@@ -26,7 +26,22 @@ def close_service_order_view(wait: WebDriverWait):
     wait.until(EC.presence_of_element_located(previous_screen_element_locator))
 
 
-def search_service_order(wait: WebDriverWait, service_order):
+def check_and_close_error_popup(driver: WebDriver, wait: WebDriverWait):
+    error_popup_title_xpath = (
+        "//span[@id='ui-id-1' and contains(text(), 'Please try again or contact your service administrator.')]"
+    )
+    # Check for the presence of the popup's title
+    popup_title_element = driver.find_element(By.XPATH, error_popup_title_xpath)
+    if popup_title_element.is_displayed():
+        # 1. Generic close button in a ui-dialog:
+        close_button_xpath = "//div[contains(@class,'ui-dialog') and .//span[@id='ui-id-1' and contains(text(), 'Please try again or contact your service administrator.')]]//button[contains(@class,'ui-dialog-titlebar-close')]"
+        close_button = wait.until(EC.element_to_be_clickable((By.XPATH, close_button_xpath)))
+        close_button.click()
+        # Wait a moment for the popup to disappear
+        wait.until(EC.invisibility_of_element_located((By.XPATH, error_popup_title_xpath)))
+
+
+def search_service_order(driver: WebDriver, wait: WebDriverWait, service_order):
 
     # --- Find the input field, clear it, and enter the service order ---
     search_input_locator = (By.ID, "codigoBuscar")
@@ -45,8 +60,11 @@ def search_service_order(wait: WebDriverWait, service_order):
     wait.until(EC.invisibility_of_element_located(overlay_locator))
 
 
-def click_see_service_order(wait: WebDriverWait):
-
+def click_see_service_order(driver, wait: WebDriverWait):
+    try:
+        check_and_close_error_popup(driver, wait)
+    except Exception:
+        pass
     # --- Wait for the results table ---
     webgrid_locator = (By.ID, "WebGrid")
     wait.until(EC.presence_of_element_located(webgrid_locator))

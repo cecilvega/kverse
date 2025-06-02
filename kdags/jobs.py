@@ -78,10 +78,12 @@ component_reparations_job = dg.ScheduleDefinition(
 )
 
 
-pool_monitoring_job = dg.ScheduleDefinition(
+pool_inventory_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
-        name="pool_monitoring_job",
-        selection=dg.AssetSelection.assets("mutate_component_tracking").upstream(),
+        name="pool_inventory_job",
+        selection=dg.AssetSelection.assets(
+            "component_serials", "mutate_component_lifeline", "mutate_component_states", "mutate_component_snapshots"
+        ).upstream(),
     ),
     cron_schedule="0 21 * * *",  # Diario a las 21:00
     execution_timezone="America/Santiago",
@@ -110,13 +112,24 @@ harvest_so_report_job = dg.ScheduleDefinition(
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
-harvest_reso_job = dg.ScheduleDefinition(
+harvest_so_details_job = dg.ScheduleDefinition(
     job=dg.define_asset_job(
-        name="harvest_reso_job",
+        name="harvest_so_details_job",
         selection=dg.AssetSelection.assets("harvest_so_details").upstream(),
         description="Component Status RESO",
     ),
     cron_schedule="0 7 * * *",
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+harvest_so_documents_job = dg.ScheduleDefinition(
+    job=dg.define_asset_job(
+        name="harvest_so_documents_job",
+        selection=dg.AssetSelection.assets("harvest_so_documents").upstream(),
+        description="Component Status RESO",
+    ),
+    cron_schedule="0 8 * * *",
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )

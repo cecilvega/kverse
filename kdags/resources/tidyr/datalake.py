@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import re
 import dagster as dg
 from azure.storage.blob import BlobClient
+import requests
 
 
 class DataLake:
@@ -168,6 +169,39 @@ class DataLake:
         #     file_client.flush_data(len(data))
 
         return az_path
+
+    def upload_file(self, source_url: str, destination_az_path: str) -> str:
+
+        # Download from HTTP URL
+        response = requests.get(source_url)
+        response.raise_for_status()
+        file_content = response.content
+
+        # Parse the destination az_path
+        dest_container, dest_path = self._parse_az_path(destination_az_path)
+
+        # Get a file system client for the destination container
+        file_system_client = self.client.get_file_system_client(dest_container)
+
+        # Ensure directory exists
+        directory_path = "/".join(dest_path.split("/")[:-1])
+        if directory_path:
+            directory_client = file_system_client.get_directory_client(directory_path)
+            directory_client.create_directory()
+
+        # Get a file client for the destination path
+        file_client = file_system_client.get_file_client(dest_path)
+
+        # Create or overwrite the file
+        file_client.create_file()
+
+        # Upload the data
+        file_client.append_data(file_content, 0, len(file_content))
+
+        # Flush to finalize the file
+        file_client.flush_data(len(file_content))
+
+        return destination_az_path
 
     def az_path_exists(self, az_path: str) -> bool:
 

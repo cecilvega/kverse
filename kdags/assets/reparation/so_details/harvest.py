@@ -76,10 +76,11 @@ def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataF
             df.filter(
                 (pl.col("component_status").is_in(["Delivered", "Repaired"]))
                 & (pl.col("reso_closing_date").is_not_null())
-                & (pl.col("days_diff") < pl.lit(60))
+                & (pl.col("days_diff") < pl.lit(365 * 3))
             ),
         ]
     )
+
     return df
 
 
@@ -116,7 +117,7 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
         quotation_data_extracted = None
         document_data_extracted = []
 
-        search_service_order(wait, service_order)
+        search_service_order(driver, wait, service_order)
         click_see_service_order(wait)
         retry_on_interception(
             context=context,

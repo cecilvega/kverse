@@ -9,7 +9,7 @@ from kdags.jobs import (
     # === DOCS ===
     docs_job,
     # === RELIABILITY ===
-    pool_monitoring_job,
+    pool_inventory_job,
     ep_job,
     warranties_job,
     quotations_job,
@@ -17,7 +17,8 @@ from kdags.jobs import (
     # === REPARATION ===
     harvest_so_report_job,
     component_reparations_job,
-    harvest_reso_job,
+    harvest_so_details_job,
+    harvest_so_documents_job,
     # === MAINTENANCE ===
     oil_analysis_job,
     icc_job,
@@ -78,7 +79,7 @@ kdefs = dg.Definitions(
         # === DOCS ===
         docs_job,
         # === RELIABILITY ===
-        pool_monitoring_job,
+        pool_inventory_job,
         ep_job,
         warranties_job,
         quotations_job,
@@ -86,7 +87,8 @@ kdefs = dg.Definitions(
         # === PLANNING ===
         # === REPARATION ===
         harvest_so_report_job,
-        harvest_reso_job,
+        harvest_so_details_job,
+        harvest_so_documents_job,
         component_reparations_job,
         # === MAINTENANCE ===
         work_order_history_job,

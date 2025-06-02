@@ -20,6 +20,7 @@ from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_h
 from kdags.assets.reliability.icc.assets import icc
 from kdags.assets.reliability.deprecated import component_reparations
 from kdags.assets.reliability.component_reparations import component_reparations
+from kdags.assets.planning.pool_inventory.assets import component_lifeline
 
 # === OPERATION ===
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
@@ -68,3 +69,4 @@ class Readr:
     icc: dg.AssetsDefinition = icc
     changeouts_so: dg.AssetsDefinition = component_reparations
     component_reparations: dg.AssetsDefinition = component_reparations
+    component_lifeline: dg.AssetsDefinition = component_lifeline
