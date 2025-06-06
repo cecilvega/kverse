@@ -3,9 +3,6 @@ import dagster as dg
 from kdags.resources.tidyr import MSGraph, DataLake, MasterData
 from kdags.config import DATA_CATALOG
 
-COMPONENT_REPARATIONS_ANALYTICS_PATH = (
-    "az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_reparations.parquet"
-)
 
 MERGE_COLUMNS = ["equipment_name", "component_name", "subcomponent_name", "position_name", "changeout_date"]
 
@@ -140,7 +137,7 @@ def changeouts_matched_asof(
     return asof_matched_df
 
 
-@dg.asset(group_name="reliability")
+@dg.asset(group_name="planning")
 def publish_unmatched_reparations(context: dg.AssetExecutionContext, mutate_component_reparations: pl.DataFrame):
     unmatched_df = mutate_component_reparations.filter(pl.col("reso_merge").is_null())
     dl = DataLake(context=context)
@@ -149,7 +146,7 @@ def publish_unmatched_reparations(context: dg.AssetExecutionContext, mutate_comp
 
 
 @dg.asset(
-    group_name="reliability",
+    group_name="planning",
     description=(
         "Calculates the percentage of component changeouts that were filtered out "
         "before being matched to reparation status. Currently returns the raw changeout data."

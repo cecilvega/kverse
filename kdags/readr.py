@@ -14,12 +14,12 @@ from kdags.assets.planning.component_changeouts.assets import component_changeou
 from kdags.assets.maintenance.tribology.assets import oil_analysis
 from kdags.assets.operation.ge.events.pipeline import read_events
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
-from kdags.assets.maintenance.fiori.work_orders_history import read_work_order_history
+from kdags.assets.maintenance.fiori.work_orders_history import work_order_history
 
 # === RELIABILITY ===
 from kdags.assets.reliability.icc.assets import icc
 from kdags.assets.reliability.deprecated import component_reparations
-from kdags.assets.reliability.component_reparations import component_reparations
+from kdags.assets.planning.component_reparations import component_reparations
 from kdags.assets.planning.pool_inventory.assets import component_lifeline
 
 # === OPERATION ===
@@ -46,7 +46,7 @@ class Readr:
 
     # === MAINTENANCE ===
     oil_analysis: dg.AssetsDefinition = oil_analysis
-    work_order_history: dg.AssetsDefinition = read_work_order_history
+    work_order_history: dg.AssetsDefinition = work_order_history
     pm_history: dg.AssetsDefinition = read_pm_history
 
     # === OPERATION ===

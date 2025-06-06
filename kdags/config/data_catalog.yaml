@@ -5,6 +5,8 @@ planning:
     description: ...
     source: ...
     responsible: asdasd
+  component_reparations:
+    analytics_path: az://bhp-analytics-data/PLANNING/COMPONENT_REPARATIONS/component_reparations.parquet
 maintenance:
   oil_analysis:
     raw_path: az://bhp-raw-data/LUBE_ANALYST/SCAAE
@@ -25,8 +27,6 @@ reparation:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
 
 reliability:
-  component_reparations:
-    analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_REPARATIONS/component_reparations.parquet
   component_lifeline:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_LIFELINE/component_lifeline.parquet
   component_snapshots:

@@ -71,8 +71,7 @@ def spawn_work_order_history(read_raw_work_orders_history):
 
 
 @dg.asset
-def read_work_order_history():
-    dl = DataLake()
-    content = dl.read_bytes(f"abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet")
-    df = pd.read_parquet(BytesIO(content))
+def work_order_history(context: dg.AssetExecutionContext):
+    dl = DataLake(context)
+    df = dl.read_tibble(f"abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet")
     return df

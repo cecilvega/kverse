@@ -49,7 +49,7 @@ warranties_job = dg.ScheduleDefinition(
     ),
     cron_schedule="0 11 * * 0",  # sunday at 11:00
     execution_timezone="America/Santiago",
-    default_status=dg.DefaultScheduleStatus.RUNNING,
+    default_status=dg.DefaultScheduleStatus.STOPPED,
 )
 
 icc_job = dg.ScheduleDefinition(
