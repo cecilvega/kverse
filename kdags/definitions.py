@@ -5,6 +5,7 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 
 
 from kdags.assets import maintenance, reparation, operation, planning, reliability, docs
+from kdags.schedules import component_reparations_schedule, harvest_so_report_schedule, oil_analysis_schedule
 from kdags.jobs import (
     # === DOCS ===
     docs_job,
@@ -15,12 +16,9 @@ from kdags.jobs import (
     quotations_job,
     # === PLANNING ===
     # === REPARATION ===
-    harvest_so_report_job,
-    component_reparations_job,
     harvest_so_details_job,
     harvest_so_documents_job,
     # === MAINTENANCE ===
-    oil_analysis_job,
     icc_job,
     work_order_history_job,
     pm_history_job,
@@ -75,29 +73,31 @@ all_assets = dg.link_code_references_to_git(
 
 kdefs = dg.Definitions(
     assets=all_assets,
-    schedules=[
+    jobs=[
+        warranties_job,
         # === DOCS ===
         docs_job,
         # === RELIABILITY ===
         pool_inventory_job,
         ep_job,
-        warranties_job,
         quotations_job,
         icc_job,
         # === PLANNING ===
         # === REPARATION ===
-        harvest_so_report_job,
         harvest_so_details_job,
         harvest_so_documents_job,
-        component_reparations_job,
         # === MAINTENANCE ===
         work_order_history_job,
         pm_history_job,
-        oil_analysis_job,
         # === OPERATION ===
         op_file_idx_job,
         plm_job,
         ge_job,
         publish_sp_job,
+    ],
+    schedules=[
+        component_reparations_schedule,
+        harvest_so_report_schedule,
+        oil_analysis_schedule,
     ],
 )

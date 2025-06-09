@@ -31,6 +31,7 @@ setup(
         "adlfs",
         "plotnine",
         "scipy",
+        "azure-storage-file-share",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

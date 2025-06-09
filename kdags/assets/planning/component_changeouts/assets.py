@@ -31,7 +31,7 @@ def raw_component_changeouts(context):
 def patched_component_changeouts(context):
     dl = DataLake(context)
     df = (
-        dl.read_tibble(az_path="az://bhp-raw-data/INPUTS/patched_component_changeouts.csv")
+        dl.read_tibble(az_path="az://bhp-raw-data/REFERENCE/patched_component_changeouts.csv")
         .drop_nulls()
         .with_columns(changeout_date=pl.col("changeout_date").str.to_date("%Y-%m-%d"))
     )

@@ -25,8 +25,16 @@ reparation:
     analytics_path: az://bhp-analytics-data/RELIABILITY/QUOTATIONS/quotations.parquet
   so_documents:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
-
 reliability:
+  warranties:
+    reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/warranties.xlsx
+    analytics_path: az://bhp-analytics-data/RELIABILITY/WARRANTIES/warranties.parquet
+  monitored_conditions:
+    reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/monitored_conditions.xlsx
+  non_conformities:
+    reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/non_conformities.xlsx
+  psg_requests:
+    reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/psg_requests.xlsx
   component_lifeline:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_LIFELINE/component_lifeline.parquet
   component_snapshots:
