@@ -118,7 +118,7 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
         document_data_extracted = []
 
         search_service_order(driver, wait, service_order)
-        click_see_service_order(wait)
+        click_see_service_order(driver, wait)
         retry_on_interception(
             context=context,
             action_function=navigate_to_quotation_tab,  # The function to call

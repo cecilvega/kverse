@@ -62,11 +62,8 @@ PRORRATA_COMPONENTS_MAPPING = [
 @dg.asset
 def raw_prorrata(context):
     datalake = DataLake(context=context)
-    # msgraph = MSGraph(context=context)
-    # file_content = msgraph.read_bytes(
-    #     sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/INPUTS/prorrata_input.xlsx"
-    # )
-    file_content = datalake.read_bytes(az_path="az://bhp-raw-data/INPUTS/prorrata_input.xlsx")
+
+    file_content = datalake.read_bytes(az_path="az://bhp-raw-data/REFERENCE/prorrata_input.xlsx")
 
     df = pd.read_excel(
         BytesIO(file_content),

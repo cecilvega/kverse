@@ -2,8 +2,7 @@ import dagster as dg
 import polars as pl
 from kdags.resources.tidyr import *
 from datetime import datetime
-
-EP_ANALYTICS_PATH = "az://bhp-analytics-data/RELIABILITY/EP/ep.parquet"
+from kdags.config import DATA_CATALOG
 
 
 def merge_ccr(component_changeouts: pl.DataFrame, component_reparations: pl.DataFrame):
@@ -125,12 +124,8 @@ def merge_mean_repair_cost(df):
 
 @dg.asset
 def ep_input(context: dg.AssetExecutionContext):
-    datalake = DataLake(context)
-    # msgraph = MSGraph()
-    df = datalake.read_tibble("az://bhp-raw-data/INPUTS/ep_input.xlsx").drop(["component_icon"])
-    # df = msgraph.read_tibble(
-    #     "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/INPUTS/ep_input.xlsx"
-    # ).drop(["component_icon"])
+    msgraph = MSGraph(context)
+    df = msgraph.read_tibble(DATA_CATALOG["ep"]["reference_path"]).drop(["component_icon"])
     return df
 
 
@@ -229,21 +224,20 @@ def mutate_ep(
         .drop(["USO", "IMPACT"])
     )
 
-    dl.upload_tibble(tibble=df, az_path=EP_ANALYTICS_PATH)
+    dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["ep"]["analytics_path"])
     return df
 
 
 @dg.asset
 def ep(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
-    df = dl.read_tibble(EP_ANALYTICS_PATH)
-
+    df = dl.read_tibble(DATA_CATALOG["ep"]["analytics_path"])
     return df
 
 
 @dg.asset
 def publish_sp_ep(context: dg.AssetExecutionContext, mutate_ep: pl.DataFrame):
-    datalake = DataLake()
+    msgraph = MSGraph(context)
     df = mutate_ep.clone()
 
     df = df.with_columns(
@@ -310,17 +304,16 @@ def publish_sp_ep(context: dg.AssetExecutionContext, mutate_ep: pl.DataFrame):
     # msgraph = MSGraph()
     upload_results = []
     upload_results.append(
-        datalake.upload_tibble(tibble=df, az_path="az://bhp-analytics-data/RELIABILITY/EP/ep.parquet")
-        # msgraph.upload_tibble(
-        #     tibble=df,
-        #     sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/ep.xlsx",
-        # )
+        msgraph.upload_tibble(
+            tibble=df,
+            sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/ep.xlsx",
+        )
     )
     upload_results.append(
-        datalake.upload_tibble(tibble=tidy_ep_df, az_path="az://bhp-analytics-data/RELIABILITY/EP/tidy_ep.parquet")
-        # msgraph.upload_tibble(
-        #     tibble=tidy_ep_df,
-        #     sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/tidy_ep.xlsx",
-        # )
+        # datalake.upload_tibble(tibble=tidy_ep_df, az_path="az://bhp-analytics-data/RELIABILITY/EP/tidy_ep.parquet")
+        msgraph.upload_tibble(
+            tibble=tidy_ep_df,
+            sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/tidy_ep.xlsx",
+        )
     )
     return upload_results

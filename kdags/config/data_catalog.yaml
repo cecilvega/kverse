@@ -35,6 +35,9 @@ reliability:
     reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/non_conformities.xlsx
   psg_requests:
     reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/psg_requests.xlsx
+  ep:
+    reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/ep.xlsx
+    analytics_path: az://bhp-analytics-data/RELIABILITY/EP/ep.parquet
   component_lifeline:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_LIFELINE/component_lifeline.parquet
   component_snapshots:
