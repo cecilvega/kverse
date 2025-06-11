@@ -1,6 +1,9 @@
 - position_name: unico
   position_code: 0
+  position_tag: "0"
 - position_name: izquierdo
   position_code: 1
+  position_tag: "LH"
 - position_name: derecho
   position_code: 2
+  position_tag: "RH"

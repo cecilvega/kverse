@@ -4,19 +4,22 @@
     - derecho
     - izquierdo
   warranty_hours: 3000
-#  960E_unique: True
   subcomponent:
     - name: transmision
       code: TRANS
       main: True
       ep: True
+      tag: "0980"
     - name: motor_electrico
       code: ME
       ep: True
+      tag: "0971"
     - name: freno_servicio_trasero
       ep: False
+      tag: "2E00"
     - name: freno_estacionamiento
       ep: False
+      tag: "2F00"
 - component_name: modulo_potencia
   component_code: MP
   position_name:
@@ -27,24 +30,28 @@
       code: AP
       main: True
       ep: True
+      tag: "0940"
     - name: motor
       ep: False
+      tag: "A000"
     - name: subframe
       ep: False
+      tag: "4750"
     - name: radiador
       ep: False
+      tag: "0310"
 - component_name: cilindro_direccion
   component_code: CD
   position_name:
     - derecho
     - izquierdo
-#  960E_unique: True
   warranty_hours: 1000
   subcomponent:
     - name: cilindro_direccion
       code: CD
       main: True
       ep: True
+      tag: "H1X0"
 - component_name: blower_parrilla
   component_code: BP
   position_name:
@@ -56,43 +63,46 @@
       code: BP
       main: True
       ep: True
+      tag: "0967"
 - component_name: conjunto_maza_suspension
   component_code: CMS
   position_name:
     - derecho
     - izquierdo
   warranty_hours: 1000
-#  960E_unique: True
   subcomponent:
     - name: suspension_delantera
       code: SD
       main: True
       ep: True
+      tag: "5A30"
     - name: maza
       ep: False
+      tag: "2AA2"
     - name: freno_servicio_delantero
       ep: False
+      tag: "2D00"
 - component_name: cilindro_levante
   component_code: CL
   position_name:
     - derecho
     - izquierdo
   warranty_hours: 1000
-#  960E_unique: True
   subcomponent:
     - name: cilindro_levante
       code: CL
       main: True
       ep: True
+      tag: "H1J0"
 - component_name: suspension_trasera
   component_code: ST
   position_name:
     - derecho
     - izquierdo
   warranty_hours: 1000
-#  960E_unique: True
   subcomponent:
     - name: suspension_trasera
       code: ST
       main: True
       ep: True
+      tag: "5A40"

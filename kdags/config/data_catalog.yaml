@@ -25,7 +25,13 @@ reparation:
     analytics_path: az://bhp-analytics-data/RELIABILITY/QUOTATIONS/quotations.parquet
   so_documents:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
+reference:
+  pcp_repair_costs:
+    raw_path: az://bhp-raw-data/REFERENCE/pcp_repair_costs.xlsx
+  gfa_overhaul_rates:
+    raw_path: az://bhp-raw-data/REFERENCE/gfa_overhaul_rates.xlsx
 reliability:
+  # INPUTS REFERENCIA
   warranties:
     reference_path: sp://KCHCLSP00022/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/warranties.xlsx
     analytics_path: az://bhp-analytics-data/RELIABILITY/WARRANTIES/warranties.parquet
@@ -47,16 +53,3 @@ reliability:
   icc:
     analytics_path: az://bhp-analytics-data/RELIABILITY/ICC/icc.parquet
 
-
-
-#MAINTENANCE:
-#  analisis_aceite:
-#    publish_path: sp://KCHCLSP00022/MANTENIMIENTO/analisis_aceite.xlsx
-#    source: SCAAE
-#    description: Consolidado muestras de aceite MT
-#    job_name: oil_analysis_job
-#    cron_schedule: Todo los días a las 07:00
-#    input:
-#      path: az://bhp-raw-data/LUBE_ANALYST/SCAAE/y={YYYY}/m={MM}/d={DD}/{YYYYMMDD}SCAAE.xls
-#    output:
-#      path: az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet

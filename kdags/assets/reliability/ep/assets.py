@@ -107,11 +107,8 @@ def merge_so_report(df: pl.DataFrame, so_report: pl.DataFrame):
 
 def merge_mean_repair_cost(df):
     datalake = DataLake()
-    # msgraph = MSGraph()
-    # input_repair_cost_df = msgraph.read_tibble(
-    #     "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/INPUTS/repair_cost_input.xlsx"
-    # )
-    input_repair_cost_df = datalake.read_tibble("az://bhp-raw-data/INPUTS/repair_cost_input.xlsx")
+
+    input_repair_cost_df = datalake.read_tibble("az://bhp-raw-data/REFERENCE/repair_costs.xlsx")
     df = df.join(
         input_repair_cost_df.filter(pl.col("equipment_model") == "960E").select(
             ["component_name", "subcomponent_name", "mean_repair_cost"]
@@ -129,7 +126,7 @@ def ep_input(context: dg.AssetExecutionContext):
     return df
 
 
-def merge_sucomponents(ep_df, component_reparations: pl.DataFrame):
+def merge_sucomponents(ep_df, component_reparations: pl.DataFrame, component_changeouts: pl.DataFrame):
 
     merge_columns = ["equipment_name", "component_name", "position_name", "changeout_date"]
     df = (
@@ -139,10 +136,13 @@ def merge_sucomponents(ep_df, component_reparations: pl.DataFrame):
                 [
                     *merge_columns,
                     "subcomponent_name",
-                    "component_usage",
                     "service_order",
                     "customer_work_order",
                 ]
+            ).join(
+                component_changeouts.select([*merge_columns, "subcomponent_name", "component_usage"]),
+                how="left",
+                on=[*merge_columns, "subcomponent_name"],
             ),
             on=merge_columns,
             how="left",
@@ -188,7 +188,7 @@ def mutate_ep(
     initial_height = df.height
     df = merge_prorrata(df, raw_prorrata)
     assert df.height == initial_height
-    df = merge_sucomponents(df, component_reparations)
+    df = merge_sucomponents(df, component_reparations, component_changeouts)
 
     df = merge_so_report(df, so_report)
 
@@ -252,6 +252,7 @@ def publish_sp_ep(context: dg.AssetExecutionContext, mutate_ep: pl.DataFrame):
             ((pl.col("ep_status") != "skipped") & (pl.col("ep_status") != "planificado_bajo_costo"))
             | (pl.col("ep_status").is_null())
         )
+        .filter(pl.col("repair_cost").is_not_null())
         .filter(pl.col("ep_date").is_null())
         .select(
             [
@@ -316,4 +317,4 @@ def publish_sp_ep(context: dg.AssetExecutionContext, mutate_ep: pl.DataFrame):
             sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/tidy_ep.xlsx",
         )
     )
-    return upload_results
+    return [1, 2]
