@@ -30,6 +30,7 @@ setup(
         "plotnine",
         "scipy",
         "azure-storage-file-share",
+        "seaborn",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

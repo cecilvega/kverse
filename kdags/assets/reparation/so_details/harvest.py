@@ -79,8 +79,8 @@ def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataF
                 & (pl.col("days_diff") < pl.lit(365 * 3))
             ),
         ]
-    )
-
+    ).filter(pl.col("site_name") == "Minera Spence")
+    # TODO: SACAR FILTRO
     return df
 
 

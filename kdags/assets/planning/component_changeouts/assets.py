@@ -13,10 +13,38 @@ from kdags.config import *
 
 
 @dg.asset(group_name="planning")
-def raw_component_changeouts(context):
+def raw_component_changeouts_spence(context):
     msgraph = MSGraph(context=context)
     file_content = msgraph.read_bytes(
-        sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx",
+        sp_path=DATA_CATALOG["component_changeouts"]["reference_path"]["spence"],
+    )
+
+    columns = list(
+        {
+            k.replace("EQUIPO", "CEX").replace("OS  181", "OS").replace("Equipo SAP.1", "Equipo"): v
+            for k, v in COLUMN_MAPPING.items()
+            if k not in ["MODELO"]
+        }.keys()
+    )
+    df = (
+        pl.read_excel(
+            BytesIO(file_content),
+            sheet_name="Planilla Cambio Componente  980",
+            infer_schema_length=0,
+            columns=columns,
+        )
+        .with_columns([pl.lit("980E-5").alias("MODELO")])
+        .rename({"CEX": "EQUIPO", "OS": "OS  181", "Equipo": "Equipo SAP.1"})
+    )
+
+    return df
+
+
+@dg.asset(group_name="planning")
+def raw_component_changeouts_mel(context):
+    msgraph = MSGraph(context=context)
+    file_content = msgraph.read_bytes(
+        sp_path=DATA_CATALOG["component_changeouts"]["reference_path"]["mel"],
     )
     columns = list(COLUMN_MAPPING.keys())
     df = pd.read_excel(
@@ -29,11 +57,10 @@ def raw_component_changeouts(context):
 
 @dg.asset(group_name="planning")
 def patched_component_changeouts(context):
-    dl = DataLake(context)
+    msgraph = MSGraph(context)
     df = (
-        dl.read_tibble(az_path="az://bhp-raw-data/REFERENCE/patched_component_changeouts.csv")
-        .drop_nulls()
-        .with_columns(changeout_date=pl.col("changeout_date").str.to_date("%Y-%m-%d"))
+        msgraph.read_tibble(DATA_CATALOG["patched_component_changeouts"]["reference_path"]).drop_nulls()
+        # .with_columns(changeout_date=pl.col("changeout_date").str.to_date("%Y-%m-%d"))
     )
     return df
 
@@ -155,10 +182,13 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
 )
 def mutate_component_changeouts(
     context: dg.AssetExecutionContext,
-    raw_component_changeouts: pl.DataFrame,
+    raw_component_changeouts_mel: pl.DataFrame,
+    raw_component_changeouts_spence: pl.DataFrame,
     patched_component_changeouts: pl.DataFrame,
 ):
-    df = raw_component_changeouts.clone().pipe(process_component_changeouts, site_name="MEL")
+    mel_df = raw_component_changeouts_mel.clone().pipe(process_component_changeouts, site_name="MEL")
+    spence_df = raw_component_changeouts_spence.clone().pipe(process_component_changeouts, site_name="SPENCE")
+    df = pl.concat([mel_df, spence_df], how="diagonal")
     # Reparar serie componentes
     cs_columns = ["component_serial", "installed_component_serial"]
     df = df.with_columns([pl.col(c).str.strip_prefix("#").alias(c) for c in cs_columns])
