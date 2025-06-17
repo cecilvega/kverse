@@ -32,7 +32,7 @@ def reference_psg_requests(context: dg.AssetExecutionContext):
 def mutate_warranties(
     context: dg.AssetExecutionContext,
     component_changeouts: pl.DataFrame,
-    component_reparations: pl.DataFrame,
+    component_history: pl.DataFrame,
     reference_warranties: pl.DataFrame,
     reference_psg_requests: pl.DataFrame,
     so_report: pl.DataFrame,
@@ -45,7 +45,7 @@ def mutate_warranties(
     )
 
     df = (
-        component_reparations.join(components_df, on=["component_name", "subcomponent_name"], how="left")
+        component_history.join(components_df, on=["component_name", "subcomponent_name"], how="left")
         .filter((pl.col("warranty_hours").is_not_null()) & (pl.col("changeout_date") >= datetime(2025, 1, 1)))
         .select(
             [

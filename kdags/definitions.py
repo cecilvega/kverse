@@ -4,8 +4,9 @@ import dagster as dg
 from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMapping
 
 
-from kdags.assets import maintenance, reparation, operation, planning, reliability, docs
-from kdags.schedules import component_reparations_schedule, harvest_so_report_schedule, oil_analysis_schedule
+from kdags.assets import maintenance, reparation, operation, components, reliability, docs
+from kdags.schedules import component_history_schedule, harvest_so_report_schedule, oil_analysis_schedule
+from kdags.sensors import so_report_sensor
 from kdags.jobs import (
     # === DOCS ===
     docs_job,
@@ -14,13 +15,15 @@ from kdags.jobs import (
     ep_job,
     warranties_job,
     quotations_job,
+    component_reparations_job,
     # === PLANNING ===
     # === REPARATION ===
-    harvest_so_details_job,
+    so_report_job,
+    harvest_reso_job,
     harvest_so_documents_job,
     # === MAINTENANCE ===
     icc_job,
-    work_order_history_job,
+    work_orders_job,
     pm_history_job,
     op_file_idx_job,
     # === OPERATION ===
@@ -45,7 +48,7 @@ __all__ = ["kdefs"]
 
 operation_assets = dg.load_assets_from_package_module(operation)
 maintenance_assets = dg.load_assets_from_package_module(maintenance)
-planning_assets = dg.load_assets_from_package_module(planning)
+components_assets = dg.load_assets_from_package_module(components)
 reliability_assets = dg.load_assets_from_package_module(reliability)
 reparation_assets = dg.load_assets_from_package_module(reparation)
 docs_assets = dg.load_assets_from_package_module(docs)
@@ -55,7 +58,7 @@ all_assets = dg.with_source_code_references(
         *reparation_assets,
         *operation_assets,
         *maintenance_assets,
-        *planning_assets,
+        *components_assets,
         *reliability_assets,
         *docs_assets,
     ]
@@ -74,6 +77,8 @@ all_assets = dg.link_code_references_to_git(
 kdefs = dg.Definitions(
     assets=all_assets,
     jobs=[
+        # === COMPONENTS ===
+        component_reparations_job,
         warranties_job,
         # === DOCS ===
         docs_job,
@@ -82,12 +87,12 @@ kdefs = dg.Definitions(
         ep_job,
         quotations_job,
         icc_job,
-        # === PLANNING ===
         # === REPARATION ===
-        harvest_so_details_job,
+        so_report_job,
+        harvest_reso_job,
         harvest_so_documents_job,
         # === MAINTENANCE ===
-        work_order_history_job,
+        work_orders_job,
         pm_history_job,
         # === OPERATION ===
         op_file_idx_job,
@@ -96,8 +101,10 @@ kdefs = dg.Definitions(
         publish_sp_job,
     ],
     schedules=[
-        component_reparations_schedule,
+        # === COMPONENTS ===
+        component_history_schedule,
         harvest_so_report_schedule,
         oil_analysis_schedule,
     ],
+    sensors=[so_report_sensor],
 )

@@ -9,7 +9,7 @@ from datetime import datetime
 def mutate_component_lifeline(
     context: dg.AssetExecutionContext,
     component_changeouts: pl.DataFrame,
-    component_reparations: pl.DataFrame,
+    component_history: pl.DataFrame,
     mutate_reparation_history: pl.DataFrame,
     component_serials: pl.DataFrame,
 ):
@@ -39,7 +39,7 @@ def mutate_component_lifeline(
         }
     )
     df = component_serials.join(
-        component_reparations,
+        component_history,
         how="left",
         on=["component_name", "subcomponent_name", "component_serial", "sap_equipment_name"],
     )

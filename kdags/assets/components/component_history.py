@@ -1,8 +1,8 @@
-import polars as pl
 import dagster as dg
-from kdags.resources.tidyr import MSGraph, DataLake, MasterData
-from kdags.config import DATA_CATALOG
+import polars as pl
 
+from kdags.config import DATA_CATALOG
+from kdags.resources.tidyr import DataLake, MasterData
 
 MERGE_COLUMNS = ["equipment_name", "component_name", "subcomponent_name", "position_name", "changeout_date"]
 
@@ -137,29 +137,11 @@ def changeouts_matched_asof(
     return asof_matched_df
 
 
-@dg.asset(group_name="planning")
-def publish_unmatched_reparations(context: dg.AssetExecutionContext, mutate_component_reparations: pl.DataFrame):
-    unmatched_df = mutate_component_reparations.filter(pl.col("reso_merge").is_null())
-    dl = DataLake(context=context)
-    dl.upload_tibble(tibble=unmatched_df, az_path=DATA_CATALOG["unmatched_reparations"]["analytics_path"])
-    return unmatched_df
-
-
-@dg.asset(
-    group_name="planning",
-    description=(
-        "Calculates the percentage of component changeouts that were filtered out "
-        "before being matched to reparation status. Currently returns the raw changeout data."
-    ),
-)
-def mutate_component_reparations(
-    context: dg.AssetExecutionContext, mutate_component_changeouts: pl.DataFrame, mutate_so_report: pl.DataFrame
-) -> pl.DataFrame:
+def filter_component_changeouts(component_changeouts: pl.DataFrame) -> pl.DataFrame:
     components_df = MasterData.components().select(["component_name", "subcomponent_name"]).unique()
-    cc_df = mutate_component_changeouts.clone()
-    so_report_df = mutate_so_report.clone()
-    component_changeouts_filtered_df = (
-        cc_df.clone()
+    equipments_df = MasterData.equipments().select(["site_name", "equipment_name"]).unique()
+    df = (
+        component_changeouts.clone()
         .join(components_df, how="inner", on=["component_name", "subcomponent_name"])
         .select(
             [
@@ -179,7 +161,27 @@ def mutate_component_reparations(
         .drop_nulls(subset=["position_name"])
         .filter(~(pl.col("subcomponent_name").is_in(["motor", "radiador", "subframe"])))
         .sort(["sap_equipment_name", "changeout_date"])
+        .join(equipments_df.select(["site_name", "equipment_name"]), how="left", on="equipment_name")
+        .filter(pl.col("site_name").is_not_null())
     )
+
+    return df
+
+
+@dg.asset(
+    group_name="components",
+    description=(
+        "Calculates the percentage of component changeouts that were filtered out "
+        "before being matched to reparation status. Currently returns the raw changeout data."
+    ),
+)
+def mutate_component_history(
+    context: dg.AssetExecutionContext, mutate_component_changeouts: pl.DataFrame, mutate_so_report: pl.DataFrame
+) -> pl.DataFrame:
+
+    cc_df = mutate_component_changeouts.clone()
+    so_report_df = mutate_so_report.clone()
+    component_changeouts_filtered_df = filter_component_changeouts(cc_df)
 
     component_changeouts_initial_join_df = component_changeouts_initial_join(
         context, component_changeouts_filtered_df, so_report_df
@@ -260,6 +262,7 @@ def mutate_component_reparations(
                 "customer_work_order",
                 "sap_equipment_name",
                 "component_hours",
+                "component_usage",
                 "reso_merge",
                 "cc_index",
             ]
@@ -276,7 +279,7 @@ def mutate_component_reparations(
 
     dl = DataLake(context=context)
 
-    dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_reparations"]["analytics_path"])
+    dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_history"]["analytics_path"])
 
     return df
 
@@ -285,7 +288,7 @@ def mutate_component_reparations(
     group_name="readr",
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )
-def component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
+def component_history(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=DATA_CATALOG["component_reparations"]["analytics_path"])
+    df = dl.read_tibble(az_path=DATA_CATALOG["component_history"]["analytics_path"])
     return df

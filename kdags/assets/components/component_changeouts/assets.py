@@ -12,7 +12,7 @@ from kdags.schemas.planning.component_changeouts import COMPONENT_CHANGEOUTS_SCH
 from kdags.config import *
 
 
-@dg.asset(group_name="planning")
+@dg.asset(group_name="components")
 def raw_component_changeouts_spence(context):
     msgraph = MSGraph(context=context)
     file_content = msgraph.read_bytes(
@@ -40,7 +40,7 @@ def raw_component_changeouts_spence(context):
     return df
 
 
-@dg.asset(group_name="planning")
+@dg.asset(group_name="components")
 def raw_component_changeouts_mel(context):
     msgraph = MSGraph(context=context)
     file_content = msgraph.read_bytes(
@@ -55,7 +55,7 @@ def raw_component_changeouts_mel(context):
     return df
 
 
-@dg.asset(group_name="planning")
+@dg.asset(group_name="components")
 def patched_component_changeouts(context):
     msgraph = MSGraph(context)
     df = (
@@ -162,7 +162,7 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
 
 
 @dg.asset(
-    group_name="planning",
+    group_name="components",
     metadata={
         "dagster/column_schema": dg.TableSchema(
             columns=[
@@ -197,6 +197,9 @@ def mutate_component_changeouts(
         on=["equipment_name", "component_name", "subcomponent_name", "position_name", "changeout_date"],
         how="left",
         suffix="_patched",
+    ).with_columns(
+        component_usage=pl.col("component_usage").cast(pl.Float64).round(2),
+        component_hours=pl.col("component_hours").cast(pl.Float64).round(0),
     )
     patched_columns = ["component_serial", "installed_component_serial"]
     df = df.with_columns(

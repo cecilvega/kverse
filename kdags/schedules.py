@@ -1,13 +1,9 @@
 import dagster as dg
+from kdags.jobs import harvest_so_report_job, component_history_job, harvest_so_report_job
 
-component_reparations_schedule = dg.ScheduleDefinition(
-    job=dg.define_asset_job(
-        name="component_reparations_job",
-        selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream()
-        | dg.AssetSelection.assets("mutate_so_report").upstream()
-        | dg.AssetSelection.assets("mutate_component_reparations").upstream(),
-        description="Cambios de componente",
-    ),
+component_history_schedule = dg.ScheduleDefinition(
+    name="component_history_schedule",
+    job=component_history_job,
     cron_schedule="0 9,21 * * *",  # daily at 9:00 and 21:00
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
@@ -15,11 +11,8 @@ component_reparations_schedule = dg.ScheduleDefinition(
 
 
 harvest_so_report_schedule = dg.ScheduleDefinition(
-    job=dg.define_asset_job(
-        name="harvest_so_report_job",
-        selection=dg.AssetSelection.assets("harvest_so_report").upstream(),
-        description="Component Status RESO",
-    ),
+    name="harvest_so_report_schedule",
+    job=harvest_so_report_job,
     cron_schedule="0 7 * * *",
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
@@ -28,6 +21,7 @@ harvest_so_report_schedule = dg.ScheduleDefinition(
 # === MAINTENANCE ===
 
 oil_analysis_schedule = dg.ScheduleDefinition(
+    name="oil_analysis_schedule",
     job=dg.define_asset_job(
         name="oil_analysis_job",
         selection=dg.AssetSelection.assets("mutate_oil_analysis").upstream(),

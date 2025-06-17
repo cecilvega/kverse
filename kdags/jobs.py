@@ -1,6 +1,47 @@
 import dagster as dg
 
 
+# === COMPONENTS ===
+
+component_history_job = dg.define_asset_job(
+    name="component_history_job",
+    selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream()
+    | dg.AssetSelection.assets("mutate_so_report").upstream()
+    | dg.AssetSelection.assets("mutate_component_history").upstream(),
+    description="Cambios de componente",
+)
+
+
+# === REPARATION ===
+harvest_so_report_job = dg.define_asset_job(
+    name="harvest_so_report_job",
+    selection=dg.AssetSelection.assets("harvest_so_report").upstream(),
+    description="Component Status RESO",
+)
+so_report_job = dg.define_asset_job(
+    name="so_report_job",
+    selection=dg.AssetSelection.assets("mutate_so_report").upstream(),
+    description="Component Status RESO",
+)
+harvest_reso_job = dg.define_asset_job(
+    name="harvest_reso_job",  # "harvest_so_documents"
+    selection=dg.AssetSelection.assets(
+        "harvest_so_details",
+    ).upstream(),
+    description="Component Status RESO",
+)
+quotations_job = dg.define_asset_job(
+    name="quotations_job",
+    selection=dg.AssetSelection.assets(["mutate_so_quotations"]).upstream(),
+)
+
+
+harvest_so_documents_job = dg.define_asset_job(
+    name="harvest_so_documents_job",
+    selection=dg.AssetSelection.assets("harvest_so_documents").upstream(),
+    description="Component Status RESO",
+)
+
 # === DOCS ===
 docs_job = dg.define_asset_job(
     name="docs_job",
@@ -20,11 +61,17 @@ publish_sp_job = dg.define_asset_job(
 
 # === RELIABILITY ===
 
+component_reparations_job = dg.define_asset_job(
+    name="component_reparations_job",
+    selection=dg.AssetSelection.assets("mutate_component_reparations").upstream(),
+    description="...",
+)
+
+
 ep_job = dg.define_asset_job(
     name="ep_job",
     selection=dg.AssetSelection.assets("publish_sp_ep").upstream(),
     description="...",
-    run_tags={"source": "icc"},
 )
 
 
@@ -48,24 +95,6 @@ pool_inventory_job = dg.define_asset_job(
     ).upstream(),
 )
 
-# === REPARATION ===
-quotations_job = dg.define_asset_job(
-    name="quotations_job",
-    selection=dg.AssetSelection.assets(["mutate_quotations"]).upstream(),
-)
-
-
-harvest_so_details_job = dg.define_asset_job(
-    name="harvest_so_details_job",
-    selection=dg.AssetSelection.assets("harvest_so_details").upstream(),
-    description="Component Status RESO",
-)
-
-harvest_so_documents_job = dg.define_asset_job(
-    name="harvest_so_documents_job",
-    selection=dg.AssetSelection.assets("harvest_so_documents").upstream(),
-    description="Component Status RESO",
-)
 
 # === MAINTENANCE ===
 
@@ -75,9 +104,9 @@ pm_history_job = dg.define_asset_job(
     description="Archivo con listado historial de PMs",
 )
 
-work_order_history_job = dg.define_asset_job(
-    name="work_order_history_job",
-    selection=dg.AssetSelection.assets("spawn_work_order_history").upstream(),
+work_orders_job = dg.define_asset_job(
+    name="work_orders_job",
+    selection=dg.AssetSelection.assets("raw_work_orders").upstream(),
     description="Archivo con todas las OT's Fiori",
 )
 

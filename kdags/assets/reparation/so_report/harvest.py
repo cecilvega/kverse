@@ -110,3 +110,6 @@ def harvest_so_report(context: dg.AssetExecutionContext):
     context.log.info("All years processed. Closing WebDriver.")
     driver.quit()
     context.log.info("WebDriver closed. Asset 'harvest_so_report' finished.")
+    wait_time = 60 * 5
+    context.log.info(f"Waiting {wait_time/60} min before executing harvest_so_report.")
+    time.sleep(wait_time)

@@ -1,227 +1,233 @@
+from datetime import date
+
 import dagster as dg
 import polars as pl
-from kdags.resources.tidyr import *
-from datetime import datetime
+
 from kdags.config import DATA_CATALOG
+from kdags.resources.tidyr import *
+from .prorrata import calculate_prorrata_sale
 
 
-def merge_ccr(component_changeouts: pl.DataFrame, component_reparations: pl.DataFrame):
-    components_df = (
-        MasterData.components().filter(pl.col("subcomponent_main")).select(["component_name", "subcomponent_name"])
-    )
-    cr_df = (
-        component_reparations.clone()
-        .filter((pl.col("changeout_date").dt.year() >= 2024))
-        .join(components_df, how="inner", on=["component_name", "subcomponent_name"])
-    )
-    cc_df = (
-        component_changeouts.clone()
-        .filter((pl.col("changeout_date").dt.year() >= 2024))
-        .join(components_df, how="inner", on=["component_name", "subcomponent_name"])
-    )
-    merge_columns = [
-        "equipment_name",
-        "component_name",
-        "subcomponent_name",
-        "position_name",
-        "changeout_date",
-    ]
-    df = cr_df.join(
-        cc_df.select(merge_columns).with_columns(_merge=pl.lit("both")),
-        how="full",
-        on=merge_columns,
-        coalesce=True,
-    )
-    assert df.filter(pl.col("_merge").is_null()).height == 0
-    df = df.select([*merge_columns, "service_order"]).drop(["subcomponent_name"])
-    return df
-
-
-def merge_ep_input(context, ep_changeouts: pl.DataFrame, ep_input: pl.DataFrame):
-    merge_columns = ["equipment_name", "component_name", "position_name", "changeout_date"]
-
-    # Agregar sólo ciertos casos antiguos
-    ep_df_old = ep_input.filter(pl.col("changeout_date").dt.year() == 2024).join(
-        ep_changeouts.filter(pl.col("changeout_date").dt.year() == 2024), how="left", on=merge_columns
-    )
-    # Agregar todos los casos posteriores al 2025 y verificar
-    ep_df = ep_changeouts.filter(pl.col("changeout_date").dt.year() >= 2025).join(
-        ep_input.filter(pl.col("changeout_date").dt.year() >= 2025).with_columns(_merge=pl.lit("both")),
-        how="full",
-        on=merge_columns,
-        coalesce=True,
-    )
-    check_no_missing_changeouts = ep_df.filter(pl.col("_merge").is_null()).height == 0
-    if not check_no_missing_changeouts:
-        context.log.critical(
-            f"Missing changeouts for {ep_df.filter(pl.col('_merge').is_null()).select(merge_columns).to_dicts()}"
-        )
-
-    df = pl.concat([ep_df_old, ep_df.filter(pl.col("_merge").is_not_null()).drop("_merge")], how="diagonal").sort(
-        "changeout_date"
-    )
-    return df
-
-
-def merge_prorrata(df, raw_prorrata):
-
-    prorrata_df = raw_prorrata.clone()
-    df = df.with_columns(
-        prorrata_date=pl.when(pl.col("changeout_date").dt.day() >= 15)
-        .then(
-            # If day is 15th or later, prorrata_date is the 1st of the NEXT month
-            pl.col("changeout_date")
-            .dt.month_start()  # Get the first day of the current month
-            .dt.offset_by("1mo")  # Add one month to get the first day of the next month
-        )
-        .otherwise(
-            # If day is before 15th (1st to 14th), prorrata_date is the 1st of the CURRENT month
-            pl.col("changeout_date").dt.month_start()
-        )
-    )
-    prorrata_merge_columns = [
-        "equipment_name",
-        "component_name",
-        "position_name",
-        "prorrata_date",
-    ]
-
-    df = df.join(
-        prorrata_df.select([*prorrata_merge_columns, "prorrata_cost", "prorrata_item"]),
-        how="left",
-        on=prorrata_merge_columns,
-    )
-    return df
-
-
-def merge_so_report(df: pl.DataFrame, so_report: pl.DataFrame):
-    df = df.join(
-        so_report.unique("service_order").select(
-            ["service_order", "latest_quotation_publication", "service_order_status"]
-        ),
-        how="left",
-        on=["service_order"],
-    )
-    return df
-
-
-def merge_mean_repair_cost(df):
-    datalake = DataLake()
-
-    input_repair_cost_df = datalake.read_tibble("az://bhp-raw-data/REFERENCE/repair_costs.xlsx")
-    df = df.join(
-        input_repair_cost_df.filter(pl.col("equipment_model") == "960E").select(
-            ["component_name", "subcomponent_name", "mean_repair_cost"]
-        ),
-        how="left",
-        on=["component_name", "subcomponent_name"],
+@dg.asset
+def pcp_repair_costs(context: dg.AssetExecutionContext):
+    dl = DataLake(context)
+    df = dl.read_tibble(DATA_CATALOG["pcp_repair_costs"]["raw_path"]).with_columns(
+        mean_repair_cost=pl.col("mean_repair_cost").round(0).cast(pl.Int64)
     )
     return df
 
 
 @dg.asset
-def ep_input(context: dg.AssetExecutionContext):
+def gfa_overhaul_rates(context: dg.AssetExecutionContext):
+    dl = DataLake(context)
+    return dl.read_tibble(DATA_CATALOG["gfa_overhaul_rates"]["raw_path"])
+
+
+@dg.asset
+def ep_reference(context: dg.AssetExecutionContext):
     msgraph = MSGraph(context)
     df = msgraph.read_tibble(DATA_CATALOG["ep"]["reference_path"]).drop(["component_icon"])
-    return df
-
-
-def merge_sucomponents(ep_df, component_reparations: pl.DataFrame, component_changeouts: pl.DataFrame):
-
-    merge_columns = ["equipment_name", "component_name", "position_name", "changeout_date"]
-    df = (
-        ep_df.drop(["service_order"])
-        .join(
-            component_reparations.select(
-                [
-                    *merge_columns,
-                    "subcomponent_name",
-                    "service_order",
-                    "customer_work_order",
-                ]
-            ).join(
-                component_changeouts.select([*merge_columns, "subcomponent_name", "component_usage"]),
-                how="left",
-                on=[*merge_columns, "subcomponent_name"],
-            ),
-            on=merge_columns,
-            how="left",
-            coalesce=True,
-        )
-        .sort(
-            [
-                "changeout_date",
-                "equipment_name",
-                "component_name",
-                "subcomponent_name",
-                "position_name",
-            ]
-        )
-    )
-    return df
-
-
-def merge_quotations(df, quotations: pl.DataFrame):
-    df = df.join(
-        quotations.select(["service_order", "repair_cost", "quotation_updated_dt", "user", "remarks"]),
-        how="left",
-        on="service_order",
-    )
     return df
 
 
 @dg.asset
 def mutate_ep(
     context: dg.AssetExecutionContext,
-    component_changeouts: pl.DataFrame,
-    component_reparations: pl.DataFrame,
-    ep_input: pl.DataFrame,
-    raw_prorrata: pl.DataFrame,
+    component_history: pl.DataFrame,
+    pcp_repair_costs: pl.DataFrame,
+    gfa_overhaul_rates: pl.DataFrame,
+    ep_reference: pl.DataFrame,
     so_report,
-    quotations,
+    so_quotations,
 ):
     dl = DataLake(context)
+    msgraph = MSGraph(context)
 
-    df = merge_ccr(component_changeouts, component_reparations)
+    merge_columns = ["equipment_name", "component_name", "position_name", "changeout_date"]
+    # Analizar EP desde el 2025 en adelante + casos históricos
+    df = component_history.join(
+        MasterData.equipments().select(["equipment_name", "site_name", "equipment_model"]),
+        how="left",
+        on="equipment_name",
+    ).filter(pl.col("site_name") == "MEL")
+    # Guardar fecha publicación presupuesto
+    main_component_history_df = (
+        df.join(
+            MasterData.components().filter("subcomponent_main").select(["component_name", "subcomponent_name"]),
+            how="inner",
+            on=["component_name", "subcomponent_name"],
+        )
+        .join(
+            so_report.select(["service_order", "first_quotation_publication"]),
+            how="left",
+            on="service_order",
+        )
+        .select(
+            [
+                *merge_columns,
+                "component_hours",
+                "component_usage",
+                "service_order",
+                "first_quotation_publication",
+            ]
+        )
+    )
 
-    df = merge_ep_input(context, df, ep_input)
-    initial_height = df.height
-    df = merge_prorrata(df, raw_prorrata)
-    assert df.height == initial_height
-    df = merge_sucomponents(df, component_reparations, component_changeouts)
+    ### Agregar costos de reparación
+    df = df.join(
+        so_quotations.select(["service_order", "repair_cost", "quotation_updated_dt", "user", "remarks"]),
+        how="left",
+        on="service_order",
+    )
 
-    df = merge_so_report(df, so_report)
+    df = (
+        df.group_by(
+            [
+                *merge_columns,
+                "site_name",
+                "equipment_model",
+            ]
+        )
+        .agg(
+            repair_cost=pl.sum("repair_cost"),
+            count_without_repair_cost=pl.col("subcomponent_name").filter(pl.col("repair_cost").is_null()).len(),
+            service_order=pl.col("service_order"),
+        )
+        .join(main_component_history_df, how="left", on=merge_columns)
+    )
 
-    df = merge_quotations(df, quotations)
+    # Verificar que no falten cases en el input de EP
 
-    df = merge_mean_repair_cost(df)
-    df = df.with_columns(component_usage=pl.col("component_usage").cast(pl.Float64).round(decimals=2))
+    missing_df = (
+        df.filter((pl.col("changeout_date").dt.year() >= 2025))
+        .select(merge_columns)
+        .join(
+            ep_reference.with_columns(_merge=pl.lit(True)),
+            how="anti",
+            on=merge_columns,
+            coalesce=True,
+        )
+    )
+    if not missing_df.is_empty():
+        context.log.critical(f"Missing entries: {missing_df.to_dicts()}")
+        msgraph.upload_tibble(
+            missing_df.with_columns(changeout_date=pl.col("changeout_date").dt.to_string("%Y-%m-%d")),
+            "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/STD_ERROR/missing_ep.xlsx",
+        )
+
+    # Agregar información horómetros
+    df = ep_reference.join(
+        df.select(
+            [
+                *merge_columns,
+                "site_name",
+                "equipment_model",
+                "component_hours",
+                "component_usage",
+                "repair_cost",
+                "count_without_repair_cost",
+                "first_quotation_publication",
+                "service_order",
+            ]
+        ),
+        how="left",
+        on=merge_columns,
+    )
+
+    ### Agregar costos medios de reparación
+    # Summary de costos de reparación por componentes mayores
+    merge_columns = ["site_name", "equipment_model", "component_name"]
+    component_mean_repair_cost = (
+        pcp_repair_costs.join(
+            MasterData.components().select(["subcomponent_tag", "component_name", "subcomponent_name"]),
+            how="left",
+            on=["subcomponent_tag"],
+        )
+        .group_by(merge_columns)
+        .agg(mean_repair_cost=pl.col("mean_repair_cost").sum())
+    )
+
+    df = df.join(
+        component_mean_repair_cost,
+        how="left",
+        on=merge_columns,
+    )
+    ####
+
+    ### Agregar costo prorrata
+    # Summary tarifa GFA por componentes mayores
+    merge_columns = ["site_name", "equipment_model", "component_name"]
+    component_gfa_overhaul_rates = gfa_overhaul_rates.group_by(
+        ["site_name", "equipment_model", "component_name", "mtbo"]
+    ).agg(gfa_overhaul_rate=pl.col("gfa_overhaul_rate").sum())
+    df = df.join(component_gfa_overhaul_rates, how="left", on=merge_columns)
+    df = df.pipe(calculate_prorrata_sale).drop(["gfa_overhaul_rate", "mtbo"])
+
+    ###
+    df = df.drop(["site_name", "equipment_model"])
+
+    # Análisis final
+    df = df.with_columns(
+        economical_impact=pl.col("prorrata_sale") - pl.col("repair_cost"),
+        days_since_quotation=(pl.lit(date.today()) - pl.col("first_quotation_publication")).dt.total_days(),
+    )
+    # Decision variables for payment status analysis
+    HIGH_USAGE_THRESHOLD = 1.05  # >105% usage
+    MEDIUM_USAGE_THRESHOLD = 0.85  # Between 85% and 105%
+    HIGH_IMPACT_THRESHOLD = -10000  # < -10000 is High Impact
+    MEDIUM_IMPACT_THRESHOLD = -3000  # < -3000 (but >= -10000) is Medium Impact
+    STANDARD_COST_TOLERANCE = 10000  # Within this range of mean is Standard Cost
+
+    # Priority formula parameters
+    MAX_DAYS_CONSIDERED = 365  # Cap at 1 year for normalization
 
     df = df.with_columns(
-        economical_impact=pl.col("component_usage") * pl.col("mean_repair_cost") - pl.col("repair_cost"),
-    )
-    df = (
-        df.with_columns(
-            USO=pl.col("component_usage") > 0.9,
-            IMPACT=pl.col("economical_impact") < -5000,
-        )
-        .with_columns(
-            ep_category=pl.when(pl.col("USO"))
-            .then(
-                pl.when(pl.col("IMPACT"))
-                .then(pl.lit("PLANIFICADO_SOBRECOSTO"))
-                .otherwise(pl.lit("PLANIFICADO_COSTO_MEDIO"))
+        # Payment status analysis
+        payment_status_analysis=pl.when(pl.col("count_without_repair_cost") != 0)
+        .then(pl.lit("Missing Budget"))
+        .otherwise(
+            pl.when(pl.col("component_usage") > HIGH_USAGE_THRESHOLD)
+            .then(pl.lit(">105% Usage"))
+            .when(pl.col("component_usage") >= MEDIUM_USAGE_THRESHOLD)
+            .then(pl.lit("85-105% Usage"))
+            .otherwise(pl.lit("<85% Usage"))
+            + pl.lit(" ")
+            + pl.when(pl.col("economical_impact") < HIGH_IMPACT_THRESHOLD)
+            .then(pl.lit("High Impact"))
+            .when(pl.col("economical_impact") < MEDIUM_IMPACT_THRESHOLD)
+            .then(pl.lit("Medium Impact"))
+            .otherwise(pl.lit("Low Impact"))
+            + pl.when((pl.col("repair_cost") - pl.col("mean_repair_cost")).abs() <= STANDARD_COST_TOLERANCE)
+            .then(pl.lit(" - Mean Repair Cost"))
+            .otherwise(pl.lit(""))
+        ),
+        # Priority formula (0 to 1)
+        priority_score=pl.when(pl.col("count_without_repair_cost") != 0)
+        .then(pl.lit(1.0))  # Missing budget always max priority
+        .otherwise(
+            # Usage factor (0.5 weight - most important)
+            (
+                pl.when(pl.col("component_usage") > HIGH_USAGE_THRESHOLD)
+                .then(pl.lit(1.0))  # >105% gets full usage score
+                .when(pl.col("component_usage") >= MEDIUM_USAGE_THRESHOLD)
+                .then(pl.lit(0.7))  # 85-105% gets medium score
+                .otherwise(pl.lit(0.3))  # <85% gets low score
             )
-            .otherwise(
-                pl.when(pl.col("IMPACT"))
-                .then(pl.lit("IMPREVISTO_SOBRECOSTO"))
-                .otherwise(pl.lit("IMPREVISTO_COSTO_MEDIO"))
+            * 0.5
+            +
+            # Impact factor (0.2 weight - medium/low impact easier to resolve)
+            (
+                pl.when(pl.col("economical_impact") < HIGH_IMPACT_THRESHOLD)
+                .then(pl.lit(0.6))  # High impact = lower priority (harder cases)
+                .when(pl.col("economical_impact") < MEDIUM_IMPACT_THRESHOLD)
+                .then(pl.lit(0.8))  # Medium impact = higher priority (easier)
+                .otherwise(pl.lit(1.0))  # Low impact = highest priority (easiest)
             )
-        )
-        .with_columns(
-            ep_category=pl.when(pl.col("repair_cost").is_null()).then(pl.lit(None)).otherwise(pl.col("ep_category"))
-        )
-        .drop(["USO", "IMPACT"])
+            * 0.2
+            +
+            # Days factor (0.3 weight - time urgency)
+            (pl.col("days_since_quotation").clip(0, MAX_DAYS_CONSIDERED) / MAX_DAYS_CONSIDERED) * 0.3
+        ),
     )
 
     dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["ep"]["analytics_path"])
@@ -242,79 +248,71 @@ def publish_sp_ep(context: dg.AssetExecutionContext, mutate_ep: pl.DataFrame):
 
     df = df.with_columns(
         changeout_date=pl.col("changeout_date").dt.to_string("%Y-%m-%d"),
-        prorrata_date=pl.col("prorrata_date").dt.to_string("%Y-%m-%d"),
-        latest_quotation_publication=pl.col("latest_quotation_publication").dt.to_string("%Y-%m-%d"),
-        quotation_updated_dt=pl.col("quotation_updated_dt").dt.to_string("%Y-%m-%d"),
     )
 
+    df = df.select(
+        [
+            "equipment_name",
+            "component_name",
+            "position_name",
+            "changeout_date",
+            "component_hours",
+            "component_usage",
+            "ep_status",
+            "raised_by",
+            "ep_date",
+            "dificultad_tecnica",
+            "repair_cost",
+            "count_without_repair_cost",
+            "service_order",
+            "mean_repair_cost",
+            "prorrata_sale",
+            "economical_impact",
+            "days_since_quotation",
+            "payment_status_analysis",
+            "priority_score",
+        ]
+    ).rename(
+        {
+            "equipment_name": "Equipo",
+            "component_name": "Componente",
+            "position_name": "Posición",
+            "changeout_date": "Fecha Cambio",
+            "component_usage": "%Uso",
+            # "ep_status": "Estado EP",
+            "raised_by": "Levantado Por",
+            "ep_date": "Fecha EP",
+            # "payment_status_analysis": "Clasificación EP",
+            "service_order": "OS KRCC",
+            # "days_since_quotation": "Días desde Último Presupuesto",
+            "repair_cost": "Costo Reparación",
+            "prorrata_sale": "Costo Prorrata",
+            "mean_repair_cost": "Costo Reparación Medio",
+        }
+    )
     tidy_ep_df = (
         df.filter(
             ((pl.col("ep_status") != "skipped") & (pl.col("ep_status") != "planificado_bajo_costo"))
             | (pl.col("ep_status").is_null())
         )
-        .filter(pl.col("repair_cost").is_not_null())
-        .filter(pl.col("ep_date").is_null())
-        .select(
-            [
-                "equipment_name",
-                "component_name",
-                "subcomponent_name",
-                "position_name",
-                "changeout_date",
-                "prorrata_date",
-                "component_usage",
-                "ep_status",
-                "raised_by",
-                "ep_date",
-                "ep_category",
-                "latest_quotation_publication",
-                "repair_cost",
-                "prorrata_cost",
-                "mean_repair_cost",
-                "customer_work_order",
-                "service_order",
-                "quotation_updated_dt",
-                "remarks",
-            ]
-        )
-        .rename(
-            {
-                "equipment_name": "Equipo",
-                "component_name": "Componente",
-                "subcomponent_name": "Subcomponente",
-                "position_name": "Posición",
-                "changeout_date": "Fecha Cambio",
-                "prorrata_date": "Fecha Prorrata",
-                "component_usage": "%Uso",
-                "ep_status": "Estado EP",
-                "raised_by": "Levantado Por",
-                "ep_date": "Fecha EP",
-                "ep_category": "Clasificación EP",
-                "customer_work_order": "OT Cliente",
-                "service_order": "OS KRCC",
-                "latest_quotation_publication": "Ultima Publicacion Presupuesto",
-                "quotation_updated_dt": "Fecha Aprobación Presupuesto",
-                "repair_cost": "Costo Reparación",
-                "prorrata_cost": "Costo Prorrata",
-                "mean_repair_cost": "Costo Reparación Medio",
-                "remarks": "Observaciones",
-            }
-        )
+        .filter(pl.col("Costo Reparación").is_not_null())
+        .filter(pl.col("Fecha EP").is_null())
     )
 
     # msgraph = MSGraph()
     upload_results = []
     upload_results.append(
+        # datalake.upload_tibble(tibble=tidy_ep_df, az_path="az://bhp-analytics-data/RELIABILITY/EP/tidy_ep.parquet")
         msgraph.upload_tibble(
             tibble=df,
             sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/ep.xlsx",
         )
     )
     upload_results.append(
-        # datalake.upload_tibble(tibble=tidy_ep_df, az_path="az://bhp-analytics-data/RELIABILITY/EP/tidy_ep.parquet")
         msgraph.upload_tibble(
             tibble=tidy_ep_df,
             sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/tidy_ep.xlsx",
         )
     )
+
     return [1, 2]

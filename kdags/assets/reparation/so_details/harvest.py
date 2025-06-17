@@ -12,6 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from datetime import date
 
 # --- Relative module imports
 from kdags.resources.tidyr import DataLake
@@ -28,8 +29,8 @@ from .so_details_utils import (
 
 
 @dg.asset(group_name="reparation")
-def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataFrame):
-    cr_df = component_reparations.clone()
+def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
+
     so_df = so_report.clone()
     merge_columns = [
         "equipment_name",
@@ -38,7 +39,7 @@ def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataF
         "position_name",
         "changeout_date",
     ]
-    so_df = (
+    df = (
         so_df.select(
             [
                 "service_order",
@@ -57,29 +58,28 @@ def select_so_to_update(component_reparations: pl.DataFrame, so_report: pl.DataF
         .drop(["load_final_report_date"])
     )
 
-    cr_df = (
-        cr_df.select([*merge_columns, "service_order"])
-        .filter(pl.col("service_order").is_not_null())
-        .unique("service_order")
-    )
-    df = cr_df.join(
-        so_df,
+    df = df.join(
+        raw_so_quotations.select(["service_order", "update_timestamp"]),
         on="service_order",
         how="left",
-        # validate="1:1",
     )
-    df = pl.concat(
-        [
-            df.filter(
-                ~(pl.col("component_status").is_in(["Delivered", "Repaired"])) | (pl.col("reso_closing_date").is_null())
-            ),
-            df.filter(
-                (pl.col("component_status").is_in(["Delivered", "Repaired"]))
-                & (pl.col("reso_closing_date").is_not_null())
-                & (pl.col("days_diff") < pl.lit(365 * 3))
-            ),
-        ]
-    ).filter(pl.col("site_name") == "Minera Spence")
+    df = (
+        pl.concat(
+            [
+                df.filter(
+                    ~(pl.col("component_status").is_in(["Delivered", "Repaired"]))
+                    | (pl.col("reso_closing_date").is_null())
+                ),
+                df.filter(
+                    (pl.col("component_status").is_in(["Delivered", "Repaired"]))
+                    & (pl.col("reso_closing_date").is_not_null())
+                    & (pl.col("days_diff") < pl.lit(365 * 12))
+                ).filter(),
+            ]
+        )
+        .filter(pl.col("site_name").is_in(["Minera Spence", "MINERA ESCONDIDA"]))
+        .filter((pl.lit(date.today()) - pl.col("update_timestamp").fill_null(date(2025, 4, 1))).dt.total_days() > 10)
+    )
     # TODO: SACAR FILTRO
     return df
 
@@ -109,51 +109,113 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
     total_orders = len(service_orders)
     context.log.info(f"--- Starting Data Extraction for {total_orders} Service Orders ---")
 
-    for i, service_order in enumerate(service_orders):
-        context.log.info(f"Processing SO {i + 1}/{total_orders}: {service_order}")
+    processed_sos_successfully = []
+    MAX_SO_ATTEMPTS = 2  # Total attempts: 1 initial + 1 retry
 
-        # --- Process Single Service Order ---
+    for i, so_number in enumerate(service_orders):
+        # if i > 5:
+        #     break
         now = datetime.now()
-        quotation_data_extracted = None
-        document_data_extracted = []
+        context.log.info(f"Processing SO {i + 1}/{total_orders}: {so_number}")
 
-        search_service_order(driver, wait, service_order)
-        click_see_service_order(driver, wait)
-        retry_on_interception(
-            context=context,
-            action_function=navigate_to_quotation_tab,  # The function to call
-            max_retries=2,  # Try the initial call + 2 retries (total 3 attempts)
-            delay_seconds=5,  # Wait 5 seconds between retries
-            wait=wait,
-        )
-        navigate_to_quotation_tab(wait)
-        check_has_quotation = has_quotation(context, wait)
-        batch_quotations.append(create_default_record(QUOTATION_SCHEMA, service_order, now))
-        if check_has_quotation:
-            quotation_data_extracted = extract_quotation_details(wait, service_order)
+        current_attempt = 0
+        successfully_processed_this_so = False
 
-            navigate_to_documents_tab(wait)
-            check_has_documents = has_documents(context, wait)
-            if check_has_documents:
-                document_data_extracted = extract_document_links(driver, wait)
+        while current_attempt < MAX_SO_ATTEMPTS and not successfully_processed_this_so:
+            current_attempt += 1
+            context.log.info(f"Attempt {current_attempt}/{MAX_SO_ATTEMPTS} for SO: {so_number}")
 
-                quotation_data_extracted.pop("download_url", None)
-                processed_records = ensure_schema_and_defaults(
-                    [quotation_data_extracted], QUOTATION_SCHEMA, service_order, now
+            try:
+
+                # --- Main SO processing block ---
+                context.log.info(f"Searching SO {so_number} (Attempt {current_attempt})")  #
+                search_service_order(driver, wait, so_number)  #
+
+                context.log.info(f"Accessing details for SO: {so_number} (Attempt {current_attempt})")
+                click_see_service_order(driver, wait)  #
+
+                context.log.info(f"Navigating to documents tab for SO: {so_number} (Attempt {current_attempt})")
+                retry_on_interception(  #
+                    context=context,
+                    action_function=navigate_to_documents_tab,  #
+                    max_retries=2,  # Internal retries for this specific action
+                    delay_seconds=5,
+                    wait=wait,
                 )
-                batch_quotations.extend(processed_records)
 
-                for doc in document_data_extracted:
-                    doc.pop("url", None)
-                processed_records = ensure_schema_and_defaults(
-                    document_data_extracted, DOCUMENTS_LIST_SCHEMA, service_order, now
+                context.log.info(f"Extracting document links for SO: {so_number} (Attempt {current_attempt})")
+
+                check_has_documents = has_documents(context, wait)
+                if check_has_documents:
+                    document_data_extracted = extract_document_links(driver, wait)
+                    for doc in document_data_extracted:
+                        doc.pop("url", None)
+                    processed_documents_records = ensure_schema_and_defaults(
+                        document_data_extracted, DOCUMENTS_LIST_SCHEMA, so_number, now
+                    )
+                    batch_documents.extend(processed_documents_records)
+
+                    navigate_to_quotation_tab(wait)
+                    check_has_quotation = has_quotation(context, wait)
+                    if check_has_quotation:
+                        quotation_data_extracted = extract_quotation_details(wait, so_number)
+                        processed_quotations_records = ensure_schema_and_defaults(
+                            [quotation_data_extracted], QUOTATION_SCHEMA, so_number, now
+                        )
+                        batch_quotations.extend(processed_quotations_records)
+                else:
+                    batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, now))
+                successfully_processed_this_so = True  # Mark as successful for this attempt
+            except Exception as e:
+                context.log.warning(
+                    f"Attempt {current_attempt}/{MAX_SO_ATTEMPTS} for SO {so_number} failed: {type(e).__name__} - {str(e)}"
                 )
-                batch_documents.extend(processed_records)
+                if current_attempt >= MAX_SO_ATTEMPTS:
+                    context.log.error(
+                        f"All {MAX_SO_ATTEMPTS} attempts failed for SO {so_number}. Last error: {type(e).__name__} - {str(e)}. This SO will be skipped."
+                    )
+                    break  # Exit while loop for this SO, it failed
 
-        processed_sos_in_batch.add(service_order)
+                context.log.info(
+                    f"Waiting 5 seconds before checking for popup for SO {so_number} (after attempt {current_attempt} failed)..."
+                )
+                time.sleep(5)
+                popup_handled = check_and_close_error_popup(driver, wait)  # This function uses print for its logs
+                if popup_handled:
+                    context.log.info(
+                        f"Error popup was detected and an attempt to close it was made after failed attempt {current_attempt} for SO {so_number}."
+                    )
+                else:
+                    raise
+                context.log.info(f"Attempting to reset to 'Presupuesto' page before retrying SO {so_number}...")
+                try:
+                    # Navigate to a known good state before retrying the SO processing.
+                    # This ensures we are not stuck in an unexpected part of the website.
+                    click_presupuesto(driver, wait)  #
+                    context.log.info("'Presupuesto' page reached. Ready for next attempt.")
+                except Exception as nav_e:
+                    context.log.error(
+                        f"Failed to navigate to 'Presupuesto' page before retrying SO {so_number}: {nav_e}. Will proceed with next attempt regardless."
+                    )
+        # After all attempts for the current SO
+        if successfully_processed_this_so:
+            context.log.info(f"Successfully processed SO: {so_number}. Closing its view.")
+            try:
+                close_service_order_view(wait)  #
+                context.log.info(f"View for SO {so_number} closed.")
+                processed_sos_successfully.append(so_number)
+                processed_sos_in_batch.add(so_number)
 
-        # --- Cleanup: Close Selenium View ---
-        close_service_order_view(wait)
+            except Exception as e_close:
+                # Log error but still consider SO processed if data extraction was successful
+                context.log.error(
+                    f"SO {so_number} was processed, but an error occurred while closing its view: {e_close}"
+                )
+                processed_sos_successfully.append(so_number)  # Still count as processed for data
+                processed_sos_in_batch.add(so_number)
+        else:
+            context.log.error(f"SO {so_number} could NOT be processed after {MAX_SO_ATTEMPTS} attempts.")
+            # SO is not added to processed_sos_successfully
 
         # --- Batch Processing Trigger ---
         is_last_item = i == total_orders - 1
@@ -171,6 +233,9 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
             batch_quotations = []
             batch_documents = []
             processed_sos_in_batch = set()
+    context.log.info(
+        f"Finished processing all service orders. Successfully processed: {len(processed_sos_successfully)} out of {len(service_orders)}."
+    )
 
     context.log.info("\n--- Data Extraction Complete ---")
     context.log.info(f"Final Quotations DF shape: {quotations_df.shape}")

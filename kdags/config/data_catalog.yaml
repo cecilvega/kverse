@@ -1,16 +1,18 @@
-planning:
+components:
   component_changeouts:
     reference_path:
       spence: sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx
       mel: sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx
-    analytics_path: az://bhp-analytics-data/PLANNING/COMPONENT_CHANGEOUTS/component_changeouts.parquet
+    analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_CHANGEOUTS/component_changeouts.parquet
     description: ...
     source: ...
     responsible: asdasd
   patched_component_changeouts:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/patched_component_changeouts.xlsx
+  component_history:
+    analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_HISTORY/component_history.parquet
   component_reparations:
-    analytics_path: az://bhp-analytics-data/PLANNING/COMPONENT_REPARATIONS/component_reparations.parquet
+    analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_REPARATIONS/component_reparations.parquet
 maintenance:
   oil_analysis:
     raw_path: az://bhp-raw-data/LUBE_ANALYST/SCAAE
@@ -24,7 +26,7 @@ reparation:
     analytics_path: az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet
   so_quotations:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_quotations.parquet
-    analytics_path: az://bhp-analytics-data/RELIABILITY/QUOTATIONS/quotations.parquet
+    analytics_path: az://bhp-analytics-data/REPARATION/QUOTATIONS/quotations.parquet
   so_documents:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
 reference:
@@ -46,8 +48,7 @@ reliability:
   ep:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/ep.xlsx
     analytics_path: az://bhp-analytics-data/RELIABILITY/EP/ep.parquet
-  component_lifeline:
-    analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_LIFELINE/component_lifeline.parquet
+
   component_snapshots:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_SNAPSHOTS/component_snapshots.parquet
   component_states:

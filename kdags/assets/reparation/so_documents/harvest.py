@@ -15,11 +15,12 @@ from ..reso import *
 
 @dg.asset(group_name="reparation")
 def select_documents_to_update(
-    context: dg.AssetExecutionContext, component_reparations: pl.DataFrame, so_report: pl.DataFrame
+    context: dg.AssetExecutionContext, component_history: pl.DataFrame, so_report: pl.DataFrame
 ):
     dl = DataLake(context)
     downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(["az_path", "last_modified"])
     df = dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
+    df = df.join(so_report.select(["service_order", "reception_date"]), how="left", on="service_order")
     df = (
         df.with_columns(_file_title=pl.col("file_title").str.to_lowercase())
         .with_columns(
@@ -33,13 +34,26 @@ def select_documents_to_update(
         )
         .drop("_file_title")
         .with_columns(
+            # Extract year, month, day from reception_date
+            year=pl.col("reception_date").dt.year(),
+            month=pl.col("reception_date").dt.month(),
+            day=pl.col("reception_date").dt.day(),
+        )
+        .with_columns(
             pl.when(pl.col("file_type") == "quotation")
             .then(
                 pl.concat_str(
                     [
-                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/QUOTATIONS/"),
-                        pl.col("service_order"),
+                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/"),
+                        pl.lit("y="),
+                        pl.col("year").cast(pl.Utf8),
+                        pl.lit("/m="),
+                        pl.col("month").cast(pl.Utf8).str.zfill(2),
+                        pl.lit("/d="),
+                        pl.col("day").cast(pl.Utf8).str.zfill(2),
                         pl.lit("/"),
+                        pl.col("service_order"),
+                        pl.lit("/QUOTATIONS/"),
                         pl.col("file_name"),
                     ]
                 )
@@ -48,9 +62,16 @@ def select_documents_to_update(
             .then(
                 pl.concat_str(
                     [
-                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/PRELIMINARY_REPORT/"),
-                        pl.col("service_order"),
+                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/"),
+                        pl.lit("y="),
+                        pl.col("year").cast(pl.Utf8),
+                        pl.lit("/m="),
+                        pl.col("month").cast(pl.Utf8).str.zfill(2),
+                        pl.lit("/d="),
+                        pl.col("day").cast(pl.Utf8).str.zfill(2),
                         pl.lit("/"),
+                        pl.col("service_order"),
+                        pl.lit("/PRELIMINARY_REPORT/"),
                         pl.col("file_name"),
                     ]
                 )
@@ -59,9 +80,16 @@ def select_documents_to_update(
             .then(
                 pl.concat_str(
                     [
-                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/FINAL_REPORT/"),
-                        pl.col("service_order"),
+                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/"),
+                        pl.lit("y="),
+                        pl.col("year").cast(pl.Utf8),
+                        pl.lit("/m="),
+                        pl.col("month").cast(pl.Utf8).str.zfill(2),
+                        pl.lit("/d="),
+                        pl.col("day").cast(pl.Utf8).str.zfill(2),
                         pl.lit("/"),
+                        pl.col("service_order"),
+                        pl.lit("/FINAL_REPORT/"),
                         pl.col("file_name"),
                     ]
                 )
@@ -69,15 +97,23 @@ def select_documents_to_update(
             .otherwise(
                 pl.concat_str(
                     [
-                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/OTHER/"),
-                        pl.col("service_order"),
+                        pl.lit("az://bhp-raw-data/RESO/DOCUMENTS/"),
+                        pl.lit("y="),
+                        pl.col("year").cast(pl.Utf8),
+                        pl.lit("/m="),
+                        pl.col("month").cast(pl.Utf8).str.zfill(2),
+                        pl.lit("/d="),
+                        pl.col("day").cast(pl.Utf8).str.zfill(2),
                         pl.lit("/"),
+                        pl.col("service_order"),
+                        pl.lit("/OTHER/"),
                         pl.col("file_name"),
                     ]
                 )
             )
             .alias("az_path")
         )
+        .drop(["year", "month", "day"])  # Clean up temporary columns
     )
 
     df = df.join(downloaded_documents, on="az_path", how="left")
@@ -120,7 +156,7 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_documents_to_
                 context.log.info(f"Searching SO {so_number} (Attempt {current_attempt})")  #
                 search_service_order(driver, wait, so_number)  #
 
-                context.log.info(f"Accessing details for SO: {so_number} (Attempt {current_attempt})")  #
+                context.log.info(f"Accessing details for SO: {so_number} (Attempt {current_attempt})")
                 click_see_service_order(driver, wait)  #
 
                 context.log.info(f"Navigating to documents tab for SO: {so_number} (Attempt {current_attempt})")
