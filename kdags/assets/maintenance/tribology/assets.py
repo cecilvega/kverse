@@ -188,18 +188,3 @@ def oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
     df = dl.read_tibble(az_path=DATA_CATALOG["oil_analysis"]["analytics_path"])
 
     return df
-
-
-@dg.asset(group_name="sp_publishers")
-def publish_sp_oil_analysis(context: dg.AssetExecutionContext, mutate_oil_analysis: pl.DataFrame):
-    df = mutate_oil_analysis.clone()
-    msgraph = MSGraph()
-    upload_results = []
-    sp_paths = [
-        "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/MANTENIMIENTO/analisis_aceite.xlsx",
-        DATA_CATALOG["oil_analysis"]["publish_path"],
-    ]
-    for sp_path in sp_paths:
-        context.log.info(f"Publishing to {sp_path}")
-        upload_results.append(msgraph.upload_tibble(tibble=df, sp_path=sp_path))
-    return upload_results

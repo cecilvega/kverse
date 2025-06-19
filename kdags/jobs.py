@@ -1,5 +1,14 @@
 import dagster as dg
 
+# === DOCS ===
+publish_data_job = dg.define_asset_job(
+    name="publish_data_job",
+    selection=dg.AssetSelection.assets("publish_data_catalog").upstream()
+    | dg.AssetSelection.assets("publish_work_order_history").upstream()
+    | dg.AssetSelection.assets("publish_oil_analysis").upstream(),
+    description="Cambios de componente",
+)
+
 
 # === COMPONENTS ===
 
@@ -106,7 +115,7 @@ pm_history_job = dg.define_asset_job(
 
 work_orders_job = dg.define_asset_job(
     name="work_orders_job",
-    selection=dg.AssetSelection.assets("publish_work_order_history").upstream(),
+    selection=dg.AssetSelection.assets("mutate_work_order_history").upstream(),
     description="Archivo con todas las OT's Fiori",
 )
 
