@@ -106,7 +106,7 @@ pm_history_job = dg.define_asset_job(
 
 work_orders_job = dg.define_asset_job(
     name="work_orders_job",
-    selection=dg.AssetSelection.assets("raw_work_orders").upstream(),
+    selection=dg.AssetSelection.assets("publish_work_order_history").upstream(),
     description="Archivo con todas las OT's Fiori",
 )
 

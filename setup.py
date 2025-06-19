@@ -32,6 +32,7 @@ setup(
         "azure-storage-file-share",
         "seaborn",
         "great_tables",
+        "lifelines",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

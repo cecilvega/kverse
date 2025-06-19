@@ -18,9 +18,11 @@ maintenance:
     raw_path: az://bhp-raw-data/LUBE_ANALYST/SCAAE
     analytics_path: az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet
     publish_path: sp://KCHCLGR00058/___/MANTENIMIENTO/analisis_aceite.xlsx
-    description: ...
-    source: sad
-    responsible: .asd
+  work_order_history:
+    raw_path: az://bhp-raw-data/FIORI/Work Orders.xlsx
+    analytics_path: az://bhp-analytics-data/MAINTENANCE/work_order_history.parquet
+    publish_path: sp://KCHCLGR00058/___/MANTENIMIENTO/historial_ordenes_trabajo.xlsx
+
 reparation:
   so_report:
     analytics_path: az://bhp-analytics-data/REPARATION/SERVICE_ORDER_REPORT/service_order_report.parquet
