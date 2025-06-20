@@ -15,6 +15,7 @@ QUOTATION_SCHEMA = {
     "amount": pl.Utf8,
     "remarks": pl.Utf8,
     "update_timestamp": pl.Datetime(time_unit="us"),
+    "download_url": pl.Utf8,
 }
 DOCUMENTS_LIST_SCHEMA = {
     "service_order": pl.Int64,

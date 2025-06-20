@@ -27,18 +27,16 @@ from .so_details_utils import (
     BATCH_SIZE,
 )
 
+# Define update windows
+COMPLETED_UPDATE_WINDOW_DAYS = 90  # Update completed SOs for 90 days after closing
+MIN_UPDATE_INTERVAL_DAYS = 10  # Don't update same SO more than once per 10 days
+
 
 @dg.asset(group_name="reparation")
 def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
 
     so_df = so_report.clone()
-    merge_columns = [
-        "equipment_name",
-        "component_name",
-        "subcomponent_name",
-        "position_name",
-        "changeout_date",
-    ]
+
     df = (
         so_df.select(
             [
@@ -63,29 +61,57 @@ def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
         on="service_order",
         how="left",
     )
-    df = (
-        pl.concat(
-            [
-                df.filter(
-                    ~(pl.col("component_status").is_in(["Delivered", "Repaired"]))
-                    | (pl.col("reso_closing_date").is_null())
-                ),
-                df.filter(
-                    (pl.col("component_status").is_in(["Delivered", "Repaired"]))
-                    & (pl.col("reso_closing_date").is_not_null())
-                    & (pl.col("days_diff") < pl.lit(365 * 12))
-                ).filter(),
-            ]
-        )
-        .filter(pl.col("site_name").is_in(["Minera Spence", "MINERA ESCONDIDA"]))
-        .filter((pl.lit(date.today()) - pl.col("update_timestamp").fill_null(date(2025, 4, 1))).dt.total_days() > 10)
+    df = df.with_columns(
+        [
+            # Days since last update (NULL if never updated)
+            pl.when(pl.col("update_timestamp").is_not_null())
+            .then((pl.lit(date.today()) - pl.col("update_timestamp")).dt.total_days())
+            .otherwise(None)
+            .alias("days_since_update"),
+            # Is this SO new (never processed)?
+            pl.col("update_timestamp").is_null().alias("is_new_so"),
+        ]
     )
-    # TODO: SACAR FILTRO
+    # Select SOs based on logical rules
+    df = df.filter(
+        # Rule 1: Always select new SOs that have never been processed
+        pl.col("is_new_so")
+        |
+        # Rule 2: Select active/incomplete SOs that haven't been updated recently
+        (
+            ~pl.col("component_status").is_in(["Delivered", "Repaired"])
+            & (pl.col("days_since_update") > MIN_UPDATE_INTERVAL_DAYS)
+        )
+        |
+        # Rule 3: Select recently completed SOs (within update window) that haven't been updated recently
+        (
+            pl.col("component_status").is_in(["Delivered", "Repaired"])
+            & pl.col("reso_closing_date").is_not_null()
+            & (pl.col("days_diff") < COMPLETED_UPDATE_WINDOW_DAYS)
+            & (pl.col("days_since_update") > MIN_UPDATE_INTERVAL_DAYS)
+        )
+    )
+
+    # Apply site filter
+    df = df.filter(pl.col("site_name").is_in(["Minera Spence", "MINERA ESCONDIDA"]))
+    return df
+
+
+@dg.asset
+def raw_so_documents(context: dg.AssetExecutionContext):
+    dl = DataLake(context)
+    try:
+        df = dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
+    except Exception as e:
+        df = pl.DataFrame(schema=DOCUMENTS_LIST_SCHEMA)
+
     return df
 
 
 @dg.asset(group_name="reparation")
-def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame) -> list:
+def harvest_so_details(
+    context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame, raw_so_quotations, raw_so_documents
+) -> list:
     service_orders = select_so_to_update["service_order"].to_list()
 
     driver = initialize_driver()
@@ -97,9 +123,9 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
     context.log.info("Login RESO+ successful.")
     click_presupuesto(driver, wait)
 
-    dl = DataLake()
-    quotations_df = dl.read_tibble(DATA_CATALOG["so_quotations"]["raw_path"])
-    documents_list_df = dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
+    # dl = DataLake()
+    quotations_df = raw_so_quotations.clone()
+    documents_list_df = raw_so_documents.clone()  # dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
 
     # --- Main Extraction Loop ---
     batch_quotations = []
@@ -163,6 +189,9 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
                             [quotation_data_extracted], QUOTATION_SCHEMA, so_number, now
                         )
                         batch_quotations.extend(processed_quotations_records)
+                    else:
+                        # Add default record for SOs with documents but no quotation
+                        batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, now))
                 else:
                     batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, now))
                 successfully_processed_this_so = True  # Mark as successful for this attempt
@@ -199,6 +228,7 @@ def harvest_so_details(context: dg.AssetExecutionContext, select_so_to_update: p
                     )
         # After all attempts for the current SO
         if successfully_processed_this_so:
+
             context.log.info(f"Successfully processed SO: {so_number}. Closing its view.")
             try:
                 close_service_order_view(wait)  #

@@ -10,12 +10,20 @@ import polars as pl
 import dagster as dg
 from kdags.resources.tidyr import MSGraph, DataLake
 from kdags.config import DATA_CATALOG
+from kdags.assets.reparation.so_details.so_details_utils import (
+    QUOTATION_SCHEMA,
+)
 
 
 @dg.asset
 def raw_so_quotations(context: dg.AssetExecutionContext):
     dl = DataLake(context)
-    df = dl.read_tibble(DATA_CATALOG["so_quotations"]["raw_path"])
+    try:
+        df = dl.read_tibble(DATA_CATALOG["so_quotations"]["raw_path"])
+    except Exception as e:
+        df = pl.DataFrame(schema=QUOTATION_SCHEMA)
+
+    # df = dl.read_tibble(DATA_CATALOG["so_quotations"]["raw_path"])
     return df
 
 

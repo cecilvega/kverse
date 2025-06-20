@@ -33,6 +33,7 @@ setup(
         "seaborn",
         "great_tables",
         "lifelines",
+        "scikit-learn",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

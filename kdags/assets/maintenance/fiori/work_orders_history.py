@@ -43,43 +43,6 @@ def mutate_work_order_history(context: dg.AssetExecutionContext, raw_work_order_
     return df
 
 
-@dg.asset
-def publish_work_order_history(context: dg.AssetExecutionContext, mutate_work_order_history: pl.DataFrame):
-    msgraph = MSGraph(context)
-
-    # datalake.upload_tibble(tibble=tidy_ep_df, az_path="az://bhp-analytics-data/RELIABILITY/EP/tidy_ep.parquet")
-    msgraph.upload_tibble(
-        tibble=mutate_work_order_history,
-        sp_path=DATA_CATALOG["work_order_history"]["publish_path"],
-    )
-
-
-# @dg.asset
-# def spawn_work_order_history(read_raw_work_orders_history):
-#
-#     result = {}
-#
-#     sharepoint_result = MSGraph().upload_tibble_deprecated(
-#         site_id="KCHCLSP00022",
-#         filepath="/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.xlsx",
-#         df=read_raw_work_orders_history,
-#         format="excel",
-#     )
-#     result["sharepoint"] = {"file_url": sharepoint_result.web_url, "format": "excel"}
-#
-#     # 2. Upload to Data Lake as Parquet
-#     datalake = DataLake()
-#     datalake_path = datalake.upload_tibble(
-#         az_path="abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet",
-#         tibble=read_raw_work_orders_history,
-#     )
-#     result["datalake"] = {"path": datalake_path, "format": "parquet"}
-#
-#     # Add record count
-#     result["count"] = len(read_raw_work_orders_history)
-#
-#     return result
-#
 #
 # @dg.asset
 # def work_order_history(context: dg.AssetExecutionContext):
