@@ -14,12 +14,12 @@ from ..reso import *
 
 
 @dg.asset(group_name="reparation")
-def select_documents_to_update(
-    context: dg.AssetExecutionContext, component_history: pl.DataFrame, so_report: pl.DataFrame
+def select_so_documents_to_update(
+    context: dg.AssetExecutionContext, raw_so_documents: pl.DataFrame, so_report: pl.DataFrame
 ):
     dl = DataLake(context)
     downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(["az_path", "last_modified"])
-    df = dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
+    df = raw_so_documents.clone()
     df = df.join(so_report.select(["service_order", "reception_date"]), how="left", on="service_order")
     df = (
         df.with_columns(_file_title=pl.col("file_title").str.to_lowercase())
@@ -121,7 +121,7 @@ def select_documents_to_update(
 
 
 @dg.asset(group_name="reparation")
-def harvest_so_documents(context: dg.AssetExecutionContext, select_documents_to_update: pl.DataFrame) -> list:
+def harvest_so_documents(context: dg.AssetExecutionContext, select_so_documents_to_update: pl.DataFrame) -> list:
     dl = DataLake(context)
     driver = initialize_driver()
     wait = WebDriverWait(driver, DEFAULT_WAIT)
@@ -132,13 +132,17 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_documents_to_
     context.log.info("Login RESO+ successful.")
     click_presupuesto(driver, wait)
 
-    sos_to_process = (
-        select_documents_to_update.filter(pl.col("last_modified").is_null())["service_order"].unique().to_list()
+    service_orders_data = (
+        select_so_documents_to_update.filter(pl.col("last_modified").is_null())
+        .select(["service_order", "component_serial"])
+        .to_dicts()
     )
     processed_sos_successfully = []
     MAX_SO_ATTEMPTS = 2  # Total attempts: 1 initial + 1 retry
 
-    for so_number in sos_to_process:
+    for i, row_data in enumerate(service_orders_data):
+        so_number = row_data["service_order"]
+        component_serial = row_data["component_serial"]
         context.log.info(f"Starting processing for Service Order: {so_number}")
 
         current_attempt = 0
@@ -150,7 +154,9 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_documents_to_
 
             try:
                 # Filter data for the current SO for this attempt
-                filter_docs_df = select_documents_to_update.filter(pl.col("service_order") == so_number)  #
+                filter_docs_df = select_so_documents_to_update.filter(
+                    (pl.col("service_order") == so_number) & (pl.col("component_serial") == component_serial)
+                )
 
                 # --- Main SO processing block ---
                 context.log.info(f"Searching SO {so_number} (Attempt {current_attempt})")  #
@@ -163,9 +169,10 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_documents_to_
                 retry_on_interception(  #
                     context=context,
                     action_function=navigate_to_documents_tab,  #
-                    max_retries=2,  # Internal retries for this specific action
+                    max_retries=2,
                     delay_seconds=5,
                     wait=wait,
+                    driver=driver,
                 )
 
                 context.log.info(f"Extracting document links for SO: {so_number} (Attempt {current_attempt})")
@@ -270,6 +277,6 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_documents_to_
             # SO is not added to processed_sos_successfully
 
     context.log.info(
-        f"Finished processing all service orders. Successfully processed: {len(processed_sos_successfully)} out of {len(sos_to_process)}."
+        f"Finished processing all service orders. Successfully processed: {len(processed_sos_successfully)} out of {len(service_orders_data)}."
     )
-    return sos_to_process
+    return service_orders_data

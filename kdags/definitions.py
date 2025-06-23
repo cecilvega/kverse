@@ -20,7 +20,7 @@ from kdags.jobs import (
     # === PLANNING ===
     # === REPARATION ===
     so_report_job,
-    harvest_reso_job,
+    harvest_so_details_job,
     harvest_so_documents_job,
     # === MAINTENANCE ===
     icc_job,
@@ -91,7 +91,7 @@ kdefs = dg.Definitions(
         icc_job,
         # === REPARATION ===
         so_report_job,
-        harvest_reso_job,
+        harvest_so_details_job,
         harvest_so_documents_job,
         # === MAINTENANCE ===
         work_orders_job,

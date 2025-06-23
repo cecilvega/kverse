@@ -103,42 +103,45 @@ def extract_quotation_details(driver, wait: WebDriverWait, service_order: str) -
     )
     # Ensure version_po_tuple is actually a tuple before unpacking
     version_po_tuple = version_po_tuple if isinstance(version_po_tuple, tuple) else (None, None)
-    quotation_data["version"], quotation_data["purchase_order_status"] = version_po_tuple
+    quotation_data["quotation_version"], quotation_data["purchase_order"] = version_po_tuple
 
     # Date/Time
-    quotation_data["date_time_str"] = find_and_extract_optional(
+    quotation_data["quotation_dt"] = find_and_extract_optional(
         search_context=most_recent_detail_block,
         locator=(By.CSS_SELECTOR, "i.fecha"),
         extract_logic=extract_datetime,  # Pass the module-level function
     )
 
     # User (using lambda as logic is simple)
-    quotation_data["user"] = find_and_extract_optional(
+    quotation_data["edited_by"] = find_and_extract_optional(
         search_context=most_recent_detail_block,
         locator=(By.XPATH, ".//span[contains(normalize-space(), 'User:')]"),
         extract_logic=lambda el: el.text.split("User:", 1)[1].strip(),
     )
 
     # Amount (using lambda)
-    quotation_data["amount"] = find_and_extract_optional(
+    quotation_data["quotation_amount"] = find_and_extract_optional(
         search_context=most_recent_detail_block,
         locator=(By.XPATH, ".//span[contains(normalize-space(), 'Amount:')]"),
         extract_logic=lambda el: el.text.split("Amount:", 1)[1].strip(),
     )
 
     # Remarks
-    quotation_data["remarks"] = find_and_extract_optional(
+    quotation_data["quotation_remarks"] = find_and_extract_optional(
         search_context=most_recent_detail_block,
         locator=(By.CSS_SELECTOR, "span.overflowText"),
         extract_logic=extract_remarks,  # Pass the module-level function
     )
 
     # Download URL (using lambda)
-    quotation_data["download_url"] = find_and_extract_optional(
+    download_url = find_and_extract_optional(
         search_context=first_entry_element,
         locator=(By.TAG_NAME, "a"),
         extract_logic=lambda el: el.get_attribute("href"),
     )
+    download_url = re.search(r"Archivos/\d+/([^?]+\.pdf)", download_url)
+    quotation_data["file_name"] = download_url.group(1)  # if download_url else None
+    # quotation_data["file_name"] = download_url
 
     # logging.info(f"Finished extracting quotation details for SO {service_order}.")
     return quotation_data

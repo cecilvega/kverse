@@ -154,14 +154,12 @@ def process_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataF
                 for c in DATE_CONVERSION_COLUMNS
             ]
         )
+        .with_columns(reso_component_serial=pl.col("component_serial"))
         .with_columns(
             [
-                pl.col(c)
-                .str.strip_chars()
-                .str.replace("\t", "")
-                .str.replace_all("#", "")
-                .str.split(" ")
-                .list.first()
+                pl.col(c).str.strip_chars().str.replace("\t", "").str.replace_all("#", "")
+                # .str.split(" ")
+                # .list.first()
                 .alias(c)
                 for c in ["component_serial"]
             ]

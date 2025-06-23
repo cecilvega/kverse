@@ -48,6 +48,7 @@ COLUMN_MAPPING = {
     "SUB COMPONENTE": "subcomponent_name",
     "POSICION": "position_name",
     "FECHA DE CAMBIO": "changeout_date",
+    "CLASIFICACIÓN": "cc_type",
     "OS  181": "customer_work_order",
     "HORA EQ": "equipment_hours",
     "HORA CC": "component_hours",

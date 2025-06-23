@@ -9,14 +9,14 @@ BATCH_SIZE = 5  # Adjust as needed
 QUOTATION_SCHEMA = {
     "service_order": pl.Int64,
     "component_serial": pl.Utf8,
-    "version": pl.Int64,
-    "purchase_order_status": pl.Utf8,
-    "date_time_str": pl.Utf8,
-    "user": pl.Utf8,
-    "amount": pl.Utf8,
-    "remarks": pl.Utf8,
+    "quotation_version": pl.Int64,
+    "purchase_order": pl.Utf8,
+    "quotation_dt": pl.Utf8,
+    "edited_by": pl.Utf8,
+    "quotation_amount": pl.Utf8,
+    "quotation_remarks": pl.Utf8,
     "update_timestamp": pl.Datetime(time_unit="us"),
-    "download_url": pl.Utf8,
+    "file_name": pl.Utf8,
 }
 DOCUMENTS_LIST_SCHEMA = {
     "service_order": pl.Int64,
@@ -58,10 +58,11 @@ def ensure_schema_and_defaults(data_list, schema, service_order, component_seria
     return processed_list
 
 
-def create_default_record(schema, service_order, timestamp):
+def create_default_record(schema, service_order, component_serial, timestamp):
     """Creates a default record with None values for a given schema."""
     default_data = {key: None for key in schema.keys()}
     default_data["service_order"] = service_order
+    default_data["component_serial"] = component_serial
     default_data["update_timestamp"] = timestamp
     return default_data
 
@@ -113,12 +114,20 @@ def process_and_save_batch(
     elif not new_documents_df.is_empty():
         documents_list_df = pl.DataFrame(schema=document_schema_with_ts).select(document_cols_order)
 
-    # Handle 'overwrite' mode: remove existing SOs from the main DF that are in this batch
-    so_list = list(processed_sos_in_batch)
+    # Create a DataFrame with the keys from your batch
+    batch_keys_df = pl.DataFrame(
+        {
+            "service_order": [item["service_order"] for item in processed_sos_in_batch],
+            "component_serial": [item["component_serial"] for item in processed_sos_in_batch],
+        }
+    )
+
+    # Handle 'overwrite' mode: remove existing SO+component_serial combinations from the main DFs
     if not quotations_df.is_empty():
-        quotations_df = quotations_df.filter(~pl.col("service_order").is_in(so_list))
+        quotations_df = quotations_df.join(batch_keys_df, on=["service_order", "component_serial"], how="anti")
+
     if not documents_list_df.is_empty():
-        documents_list_df = documents_list_df.filter(~pl.col("service_order").is_in(so_list))
+        documents_list_df = documents_list_df.join(batch_keys_df, on=["service_order", "component_serial"], how="anti")
 
     # Concatenate new data
     # Use how="diagonal" if schemas might slightly differ (safer) or vertical_relaxed
@@ -129,9 +138,11 @@ def process_and_save_batch(
 
     # Apply uniqueness constraints
     if not quotations_df.is_empty():
-        quotations_df = quotations_df.unique(subset=["service_order"], keep="last")
+        quotations_df = quotations_df.unique(subset=["service_order", "component_serial"], keep="last")
     if not documents_list_df.is_empty():
-        documents_list_df = documents_list_df.unique(subset=["service_order", "file_name"], keep="last")
+        documents_list_df = documents_list_df.unique(
+            subset=["service_order", "component_serial", "file_name"], keep="last"
+        )
 
     dl.upload_tibble(quotations_df, DATA_CATALOG["so_quotations"]["raw_path"])
     dl.upload_tibble(documents_list_df, DATA_CATALOG["so_documents"]["raw_path"])

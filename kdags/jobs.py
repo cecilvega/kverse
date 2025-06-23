@@ -32,8 +32,15 @@ so_report_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets("mutate_so_report").upstream(),
     description="Component Status RESO",
 )
-harvest_reso_job = dg.define_asset_job(
-    name="harvest_reso_job",  # "harvest_so_documents"
+harvest_so_documents_job = dg.define_asset_job(
+    name="harvest_so_documents_job",
+    selection=dg.AssetSelection.assets(
+        "harvest_so_documents",
+    ).upstream(),
+    description="Component Status RESO",
+)
+harvest_so_details_job = dg.define_asset_job(
+    name="harvest_so_details_job",
     selection=dg.AssetSelection.assets(
         "harvest_so_details",
     ).upstream(),
@@ -44,12 +51,6 @@ quotations_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets(["mutate_so_quotations"]).upstream(),
 )
 
-
-harvest_so_documents_job = dg.define_asset_job(
-    name="harvest_so_documents_job",
-    selection=dg.AssetSelection.assets("harvest_so_documents").upstream(),
-    description="Component Status RESO",
-)
 
 # === DOCS ===
 docs_job = dg.define_asset_job(

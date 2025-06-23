@@ -38,7 +38,9 @@ def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
     so_df = so_report.clone()
 
     df = (
-        so_df.select(
+        so_df.filter(pl.col("first_quotation_publication").is_not_null())
+        .sort("reception_date", descending=True)
+        .select(
             [
                 "service_order",
                 "component_serial",
@@ -98,17 +100,6 @@ def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
     return df
 
 
-@dg.asset
-def raw_so_documents(context: dg.AssetExecutionContext):
-    dl = DataLake(context)
-    try:
-        df = dl.read_tibble(DATA_CATALOG["so_documents"]["raw_path"])
-    except Exception as e:
-        df = pl.DataFrame(schema=DOCUMENTS_LIST_SCHEMA)
-
-    return df
-
-
 @dg.asset(group_name="reparation")
 def harvest_so_details(
     context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame, raw_so_quotations, raw_so_documents
@@ -131,19 +122,18 @@ def harvest_so_details(
     # --- Main Extraction Loop ---
     batch_quotations = []
     batch_documents = []
-    processed_sos_in_batch = set()
+    processed_sos_in_batch = []
     processed_sos = []
     total_orders = len(service_orders_data)
     context.log.info(f"--- Starting Data Extraction for {total_orders} Service Orders ---")
 
-    processed_sos_successfully = []
     MAX_SO_ATTEMPTS = 2  # Total attempts: 1 initial + 1 retry
 
     for i, row_data in enumerate(service_orders_data):
         so_number = row_data["service_order"]
         component_serial = row_data["component_serial"]
-        if i > 6:
-            break
+        # if i > 6:
+        #     break
         now = datetime.now()
         context.log.info(f"Processing SO {i + 1}/{total_orders}: {so_number}")
 
@@ -174,7 +164,7 @@ def harvest_so_details(
                 )
 
                 context.log.info(f"Extracting document links for SO: {so_number} (Attempt {current_attempt})")
-                time.sleep(5)
+                # time.sleep(5)
                 check_has_documents = has_documents(context, wait)
                 if check_has_documents:
                     document_data_extracted = extract_document_links(driver, wait)
@@ -187,7 +177,7 @@ def harvest_so_details(
 
                     navigate_to_quotation_tab(wait)
 
-                    time.sleep(5)
+                    # time.sleep(5)
 
                     check_has_quotation = has_quotation(context, wait)
                     if check_has_quotation:
@@ -196,9 +186,13 @@ def harvest_so_details(
                             [quotation_data_extracted], QUOTATION_SCHEMA, so_number, component_serial, now
                         )
                         batch_quotations.extend(processed_quotations_records)
-                        time.sleep(5)
+                    else:
+                        batch_quotations.append(
+                            create_default_record(QUOTATION_SCHEMA, so_number, component_serial, now)
+                        )
+
                 else:
-                    batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, now))
+                    batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, component_serial, now))
                 successfully_processed_this_so = True  # Mark as successful for this attempt
             except Exception as e:
                 context.log.warning(
@@ -213,7 +207,7 @@ def harvest_so_details(
                 context.log.info(
                     f"Waiting 5 seconds before checking for popup for SO {so_number} (after attempt {current_attempt} failed)..."
                 )
-                time.sleep(5)
+                time.sleep(1)
                 popup_handled = check_and_close_error_popup(driver, wait)  # This function uses print for its logs
                 if popup_handled:
                     context.log.info(
@@ -230,16 +224,15 @@ def harvest_so_details(
             try:
                 close_service_order_view(wait)  #
                 context.log.info(f"View for SO {so_number} closed.")
-                processed_sos_successfully.append(so_number)
-                processed_sos_in_batch.add(so_number)
+                processed_sos_in_batch.append({"service_order": so_number, "component_serial": component_serial})
 
             except Exception as e_close:
                 # Log error but still consider SO processed if data extraction was successful
                 context.log.error(
                     f"SO {so_number} was processed, but an error occurred while closing its view: {e_close}"
                 )
-                processed_sos_successfully.append(so_number)  # Still count as processed for data
-                processed_sos_in_batch.add(so_number)
+
+                processed_sos_in_batch.append({"service_order": so_number, "component_serial": component_serial})
         else:
             context.log.error(f"SO {so_number} could NOT be processed after {MAX_SO_ATTEMPTS} attempts.")
             # SO is not added to processed_sos_successfully
@@ -259,13 +252,11 @@ def harvest_so_details(
             # # Clear batches only after successful save
             batch_quotations = []
             batch_documents = []
-            processed_sos_in_batch = set()
-    context.log.info(
-        f"Finished processing all service orders. Successfully processed: {len(processed_sos_successfully)} out of {total_orders}."
-    )
+            processed_sos_in_batch = []
+    context.log.info(f"Finished processing all service orders. Successfully processed: {total_orders}.")
 
     context.log.info("\n--- Data Extraction Complete ---")
     context.log.info(f"Final Quotations DF shape: {quotations_df.shape}")
     context.log.info(f"Final Documents DF shape: {documents_list_df.shape}")
-
+    driver.quit()
     return processed_sos
