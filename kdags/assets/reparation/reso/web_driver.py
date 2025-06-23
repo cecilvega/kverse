@@ -47,6 +47,7 @@ def retry_on_interception(
     last_exception = None
     for attempt in range(max_retries + 1):  # Initial attempt + max_retries
         try:
+
             result = action_function(**kwargs)
             if attempt > 0:
                 context.log.info(f"Action '{action_function.__name__}' succeeded on attempt {attempt + 1}.")

@@ -8,6 +8,7 @@ BATCH_SIZE = 5  # Adjust as needed
 # Schemas remain the same
 QUOTATION_SCHEMA = {
     "service_order": pl.Int64,
+    "component_serial": pl.Utf8,
     "version": pl.Int64,
     "purchase_order_status": pl.Utf8,
     "date_time_str": pl.Utf8,
@@ -19,6 +20,7 @@ QUOTATION_SCHEMA = {
 }
 DOCUMENTS_LIST_SCHEMA = {
     "service_order": pl.Int64,
+    "component_serial": pl.Utf8,
     "file_name": pl.Utf8,
     "file_title": pl.Utf8,
     "file_subtitle": pl.Utf8,
@@ -26,7 +28,7 @@ DOCUMENTS_LIST_SCHEMA = {
 }
 
 
-def ensure_schema_and_defaults(data_list, schema, service_order, timestamp):
+def ensure_schema_and_defaults(data_list, schema, service_order, component_serial, timestamp):
     """Ensures records have all schema keys and converts basic types."""
     processed_list = []
     for record in data_list:
@@ -35,6 +37,7 @@ def ensure_schema_and_defaults(data_list, schema, service_order, timestamp):
             record.setdefault(key, None)
         # Ensure service_order and timestamp are set
         record["service_order"] = service_order  # Already int
+        record["component_serial"] = component_serial
         record["update_timestamp"] = timestamp
         # Basic Type handling (can be enhanced)
         for key, polars_type in schema.items():

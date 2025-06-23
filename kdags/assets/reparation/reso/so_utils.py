@@ -8,6 +8,8 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from kdags.assets.reparation.reso.so_navigation import check_and_close_error_popup
+
 __all__ = ["extract_quotation_details", "extract_document_links", "has_quotation", "has_documents"]
 
 
@@ -76,8 +78,8 @@ def extract_remarks(element: WebElement):
         return None  # Return None on error within this specific logic
 
 
-def extract_quotation_details(wait: WebDriverWait, service_order: str) -> dict:
-
+def extract_quotation_details(driver, wait: WebDriverWait, service_order: str) -> dict:
+    check_and_close_error_popup(driver, wait)
     quotation_data = {"service_order": service_order}
 
     # --- Locate the main container & entry block (critical steps) ---
@@ -143,7 +145,7 @@ def extract_quotation_details(wait: WebDriverWait, service_order: str) -> dict:
 
 
 def extract_document_links(driver, wait):
-
+    check_and_close_error_popup(driver, wait)
     documents_list = []
     documents_container_locator = (By.ID, "v-pills-documentos")
     document_link_locator = (By.CSS_SELECTOR, "#v-pills-documentos a.documento")

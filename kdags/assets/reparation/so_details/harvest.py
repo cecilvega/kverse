@@ -41,6 +41,7 @@ def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
         so_df.select(
             [
                 "service_order",
+                "component_serial",
                 "reception_date",
                 "load_final_report_date",
                 "update_date",
@@ -112,7 +113,7 @@ def raw_so_documents(context: dg.AssetExecutionContext):
 def harvest_so_details(
     context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame, raw_so_quotations, raw_so_documents
 ) -> list:
-    service_orders = select_so_to_update["service_order"].to_list()
+    service_orders_data = select_so_to_update.select(["service_order", "component_serial"]).to_dicts()
 
     driver = initialize_driver()
     wait = WebDriverWait(driver, DEFAULT_WAIT)
@@ -132,15 +133,17 @@ def harvest_so_details(
     batch_documents = []
     processed_sos_in_batch = set()
     processed_sos = []
-    total_orders = len(service_orders)
+    total_orders = len(service_orders_data)
     context.log.info(f"--- Starting Data Extraction for {total_orders} Service Orders ---")
 
     processed_sos_successfully = []
     MAX_SO_ATTEMPTS = 2  # Total attempts: 1 initial + 1 retry
 
-    for i, so_number in enumerate(service_orders):
-        # if i > 5:
-        #     break
+    for i, row_data in enumerate(service_orders_data):
+        so_number = row_data["service_order"]
+        component_serial = row_data["component_serial"]
+        if i > 6:
+            break
         now = datetime.now()
         context.log.info(f"Processing SO {i + 1}/{total_orders}: {so_number}")
 
@@ -164,34 +167,36 @@ def harvest_so_details(
                 retry_on_interception(  #
                     context=context,
                     action_function=navigate_to_documents_tab,  #
-                    max_retries=2,  # Internal retries for this specific action
+                    max_retries=1,  # Internal retries for this specific action
                     delay_seconds=5,
                     wait=wait,
+                    driver=driver,
                 )
 
                 context.log.info(f"Extracting document links for SO: {so_number} (Attempt {current_attempt})")
-
+                time.sleep(5)
                 check_has_documents = has_documents(context, wait)
                 if check_has_documents:
                     document_data_extracted = extract_document_links(driver, wait)
                     for doc in document_data_extracted:
                         doc.pop("url", None)
                     processed_documents_records = ensure_schema_and_defaults(
-                        document_data_extracted, DOCUMENTS_LIST_SCHEMA, so_number, now
+                        document_data_extracted, DOCUMENTS_LIST_SCHEMA, so_number, component_serial, now
                     )
                     batch_documents.extend(processed_documents_records)
 
                     navigate_to_quotation_tab(wait)
+
+                    time.sleep(5)
+
                     check_has_quotation = has_quotation(context, wait)
                     if check_has_quotation:
-                        quotation_data_extracted = extract_quotation_details(wait, so_number)
+                        quotation_data_extracted = extract_quotation_details(driver, wait, so_number)
                         processed_quotations_records = ensure_schema_and_defaults(
-                            [quotation_data_extracted], QUOTATION_SCHEMA, so_number, now
+                            [quotation_data_extracted], QUOTATION_SCHEMA, so_number, component_serial, now
                         )
                         batch_quotations.extend(processed_quotations_records)
-                    else:
-                        # Add default record for SOs with documents but no quotation
-                        batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, now))
+                        time.sleep(5)
                 else:
                     batch_quotations.append(create_default_record(QUOTATION_SCHEMA, so_number, now))
                 successfully_processed_this_so = True  # Mark as successful for this attempt
@@ -217,15 +222,7 @@ def harvest_so_details(
                 else:
                     raise
                 context.log.info(f"Attempting to reset to 'Presupuesto' page before retrying SO {so_number}...")
-                try:
-                    # Navigate to a known good state before retrying the SO processing.
-                    # This ensures we are not stuck in an unexpected part of the website.
-                    click_presupuesto(driver, wait)  #
-                    context.log.info("'Presupuesto' page reached. Ready for next attempt.")
-                except Exception as nav_e:
-                    context.log.error(
-                        f"Failed to navigate to 'Presupuesto' page before retrying SO {so_number}: {nav_e}. Will proceed with next attempt regardless."
-                    )
+
         # After all attempts for the current SO
         if successfully_processed_this_so:
 
@@ -264,7 +261,7 @@ def harvest_so_details(
             batch_documents = []
             processed_sos_in_batch = set()
     context.log.info(
-        f"Finished processing all service orders. Successfully processed: {len(processed_sos_successfully)} out of {len(service_orders)}."
+        f"Finished processing all service orders. Successfully processed: {len(processed_sos_successfully)} out of {total_orders}."
     )
 
     context.log.info("\n--- Data Extraction Complete ---")

@@ -12,6 +12,7 @@ __all__ = [
     "navigate_to_documents_tab",
     "close_service_order_view",
     "check_and_close_error_popup",
+    "click_see_service_order_by_serial",
 ]
 
 
@@ -119,6 +120,71 @@ def search_service_order(driver: WebDriver, wait: WebDriverWait, service_order):
     wait.until(EC.invisibility_of_element_located(overlay_locator))
 
 
+def click_see_service_order_by_serial(driver, wait: WebDriverWait, target_serial_no):
+    """
+    Clicks the 'See service order' button for the first row that matches the given serial number.
+
+    Args:
+        driver: WebDriver instance
+        wait: WebDriverWait instance
+        target_serial_no: The serial number to match (e.g., "#W08041022")
+    """
+    # --- Wait for the results table ---
+    webgrid_locator = (By.ID, "WebGrid")
+    wait.until(EC.presence_of_element_located(webgrid_locator))
+
+    # Find the table
+    table = driver.find_element(By.ID, "WebGrid")
+
+    # Find all rows in the tbody
+    rows = table.find_elements(By.CSS_SELECTOR, "tbody tr")
+
+    if not rows:
+        raise Exception("No rows found in the table")
+
+    # Iterate through rows to find the matching serial number
+    for row in rows:
+        try:
+            # Find all cells in the current row
+            cells = row.find_elements(By.TAG_NAME, "td")
+
+            # Based on your HTML structure, Serial No. is the 3rd column (index 2)
+            if len(cells) >= 3:
+                serial_no_cell = cells[2]  # Third column (0-indexed)
+                serial_no_text = serial_no_cell.text.strip()
+
+                # Check if this row matches the target serial number
+                if serial_no_text == target_serial_no:
+                    # Find the 'See service order' button in this row
+                    see_order_button = row.find_element(By.CSS_SELECTOR, "button.verOrdenServicio")
+
+                    # Wait for the button to be clickable
+                    wait.until(EC.element_to_be_clickable(see_order_button))
+
+                    # Click the button
+                    see_order_button.click()
+
+                    # --- ADD WAIT HERE ---
+                    overlay_locator = (By.CSS_SELECTOR, ".overlayContent")
+                    try:
+                        # Waiting for overlay to disappear after clicking 'See service order'
+                        wait.until(EC.invisibility_of_element_located(overlay_locator))
+                    except TimeoutException:
+                        raise Exception("Timed out waiting for overlay after 'See service order' click.")
+                    # --- END ADDED WAIT ---
+
+                    print(f"Successfully clicked 'See service order' for serial number: {target_serial_no}")
+                    return  # Exit the function after successful click
+
+        except Exception as e:
+            # Continue to next row if there's an issue with current row
+            print(f"Error processing row: {e}")
+            continue
+
+    # If we get here, no matching serial number was found
+    raise Exception(f"Serial number '{target_serial_no}' not found in the table")
+
+
 def click_see_service_order(driver, wait: WebDriverWait):
 
     # --- Wait for the results table ---
@@ -157,8 +223,8 @@ def navigate_to_quotation_tab(wait: WebDriverWait):
     wait.until(EC.invisibility_of_element_located(overlay_locator))
 
 
-def navigate_to_documents_tab(wait: WebDriverWait):
-
+def navigate_to_documents_tab(driver, wait: WebDriverWait):
+    check_and_close_error_popup(driver, wait)
     # --- Wait for the Documents tab button to be ready and click it ---
     documents_tab_locator = (By.ID, "v-pills-documentos-tab")
     documents_tab_button = wait.until(EC.element_to_be_clickable(documents_tab_locator))
