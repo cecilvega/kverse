@@ -175,16 +175,3 @@ def mutate_oil_analysis(context: dg.AssetExecutionContext, raw_oil_analysis: pl.
         {"az_path": oil_analysis_analytics_path, "rows_written": df.height, "status": "completed"}
     )
     return df
-
-
-@dg.asset(
-    group_name="readr",
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-)
-def oil_analysis(context: dg.AssetExecutionContext) -> pl.DataFrame:
-
-    dl = DataLake(context)
-
-    df = dl.read_tibble(az_path=DATA_CATALOG["oil_analysis"]["analytics_path"])
-
-    return df

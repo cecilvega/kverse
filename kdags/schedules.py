@@ -1,5 +1,14 @@
 import dagster as dg
-from kdags.jobs import harvest_so_report_job, component_history_job, harvest_so_report_job
+from kdags.jobs import component_history_job, harvest_so_report_job, publish_data_job
+
+# === DOCS ===
+publish_data_schedule = dg.ScheduleDefinition(
+    name="publish_data_schedule",
+    job=publish_data_job,
+    cron_schedule="0 20 * * *",
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
 
 component_history_schedule = dg.ScheduleDefinition(
     name="component_history_schedule",

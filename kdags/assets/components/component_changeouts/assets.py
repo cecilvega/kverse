@@ -6,7 +6,7 @@ import pandas as pd
 import polars as pl
 import unicodedata
 
-from kdags.resources.tidyr import MSGraph, DataLake
+from kdags.resources.tidyr import MSGraph, DataLake, MasterData
 from .constants import *
 from kdags.schemas.planning.component_changeouts import COMPONENT_CHANGEOUTS_SCHEMA
 from kdags.config import *
@@ -208,19 +208,17 @@ def mutate_component_changeouts(
             for c in patched_columns
         ]
     ).drop([f"{c}_patched" for c in patched_columns])
-
+    df = df.join(
+        MasterData.components().select(["component_name", "subcomponent_name", "subcomponent_tag"]),
+        how="left",
+        on=["component_name", "subcomponent_name"],
+    )
+    df = df.join(
+        MasterData.positions().select(["position_name", "position_tag"]),
+        how="left",
+        on=["position_name"],
+    )
     datalake = DataLake(context=context)  # Direct instantiation
     datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_changeouts"]["analytics_path"])
 
-    return df
-
-
-@dg.asset(
-    group_name="readr",
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-    metadata={"dagster/column_schema": COMPONENT_CHANGEOUTS_SCHEMA},
-)
-def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=DATA_CATALOG["component_changeouts"]["analytics_path"])
     return df

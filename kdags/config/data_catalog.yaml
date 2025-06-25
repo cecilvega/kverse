@@ -1,17 +1,21 @@
 docs:
   publish_catalog:
     publish_path: "sp://KCHCLGR00058/___/Catálogo Datos.xlsx"
+operation:
+  komtrax_smr:
+    process_path: az://bhp-process-data/KOMTRAX/smr.parquet
+    analytics_path: az://bhp-process-data/OPERATION/smr.parquet
 components:
   component_changeouts:
     reference_path:
       spence: sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx
       mel: sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx
     analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_CHANGEOUTS/component_changeouts.parquet
-
   patched_component_changeouts:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/patched_component_changeouts.xlsx
   component_history:
     analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_HISTORY/component_history.parquet
+    publish_path: "sp://KCHCLGR00058/___/Historial Componentes.xlsx"
   component_reparations:
     analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_REPARATIONS/component_reparations.parquet
 maintenance:
@@ -20,7 +24,7 @@ maintenance:
     analytics_path: az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet
     publish_path: "sp://KCHCLGR00058/___/MANTENIMIENTO/Historial Muestras Aceite.xlsx"
   work_order_history:
-    raw_path: az://bhp-raw-data/FIORI/Work Orders.xlsx
+#    raw_path: az://bhp-raw-data/FIORI/Work Orders.xlsx
     analytics_path: az://bhp-analytics-data/MAINTENANCE/work_order_history.parquet
     publish_path: "sp://KCHCLGR00058/___/MANTENIMIENTO/Historial Órdenes Trabajo.xlsx"
 reparation:

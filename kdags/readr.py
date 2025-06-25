@@ -8,12 +8,12 @@ import dagster as dg
 
 
 # === COMPONENTS ===
-from kdags.assets.components.component_changeouts.assets import component_changeouts
+
 from kdags.assets.components.component_reparations import component_reparations
-from kdags.assets.components.component_history import component_history
+from kdags.assets.components.readr_assets import component_history, component_changeouts
 
 # === MAINTENANCE ===
-from kdags.assets.maintenance.tribology.assets import oil_analysis
+from kdags.assets.maintenance.readr_assets import oil_analysis
 from kdags.assets.operation.ge.events.pipeline import read_events
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 
@@ -25,6 +25,7 @@ from kdags.assets.reliability.icc.assets import icc
 # from kdags.assets.planning.pool_inventory.assets import component_lifeline
 
 # === OPERATION ===
+from kdags.assets.operation.readr_assets import komtrax_smr
 from kdags.assets.operation.operation_files_idx import read_op_file_idx
 from kdags.assets.operation.plm.alarms import read_alarms
 from kdags.assets.operation.plm.haul import read_haul
@@ -34,7 +35,7 @@ from kdags.assets.operation.plm.haul import read_haul
 from kdags.assets.reparation.so_report.assets import so_report
 
 # from kdags.assets.reparation.component_status.assets import component_status
-from kdags.assets.reparation.quotations.assets import so_quotations
+from kdags.assets.reparation.readr_assets import so_quotations
 
 from kdags.resources.tidyr.masterdata import MasterData
 
@@ -53,6 +54,7 @@ class Readr:
 
     # === OPERATION ===
     op_file_idx: dg.AssetsDefinition = read_op_file_idx
+    komtrax_smr: dg.AssetsDefinition = komtrax_smr
 
     haul: dg.AssetsDefinition = read_haul
     alarms: dg.AssetsDefinition = read_alarms

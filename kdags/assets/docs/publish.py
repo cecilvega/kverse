@@ -6,7 +6,7 @@ from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.config import DATA_CATALOG
 
 
-@dg.asset(group_name="docs")
+@dg.asset(group_name="docs", compute_kind="publish")
 def publish_data_catalog(context: dg.AssetExecutionContext):
     msgraph = MSGraph(context)
     rows = []

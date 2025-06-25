@@ -7,7 +7,7 @@ from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.config import DATA_CATALOG
 
 
-@dg.asset
+@dg.asset(group_name="maintenance", compute_kind="raw")
 def raw_work_order_history(context: dg.AssetExecutionContext):
     dl = DataLake(context)
     df = pd.read_excel(BytesIO(dl.read_bytes(DATA_CATALOG["work_order_history"]["raw_path"])))
@@ -15,7 +15,7 @@ def raw_work_order_history(context: dg.AssetExecutionContext):
     return df
 
 
-@dg.asset
+@dg.asset(group_name="maintenance", compute_kind="mutate")
 def mutate_work_order_history(context: dg.AssetExecutionContext, raw_work_order_history):
     df = (
         raw_work_order_history.drop(
@@ -41,11 +41,3 @@ def mutate_work_order_history(context: dg.AssetExecutionContext, raw_work_order_
     datalake = DataLake(context=context)  # Direct instantiation
     datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["work_order_history"]["analytics_path"])
     return df
-
-
-#
-# @dg.asset
-# def work_order_history(context: dg.AssetExecutionContext):
-#     dl = DataLake(context)
-#     df = dl.read_tibble(f"abfs://bhp-analytics-data/MAINTENANCE/WORK_ORDERS_HISTORY/work_orders_history.parquet")
-#     return df

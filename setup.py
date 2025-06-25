@@ -34,6 +34,9 @@ setup(
         "great_tables",
         "lifelines",
         "scikit-learn",
+        "shap",
+        "xgboost",
+        "pyodbc",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )

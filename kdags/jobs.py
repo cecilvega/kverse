@@ -3,10 +3,10 @@ import dagster as dg
 # === DOCS ===
 publish_data_job = dg.define_asset_job(
     name="publish_data_job",
-    selection=dg.AssetSelection.assets("publish_data_catalog").upstream()
-    | dg.AssetSelection.assets("publish_work_order_history").upstream()
-    | dg.AssetSelection.assets("publish_oil_analysis").upstream(),
-    description="Cambios de componente",
+    selection=dg.AssetSelection.assets(
+        "publish_data_catalog", "publish_work_order_history", "publish_oil_analysis", "publish_component_history"
+    ).upstream(),
+    description="Publicar datos a Sharepoint",
 )
 
 
@@ -48,9 +48,8 @@ harvest_so_details_job = dg.define_asset_job(
 )
 quotations_job = dg.define_asset_job(
     name="quotations_job",
-    selection=dg.AssetSelection.assets(["mutate_so_quotations"]).upstream(),
+    selection=dg.AssetSelection.assets("mutate_so_quotations").upstream(),
 )
-
 
 # === DOCS ===
 docs_job = dg.define_asset_job(
@@ -122,6 +121,12 @@ work_orders_job = dg.define_asset_job(
 
 
 # === OPERATION ===
+
+komtrax_job = dg.define_asset_job(
+    name="komtrax_job",
+    selection=dg.AssetSelection.assets("mutate_smr").upstream(),
+    description="Procesamiento Komtrax DW",
+)
 
 op_file_idx_job = dg.define_asset_job(
     name="op_file_idx_job", selection=dg.AssetSelection.assets("spawn_op_file_idx").upstream()

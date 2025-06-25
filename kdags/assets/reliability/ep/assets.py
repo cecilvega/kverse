@@ -75,9 +75,11 @@ def mutate_ep(
 
     ### Agregar costos de reparación
     df = df.join(
-        so_quotations.select(["service_order", "repair_cost", "quotation_updated_dt", "user", "remarks"]),
+        so_quotations.select(
+            ["service_order", "component_serial", "repair_cost", "quotation_dt", "edited_by", "quotation_remarks"]
+        ),
         how="left",
-        on="service_order",
+        on=["service_order", "component_serial"],
     )
 
     df = (

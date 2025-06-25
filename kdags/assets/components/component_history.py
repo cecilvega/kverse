@@ -277,18 +277,19 @@ def mutate_component_history(
         .sort(["changeout_date", "equipment_name", "component_name", "subcomponent_name", "position_name"])
     )
 
+    df = df.join(
+        MasterData.components().select(["component_name", "subcomponent_name", "subcomponent_tag"]),
+        how="left",
+        on=["component_name", "subcomponent_name"],
+    )
+    df = df.join(
+        MasterData.positions().select(["position_name", "position_tag"]),
+        how="left",
+        on=["position_name"],
+    )
+
     dl = DataLake(context=context)
 
     dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["component_history"]["analytics_path"])
 
-    return df
-
-
-@dg.asset(
-    group_name="readr",
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-)
-def component_history(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=DATA_CATALOG["component_history"]["analytics_path"])
     return df

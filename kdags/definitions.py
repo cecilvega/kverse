@@ -5,8 +5,13 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 
 
 from kdags.assets import maintenance, reparation, operation, components, reliability, docs
-from kdags.schedules import component_history_schedule, harvest_so_report_schedule, oil_analysis_schedule
-from kdags.sensors import so_report_sensor
+from kdags.schedules import (
+    component_history_schedule,
+    harvest_so_report_schedule,
+    oil_analysis_schedule,
+    publish_data_schedule,
+)
+from kdags.sensors import so_report_sensor, quotations_sensor
 from kdags.jobs import (
     # === DOCS ===
     docs_job,
@@ -28,6 +33,7 @@ from kdags.jobs import (
     pm_history_job,
     op_file_idx_job,
     # === OPERATION ===
+    komtrax_job,
     plm_job,
     ge_job,
     publish_sp_job,
@@ -83,6 +89,7 @@ kdefs = dg.Definitions(
         warranties_job,
         # === DOCS ===
         docs_job,
+        publish_sp_job,
         # === RELIABILITY ===
         component_history_job,
         pool_inventory_job,
@@ -100,13 +107,14 @@ kdefs = dg.Definitions(
         op_file_idx_job,
         plm_job,
         ge_job,
-        publish_sp_job,
+        komtrax_job,
     ],
     schedules=[
         # === COMPONENTS ===
         component_history_schedule,
         harvest_so_report_schedule,
         oil_analysis_schedule,
+        publish_data_schedule,
     ],
-    sensors=[so_report_sensor],
+    sensors=[so_report_sensor, quotations_sensor],
 )
