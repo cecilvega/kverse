@@ -20,6 +20,17 @@ component_history_job = dg.define_asset_job(
     description="Cambios de componente",
 )
 
+component_fleet_job = dg.define_asset_job(
+    name="component_fleet_job",
+    selection=dg.AssetSelection.assets("mutate_component_fleet").upstream(),
+    description="...",
+)
+
+component_reparations_job = dg.define_asset_job(
+    name="component_reparations_job",
+    selection=dg.AssetSelection.assets("mutate_component_reparations").upstream(),
+    description="Reparación de componentes",
+)
 
 # === REPARATION ===
 harvest_so_report_job = dg.define_asset_job(
@@ -51,6 +62,7 @@ quotations_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets("mutate_so_quotations").upstream(),
 )
 
+
 # === DOCS ===
 docs_job = dg.define_asset_job(
     name="docs_job",
@@ -61,20 +73,7 @@ docs_job = dg.define_asset_job(
 )
 
 
-publish_sp_job = dg.define_asset_job(
-    name="test_job",
-    selection=dg.AssetSelection.assets("hola").upstream(),
-    description="GE Eventos",
-)
-
-
 # === RELIABILITY ===
-
-component_reparations_job = dg.define_asset_job(
-    name="component_reparations_job",
-    selection=dg.AssetSelection.assets("mutate_component_reparations").upstream(),
-    description="...",
-)
 
 
 ep_job = dg.define_asset_job(

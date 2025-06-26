@@ -13,10 +13,8 @@ from kdags.resources.tidyr import DataLake
 from ..reso import *
 
 
-@dg.asset(group_name="reparation")
-def select_so_documents_to_update(
-    context: dg.AssetExecutionContext, raw_so_documents: pl.DataFrame, so_report: pl.DataFrame
-):
+@dg.asset(group_name="reparation", compute_kind="mutate")
+def mutate_so_documents(context: dg.AssetExecutionContext, raw_so_documents: pl.DataFrame, so_report: pl.DataFrame):
     dl = DataLake(context)
     downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(["az_path", "last_modified"])
     df = raw_so_documents.clone()
@@ -117,12 +115,12 @@ def select_so_documents_to_update(
     )
 
     df = df.join(downloaded_documents, on="az_path", how="left")
-    df = df.filter(pl.col("last_modified").is_null())
+
     return df
 
 
 @dg.asset(group_name="reparation")
-def harvest_so_documents(context: dg.AssetExecutionContext, select_so_documents_to_update: pl.DataFrame) -> list:
+def harvest_so_documents(context: dg.AssetExecutionContext, mutate_so_documents: pl.DataFrame) -> list:
     dl = DataLake(context)
     driver = initialize_driver()
     wait = WebDriverWait(driver, DEFAULT_WAIT)
@@ -134,7 +132,7 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_so_documents_
     click_presupuesto(driver, wait)
 
     service_orders_data = (
-        select_so_documents_to_update.filter(pl.col("last_modified").is_null())
+        mutate_so_documents.filter(pl.col("last_modified").is_null())
         .select(["service_order", "component_serial"])
         .to_dicts()
     )
@@ -155,7 +153,7 @@ def harvest_so_documents(context: dg.AssetExecutionContext, select_so_documents_
 
             try:
                 # Filter data for the current SO for this attempt
-                filter_docs_df = select_so_documents_to_update.filter(
+                filter_docs_df = mutate_so_documents.filter(
                     (pl.col("service_order") == so_number) & (pl.col("component_serial") == component_serial)
                 )
 

@@ -9,7 +9,7 @@ import dagster as dg
 
 # === COMPONENTS ===
 
-from kdags.assets.components.component_reparations import component_reparations
+
 from kdags.assets.components.readr_assets import component_history, component_changeouts
 
 # === MAINTENANCE ===
@@ -35,7 +35,7 @@ from kdags.assets.operation.plm.haul import read_haul
 from kdags.assets.reparation.so_report.assets import so_report
 
 # from kdags.assets.reparation.component_status.assets import component_status
-from kdags.assets.reparation.readr_assets import so_quotations
+from kdags.assets.reparation.readr_assets import so_quotations, component_reparations
 
 from kdags.resources.tidyr.masterdata import MasterData
 

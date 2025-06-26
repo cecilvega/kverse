@@ -4,7 +4,7 @@ from kdags.config import DATA_CATALOG
 from kdags.resources.tidyr import DataLake, MasterData
 
 
-@dg.asset(group_name="components")
+@dg.asset(group_name="reparation", compute_kind="mutate")
 def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: pl.DataFrame):
     df = (
         so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA").filter(
@@ -14,6 +14,37 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
         # Sacar las garantías de fábrica porque duplican el contador por mientras, evaluar que hacer posteriormente
         # un mejor algoritmo puede ser deduplicar
         .filter(pl.col("warranty_type") != "Factory Warranty")
+    )
+    df = df.join(
+        pl.DataFrame(
+            [
+                {
+                    "main_component": "WHEEL TRANSMISSION",
+                    "subcomponent_tag": "0980",
+                    "component": [
+                        "MOTOR MECHANIC 960E-2",
+                        "MOTOR MECHANIC 960E-1",
+                        "WHEEL TRANSMISSION 930E-4",
+                        "WHEEL TRANSMISSION 930E",
+                        "WHEEL TRANSMISSION 930E-4SE",
+                    ],
+                },
+                {
+                    "main_component": "FRONT SUSPENSION",
+                    "subcomponent_name": "5A30",
+                    "component": [
+                        "FRONT SUSPENSION 960E-2",
+                        "FRONT SUSPENSION 930E",
+                        "FRONT SUSPENSION 960E-1",
+                        "FRONT SUSPENSION 930E-4",
+                        "FRONT SUSPENSION 960E",
+                        "FRONT SUSPENSION 930E-4SE",
+                    ],
+                },
+            ]
+        ).explode("component"),
+        how="inner",
+        on="component",
     )
     # Define non-numeric values to replace with null
     non_numeric_values = [
@@ -114,14 +145,4 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
     # df = df.join(
     #     so_report.select([*merge_columns, "component_status"]), on=merge_columns, how="left"
     # )  # , validate="1:1"
-    return df
-
-
-@dg.asset(
-    group_name="readr",
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-)
-def component_reparations(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake(context=context)
-    df = dl.read_tibble(az_path=DATA_CATALOG["component_reparations"]["analytics_path"])
     return df

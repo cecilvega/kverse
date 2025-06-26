@@ -16,6 +16,7 @@ from kdags.jobs import (
     # === DOCS ===
     docs_job,
     # === RELIABILITY ===
+    component_fleet_job,
     pool_inventory_job,
     ep_job,
     warranties_job,
@@ -36,7 +37,7 @@ from kdags.jobs import (
     komtrax_job,
     plm_job,
     ge_job,
-    publish_sp_job,
+    component_reparations_job,
 )
 import warnings
 
@@ -89,8 +90,9 @@ kdefs = dg.Definitions(
         warranties_job,
         # === DOCS ===
         docs_job,
-        publish_sp_job,
+        component_reparations_job,
         # === RELIABILITY ===
+        component_fleet_job,
         component_history_job,
         pool_inventory_job,
         ep_job,
