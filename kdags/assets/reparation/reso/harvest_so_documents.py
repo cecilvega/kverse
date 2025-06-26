@@ -117,6 +117,7 @@ def select_so_documents_to_update(
     )
 
     df = df.join(downloaded_documents, on="az_path", how="left")
+    df = df.filter(pl.col("last_modified").is_null())
     return df
 
 

@@ -5,7 +5,7 @@ from kdags.config import DATA_CATALOG
 from kdags.resources.tidyr import DataLake
 
 
-@dg.asset(group_name="reparation")
+@dg.asset(group_name="reparation", compute_kind="readr")
 def so_quotations(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
     df = dl.read_tibble(az_path=DATA_CATALOG["so_quotations"]["analytics_path"])

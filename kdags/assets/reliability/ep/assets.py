@@ -49,7 +49,7 @@ def mutate_ep(
         MasterData.equipments().select(["equipment_name", "site_name", "equipment_model"]),
         how="left",
         on="equipment_name",
-    ).filter(pl.col("site_name") == "MEL")
+    )
     # Guardar fecha publicación presupuesto
     main_component_history_df = (
         df.join(
