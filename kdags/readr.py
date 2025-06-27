@@ -35,7 +35,7 @@ from kdags.assets.operation.plm.haul import read_haul
 from kdags.assets.reparation.so_report.assets import so_report
 
 # from kdags.assets.reparation.component_status.assets import component_status
-from kdags.assets.reparation.readr_assets import so_quotations, component_reparations
+from kdags.assets.reparation.readr_assets import so_quotations, component_reparations, so_documents, quotations
 
 from kdags.resources.tidyr.masterdata import MasterData
 
@@ -65,6 +65,8 @@ class Readr:
 
     so_report: dg.AssetsDefinition = so_report
     so_quotations: dg.AssetsDefinition = so_quotations
+    so_documents: dg.AssetsDefinition = so_documents
+    quotations: dg.AssetsDefinition = quotations
 
     # === PLANNING ===
     component_changeouts: dg.AssetsDefinition = component_changeouts

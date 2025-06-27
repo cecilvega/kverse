@@ -17,7 +17,8 @@ from .quotations_extractor import extract_tables_from_quotations
 def mutate_quotations(
     context: dg.AssetExecutionContext, component_reparations: pl.DataFrame, so_quotations: pl.DataFrame
 ) -> pl.DataFrame:
-    so_df = (
+    dl = DataLake(context)
+    so_records = (
         component_reparations.join(
             so_quotations
             # .select(["service_order", "component_serial", "az_path"])
@@ -32,5 +33,29 @@ def mutate_quotations(
         .select(["service_order", "component_serial", "az_path"])
         .to_dicts()
     )
-    so_df = extract_tables_from_quotations(so_df)
-    return so_df
+
+    tibbles = []
+    for record in so_records:
+        try:
+            # Extract metadata
+            service_order = record["service_order"]
+            component_serial = record["component_serial"]
+            az_path = record["az_path"]
+
+            # Read PDF content
+            content = dl.read_bytes(az_path)
+
+            # Extract conclusions section
+            conclusions = extract_tables_from_quotations(content)
+            tibble = pl.DataFrame(conclusions).with_columns(
+                service_order=pl.lit(service_order),
+                component_serial=pl.lit(component_serial),
+                az_path=pl.lit(az_path),
+            )
+            tibbles.append(tibble)
+        except Exception as e:
+            print(e)
+    df = pl.concat(tibbles, how="diagonal")
+
+    dl.upload_tibble(df, DATA_CATALOG["quotations"]["analytics_path"])
+    return df

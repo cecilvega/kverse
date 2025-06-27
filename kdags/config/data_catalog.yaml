@@ -36,6 +36,9 @@ reparation:
     analytics_path: az://bhp-analytics-data/REPARATION/QUOTATIONS/quotations.parquet
   so_documents:
     raw_path: az://bhp-raw-data/RESO/SERVICE_ORDER_DETAILS/so_documents.parquet
+    analytics_path: az://bhp-analytics-data/REPARATION/so_documents.parquet
+  quotations:
+    analytics_path: az://bhp-analytics-data/REPARATION/quotations.parquet
 reference:
   pcp_repair_costs:
     raw_path: az://bhp-raw-data/REFERENCE/pcp_repair_costs.xlsx
