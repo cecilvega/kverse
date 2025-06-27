@@ -16,7 +16,9 @@ from ..reso import *
 @dg.asset(group_name="reparation", compute_kind="mutate")
 def mutate_so_documents(context: dg.AssetExecutionContext, raw_so_documents: pl.DataFrame, so_report: pl.DataFrame):
     dl = DataLake(context)
-    downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(["az_path", "last_modified"])
+    downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(
+        ["az_path", "last_modified", "file_size"]
+    )
     df = raw_so_documents.clone()
     df = df.join(so_report.select(["service_order", "reception_date"]), how="left", on="service_order")
     df = (

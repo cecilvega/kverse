@@ -22,6 +22,7 @@ from kdags.jobs import (
     warranties_job,
     quotations_job,
     component_reparations_job,
+    tabulate_quotations_job,
     component_history_job,
     # === PLANNING ===
     # === REPARATION ===
@@ -90,7 +91,7 @@ kdefs = dg.Definitions(
         warranties_job,
         # === DOCS ===
         docs_job,
-        component_reparations_job,
+        tabulate_quotations_job,
         # === RELIABILITY ===
         component_fleet_job,
         component_history_job,

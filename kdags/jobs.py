@@ -4,7 +4,11 @@ import dagster as dg
 publish_data_job = dg.define_asset_job(
     name="publish_data_job",
     selection=dg.AssetSelection.assets(
-        "publish_data_catalog", "publish_work_order_history", "publish_oil_analysis", "publish_component_history"
+        "publish_data_catalog",
+        "publish_work_order_history",
+        "publish_oil_analysis",
+        "publish_component_history",
+        "publish_component_reparations",
     ).upstream(),
     description="Publicar datos a Sharepoint",
 )
@@ -17,6 +21,12 @@ component_history_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream()
     | dg.AssetSelection.assets("mutate_so_report").upstream()
     | dg.AssetSelection.assets("mutate_component_history").upstream(),
+    description="Cambios de componente",
+)
+
+tabulate_quotations_job = dg.define_asset_job(
+    name="tabulate_quotations_job",
+    selection=dg.AssetSelection.assets("mutate_quotations").upstream(),
     description="Cambios de componente",
 )
 

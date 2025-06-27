@@ -31,7 +31,7 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
                 },
                 {
                     "main_component": "FRONT SUSPENSION",
-                    "subcomponent_name": "5A30",
+                    "subcomponent_tag": "5A30",
                     "component": [
                         "FRONT SUSPENSION 960E-2",
                         "FRONT SUSPENSION 930E",
@@ -122,18 +122,18 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
         [
             # Repair count (cumulative/increasing)
             pl.int_range(pl.len())
-            .over(["component_serial", "subcomponent_name"])  # , "subcomponent_name", "main_component"
+            .over(["component_serial", "subcomponent_tag"])  # , "subcomponent_name", "main_component"
             .alias("repair_count")
             + 1,
             # Repair recency rank (inverse of repair count - most recent = 1)
             pl.int_range(pl.len())
             .reverse()
-            .over(["component_serial", "subcomponent_name"])
+            .over(["component_serial", "subcomponent_tag"])
             .alias("repair_recency_rank"),
             # Cumulative component hours
             pl.col("component_hours")
             .cum_sum()
-            .over(["component_serial", "subcomponent_name", "main_component"])
+            .over(["component_serial", "subcomponent_tag", "main_component"])
             .alias("cumulative_component_hours"),
         ]
     )
