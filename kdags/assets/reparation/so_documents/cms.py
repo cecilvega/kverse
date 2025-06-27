@@ -26,12 +26,7 @@ def mutate_reso_cms(context: dg.AssetExecutionContext, component_reparations: pl
         .to_dicts()
     )
 
-    df = process_multiple_reports_expanded(
-        records_list,
-        # section_title="Conclusiones o comentarios",
-        # header_identifiers=["Conclusiones", "Serie"],
-        # stop_markers=["Fotografías Reporte Técnico"],
-    )
+    df = process_multiple_reports_expanded(context, records_list)
 
     # dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["so_documents"]["analytics_path"])
     return df

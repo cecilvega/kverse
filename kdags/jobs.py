@@ -9,6 +9,7 @@ publish_data_job = dg.define_asset_job(
         "publish_oil_analysis",
         "publish_component_history",
         "publish_component_reparations",
+        "publish_quotations",
     ).upstream(),
     description="Publicar datos a Sharepoint",
 )
@@ -146,6 +147,12 @@ plm_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets("spawn_plm3_haul").upstream()
     | dg.AssetSelection.assets("spawn_plm3_alarms").upstream(),
     description="PLM Haulcycle y alarmas",
+)
+
+oil_analysis_job = dg.define_asset_job(
+    name="oil_analysis_job",
+    selection=dg.AssetSelection.assets("mutate_oil_analysis").upstream(),
+    description="Muestras aceite SCAAE",
 )
 
 ge_job = dg.define_asset_job(

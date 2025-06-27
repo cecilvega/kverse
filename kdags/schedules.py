@@ -1,5 +1,5 @@
 import dagster as dg
-from kdags.jobs import component_history_job, harvest_so_report_job, publish_data_job
+from kdags.jobs import component_history_job, harvest_so_report_job, publish_data_job, oil_analysis_job
 
 # === DOCS ===
 publish_data_schedule = dg.ScheduleDefinition(
@@ -31,11 +31,7 @@ harvest_so_report_schedule = dg.ScheduleDefinition(
 
 oil_analysis_schedule = dg.ScheduleDefinition(
     name="oil_analysis_schedule",
-    job=dg.define_asset_job(
-        name="oil_analysis_job",
-        selection=dg.AssetSelection.assets("mutate_oil_analysis").upstream(),
-        description="Muestras aceite SCAAE",
-    ),
+    job=oil_analysis_job,
     cron_schedule="15 11 * * *",  # daily at 11:15
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,

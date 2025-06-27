@@ -14,6 +14,7 @@ from kdags.schedules import (
 from kdags.sensors import so_report_sensor, quotations_sensor
 from kdags.jobs import (
     # === DOCS ===
+    oil_analysis_job,
     docs_job,
     # === RELIABILITY ===
     component_fleet_job,
@@ -38,7 +39,8 @@ from kdags.jobs import (
     komtrax_job,
     plm_job,
     ge_job,
-    component_reparations_job,
+    harvest_so_report_job,
+    publish_data_job,
 )
 import warnings
 
@@ -83,11 +85,25 @@ all_assets = dg.link_code_references_to_git(
     ),
 )
 
+from pathlib import Path
+
+if Path.home().__str__() in ["C:\\Users\\u1309372"]:
+    schedules = []
+else:
+    schedules = [
+        # === COMPONENTS ===
+        component_history_schedule,
+        harvest_so_report_schedule,
+        oil_analysis_schedule,
+        publish_data_schedule,
+    ]
+
 kdefs = dg.Definitions(
     assets=all_assets,
     jobs=[
         # === COMPONENTS ===
         component_reparations_job,
+        harvest_so_report_job,
         warranties_job,
         # === DOCS ===
         docs_job,
@@ -110,14 +126,10 @@ kdefs = dg.Definitions(
         op_file_idx_job,
         plm_job,
         ge_job,
+        oil_analysis_job,
         komtrax_job,
+        publish_data_job,
     ],
-    schedules=[
-        # === COMPONENTS ===
-        component_history_schedule,
-        harvest_so_report_schedule,
-        oil_analysis_schedule,
-        publish_data_schedule,
-    ],
+    schedules=schedules,
     sensors=[so_report_sensor, quotations_sensor],
 )

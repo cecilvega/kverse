@@ -21,3 +21,16 @@ def publish_component_reparations(context: dg.AssetExecutionContext, component_r
         sp_path=DATA_CATALOG["component_reparation"]["publish_path"],
     )
     return df
+
+
+@dg.asset(group_name="reparation", compute_kind="publish")
+def publish_quotations(context: dg.AssetExecutionContext, quotations: pl.DataFrame):
+    msgraph = MSGraph(context)
+
+    df = quotations.clone()
+    df = df.rename(TIDY_NAMES, strict=False).pipe(tidy_tibble, context)
+    msgraph.upload_tibble(
+        tibble=df,
+        sp_path=DATA_CATALOG["quotations"]["publish_path"],
+    )
+    return df

@@ -161,14 +161,13 @@ def process_multiple_reports_expanded(context: AssetExecutionContext, records_li
     """
     dl = DataLake(context)
     all_results = []
-    # dl = DataLake()
 
     for record in records_list:
         try:
             # Extract metadata
-            service_order = record.get("service_order", "")
-            component_serial = record.get("component_serial", "")
-            az_path = record.get("az_path", "")
+            service_order = record["service_order"]
+            component_serial = record["component_serial"]
+            az_path = record["az_path"]
 
             # Read PDF content
             content = dl.read_bytes(az_path)

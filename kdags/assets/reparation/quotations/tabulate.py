@@ -27,9 +27,10 @@ def mutate_quotations(
             on=["service_order", "component_serial"],
         )
         .drop_nulls("file_size")
-        .filter(pl.col("subcomponent_tag") == "5A30")
-        .sort("reception_date")
-        .tail(5)
+        .filter(pl.col("subcomponent_tag").is_in(["5A30", "0980"]))
+        .sort(["subcomponent_tag", "reception_date"])
+        # .group_by("subcomponent_tag", maintain_order=True)
+        # .tail(5)
         .select(["service_order", "component_serial", "az_path"])
         .to_dicts()
     )
