@@ -10,6 +10,15 @@ publish_data_schedule = dg.ScheduleDefinition(
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
+ep_schedule = dg.ScheduleDefinition(
+    name="ep_schedule",
+    job=component_history_job,
+    cron_schedule="0 0 * * FRI",  # daily at 9:00 and 21:00
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+
 component_history_schedule = dg.ScheduleDefinition(
     name="component_history_schedule",
     job=component_history_job,

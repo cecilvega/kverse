@@ -24,9 +24,29 @@ def gfa_overhaul_rates(context: dg.AssetExecutionContext):
 
 
 @dg.asset
-def ep_reference(context: dg.AssetExecutionContext):
+def ep_reference(context: dg.AssetExecutionContext, component_history: pl.DataFrame):
     msgraph = MSGraph(context)
-    df = msgraph.read_tibble(DATA_CATALOG["ep"]["reference_path"]).drop(["component_icon"])
+    mel_df = msgraph.read_tibble(DATA_CATALOG["ep"]["reference_path"]).drop(["component_icon"])
+
+    spence_df = (
+        component_history.join(
+            MasterData.components()
+            .select(["subcomponent_tag", "subcomponent_main"])
+            .filter(pl.col("subcomponent_main")),
+            how="inner",
+            on="subcomponent_tag",
+        )
+        .select(
+            [
+                "equipment_name",
+                "component_name",
+                "position_name",
+                "changeout_date",
+            ]
+        )
+        .unique()
+    )
+    df = pl.concat([mel_df, spence_df], how="diagonal")
     return df
 
 
@@ -46,7 +66,7 @@ def mutate_ep(
     merge_columns = ["equipment_name", "component_name", "position_name", "changeout_date"]
     # Analizar EP desde el 2025 en adelante + casos históricos
     df = component_history.join(
-        MasterData.equipments().select(["equipment_name", "site_name", "equipment_model"]),
+        MasterData.equipments().select(["site_name", "equipment_model", "equipment_name"]),
         how="left",
         on="equipment_name",
     )
@@ -64,6 +84,8 @@ def mutate_ep(
         )
         .select(
             [
+                "site_name",
+                "equipment_model",
                 *merge_columns,
                 "component_hours",
                 "component_usage",
@@ -134,7 +156,7 @@ def mutate_ep(
         ),
         how="left",
         on=merge_columns,
-    )
+    ).sort(["changeout_date"])
 
     ### Agregar costos medios de reparación
     # Summary de costos de reparación por componentes mayores
@@ -234,87 +256,3 @@ def mutate_ep(
 
     dl.upload_tibble(tibble=df, az_path=DATA_CATALOG["ep"]["analytics_path"])
     return df
-
-
-@dg.asset
-def ep(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake(context=context)
-    df = dl.read_tibble(DATA_CATALOG["ep"]["analytics_path"])
-    return df
-
-
-@dg.asset
-def publish_sp_ep(context: dg.AssetExecutionContext, mutate_ep: pl.DataFrame):
-    msgraph = MSGraph(context)
-    df = mutate_ep.clone()
-
-    df = df.with_columns(
-        changeout_date=pl.col("changeout_date").dt.to_string("%Y-%m-%d"),
-    )
-
-    df = df.select(
-        [
-            "equipment_name",
-            "component_name",
-            "position_name",
-            "changeout_date",
-            "component_hours",
-            "component_usage",
-            "ep_status",
-            "raised_by",
-            "ep_date",
-            "dificultad_tecnica",
-            "repair_cost",
-            "count_without_repair_cost",
-            "service_order",
-            "mean_repair_cost",
-            "prorrata_sale",
-            "economical_impact",
-            "days_since_quotation",
-            "payment_status_analysis",
-            "priority_score",
-        ]
-    ).rename(
-        {
-            "equipment_name": "Equipo",
-            "component_name": "Componente",
-            "position_name": "Posición",
-            "changeout_date": "Fecha Cambio",
-            "component_usage": "%Uso",
-            # "ep_status": "Estado EP",
-            "raised_by": "Levantado Por",
-            "ep_date": "Fecha EP",
-            # "payment_status_analysis": "Clasificación EP",
-            "service_order": "OS KRCC",
-            # "days_since_quotation": "Días desde Último Presupuesto",
-            "repair_cost": "Costo Reparación",
-            "prorrata_sale": "Costo Prorrata",
-            "mean_repair_cost": "Costo Reparación Medio",
-        }
-    )
-    tidy_ep_df = (
-        df.filter(
-            ((pl.col("ep_status") != "skipped") & (pl.col("ep_status") != "planificado_bajo_costo"))
-            | (pl.col("ep_status").is_null())
-        )
-        .filter(pl.col("Costo Reparación").is_not_null())
-        .filter(pl.col("Fecha EP").is_null())
-    )
-
-    # msgraph = MSGraph()
-    upload_results = []
-    upload_results.append(
-        # datalake.upload_tibble(tibble=tidy_ep_df, az_path="az://bhp-analytics-data/RELIABILITY/EP/tidy_ep.parquet")
-        msgraph.upload_tibble(
-            tibble=df,
-            sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/ep.xlsx",
-        )
-    )
-    upload_results.append(
-        msgraph.upload_tibble(
-            tibble=tidy_ep_df,
-            sp_path="sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/tidy_ep.xlsx",
-        )
-    )
-
-    return [1, 2]

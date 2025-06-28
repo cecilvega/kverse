@@ -10,6 +10,7 @@ publish_data_job = dg.define_asset_job(
         "publish_component_history",
         "publish_component_reparations",
         "publish_quotations",
+        "publish_ep",
     ).upstream(),
     description="Publicar datos a Sharepoint",
 )
@@ -89,7 +90,7 @@ docs_job = dg.define_asset_job(
 
 ep_job = dg.define_asset_job(
     name="ep_job",
-    selection=dg.AssetSelection.assets("publish_sp_ep").upstream(),
+    selection=dg.AssetSelection.assets("mutate_ep").upstream(),
     description="...",
 )
 

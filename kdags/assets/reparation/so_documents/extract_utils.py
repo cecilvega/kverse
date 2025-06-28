@@ -8,7 +8,7 @@ from dagster import AssetExecutionContext
 from kdags.resources.tidyr import DataLake
 
 
-def extract_section(pdf_bytes, section_title="Conclusiones o comentarios"):
+def extract_section(pdf_bytes, section_title: str):
     """
     Extract a specific section from a PDF technical report.
     Handles tables that span multiple pages and stops at the end of the table.
@@ -111,6 +111,7 @@ def extract_section(pdf_bytes, section_title="Conclusiones o comentarios"):
                             # They should either have the same column structure or be a continuation
                             if len(non_empty_cells) >= expected_columns - 1:  # Allow some flexibility
                                 # Check if first cell contains "Conclusiones" (data row)
+                                print(row)
                                 if row[0] and "Conclusiones" in str(row[0]):
                                     cleaned_row = [str(cell).strip() if cell else "" for cell in row]
                                     section_data["content"].append({"type": "table_row", "data": cleaned_row})
@@ -154,7 +155,7 @@ def extract_conclusions(pdf_bytes):
     }
 
 
-def process_multiple_reports_expanded(context: AssetExecutionContext, records_list):
+def process_multiple_reports_expanded(context: AssetExecutionContext, records_list: list):
     """
     Process multiple PDF reports and create an expanded dataframe
     where each row from the extracted table becomes a row in the final dataframe.

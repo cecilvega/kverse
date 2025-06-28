@@ -10,6 +10,7 @@ from kdags.schedules import (
     harvest_so_report_schedule,
     oil_analysis_schedule,
     publish_data_schedule,
+    ep_schedule,
 )
 from kdags.sensors import so_report_sensor, quotations_sensor
 from kdags.jobs import (
@@ -96,6 +97,7 @@ else:
         harvest_so_report_schedule,
         oil_analysis_schedule,
         publish_data_schedule,
+        ep_schedule,
     ]
 
 kdefs = dg.Definitions(

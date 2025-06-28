@@ -61,6 +61,9 @@ reliability:
   ep:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/ep.xlsx
     analytics_path: az://bhp-analytics-data/RELIABILITY/EP/ep.parquet
+    publish_path: "sp://KCHCLGR00058/___/CONFIABILIDAD/Estado Pago.xlsx"
+  tidy_ep:
+    publish_path: "sp://KCHCLGR00058/___/CONFIABILIDAD/Tidy Estado Pago.xlsx"
   component_snapshots:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_SNAPSHOTS/component_snapshots.parquet
   component_states:
