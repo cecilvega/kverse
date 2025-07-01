@@ -6,20 +6,15 @@ from kdags.resources.tidyr import DataLake, MasterData, MSGraph
 
 
 def pivot_part_metrics(enriched_df):
-    """
-    Pivot the enriched dataframe with part metrics to wide format
-    Input: Output from mutate_part_reparations()
-    Output: One row per component with part metrics as columns
-    """
 
+    merge_columns = ["service_order", "component_serial"]
     # Step 1: Filter for most recent records only (recency rank = 1)
     latest_records = enriched_df.filter(pl.col("part_repair_recency_rank") == 0)
 
     # Step 2: Get component-level info (no document_type or extraction_status)
-    component_info = latest_records.group_by("component_serial").agg(
+    component_info = latest_records.group_by(merge_columns).agg(
         [
             pl.col("reception_date").max().alias("reception_date"),
-            pl.col("service_order").max().alias("service_order"),  # Fixed: no "latest_" prefix
         ]
     )
 
@@ -36,69 +31,43 @@ def pivot_part_metrics(enriched_df):
         part_serial_df = (
             part_data.pivot(
                 values="part_serial",
-                index="component_serial",
+                index=merge_columns,
                 on="part_name",
                 aggregate_function="first",
             )
-            .select(["component_serial", part_name])
+            .select([*merge_columns, part_name])
             .rename({part_name: part_name})
         )
 
-        # Repair count
+        # # Repair count
         part_count_df = (
             part_data.pivot(
-                values="component_part_name_repair_count",
-                index="component_serial",
+                values="part_repair_count",
+                index=merge_columns,
                 on="part_name",
                 aggregate_function="first",
             )
-            .select(["component_serial", part_name])
+            .select([*merge_columns, part_name])
             .rename({part_name: f"{part_name}_repair_count"})
-        )
-
-        # Recency rank
-        part_recency_df = (
-            part_data.pivot(
-                values="part_repair_recency_rank",
-                index="component_serial",
-                on="part_name",
-                aggregate_function="first",
-            )
-            .select(["component_serial", part_name])
-            .rename({part_name: f"{part_name}_repair_recency_rank"})
         )
 
         # Cumulative hours
         part_hours_df = (
             part_data.pivot(
                 values="cumulative_part_hours",
-                index="component_serial",
+                index=merge_columns,
                 on="part_name",
                 aggregate_function="first",
             )
-            .select(["component_serial", part_name])
+            .select([*merge_columns, part_name])
             .rename({part_name: f"{part_name}_cumulative_part_hours"})
-        )
-
-        # Change count
-        part_changes_df = (
-            part_data.pivot(
-                values="component_part_name_change_count",
-                index="component_serial",
-                on="part_name",
-                aggregate_function="first",
-            )
-            .select(["component_serial", part_name])
-            .rename({part_name: f"{part_name}_change_count"})
         )
 
         # Join all metrics for this part
         final_result = (
-            final_result.join(part_serial_df, on="component_serial", how="left")
-            .join(part_count_df, on="component_serial", how="left")
-            .join(part_recency_df, on="component_serial", how="left")
-            .join(part_hours_df, on="component_serial", how="left")
-            .join(part_changes_df, on="component_serial", how="left")
+            final_result.join(part_serial_df, on=merge_columns, how="left")
+            .join(part_hours_df, on=merge_columns, how="left")
+            .join(part_count_df, on=merge_columns, how="left")
         )
 
     return final_result
@@ -248,14 +217,25 @@ def mutate_component_fleet(
     )
     df = df.with_columns(
         total_component_hours=pl.col("cumulative_component_hours")
-        + pl.when(pl.col("runtime_hours") > 0).then(pl.col("runtime_hours")).otherwise(pl.col("runtime_hours"))
+        + pl.col("runtime_hours")
+        # + pl.when(pl.col("runtime_hours") > 0).then(pl.col("runtime_hours")).otherwise(pl.col("runtime_hours"))
     )
 
     # Agregar lo de las partes
 
     parts_df = mutate_part_reparations.pipe(pivot_part_metrics)
     df = df.join(parts_df, on=["service_order", "component_serial"], how="left")
+
+    df = df.drop(["reception_date_right", "repair_recency_rank", "Fecha CC"], strict=False).rename(
+        {
+            "runtime_hours": "Horas Operadas Comp.",
+            "repair_count": "Cantidad Reparaciones",
+            "total_component_hours": "Horas Totales Comp.",
+        }
+    )
+
     dl.upload_tibble(df, DATA_CATALOG["component_fleet"]["analytics_path"])
+
     return df
 
 
