@@ -6,7 +6,6 @@ from kdags.resources.tidyr import DataLake
 
 
 @dg.asset(
-    group_name="components",
     compute_kind="readr",
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
     # metadata={"dagster/column_schema": COMPONENT_CHANGEOUTS_SCHEMA},
@@ -18,7 +17,6 @@ def component_changeouts(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 
 @dg.asset(
-    group_name="components",
     compute_kind="readr",
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
 )

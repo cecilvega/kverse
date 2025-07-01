@@ -4,7 +4,7 @@ from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.config import DATA_CATALOG
 
 
-@dg.asset(group_name="maintenance", compute_kind="publish")
+@dg.asset(compute_kind="publish")
 def publish_work_order_history(context: dg.AssetExecutionContext, work_order_history: pl.DataFrame):
     msgraph = MSGraph(context)
     df = work_order_history
@@ -16,7 +16,7 @@ def publish_work_order_history(context: dg.AssetExecutionContext, work_order_his
     return df
 
 
-@dg.asset(group_name="maintenance", compute_kind="publish")
+@dg.asset(compute_kind="publish")
 def publish_oil_analysis(context: dg.AssetExecutionContext, oil_analysis: pl.DataFrame):
     msgraph = MSGraph(context)
     df = oil_analysis

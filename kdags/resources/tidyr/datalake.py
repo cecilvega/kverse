@@ -11,6 +11,15 @@ from azure.storage.blob import BlobClient
 import requests
 
 
+def extract_partition_date(az_path: str) -> datetime:
+    """Extract date from partition path"""
+    match = re.search(r"y=(\d{4})/m=(\d{2})/d=(\d{2})", az_path)
+    if match:
+        year, month, day = map(int, match.groups())
+        return datetime(year, month, day)
+    return None
+
+
 class DataLake:
     def __init__(self, context: dg.AssetExecutionContext = None):
         self.context_check = isinstance(context, dg.AssetExecutionContext)
@@ -31,6 +40,128 @@ class DataLake:
         }
 
         self.client = DataLakeServiceClient.from_connection_string(self._conn_str)
+
+    def _manifest(self, manifest_path: str) -> pl.DataFrame:
+        """Get manifest of all files with processing status"""
+        if self.az_path_exists(manifest_path):
+            return self.read_tibble(manifest_path)
+        else:
+            # Return empty DataFrame with expected schema
+            return pl.DataFrame({"az_path": [], "file_size": [], "last_modified": [], "processed_at": []})
+
+    def upsert_tibble(
+        self,
+        manifest_df: pl.DataFrame,
+        analytics_df: pl.DataFrame,
+        dedup_keys: list,
+        date_column: str = "partition_date",
+        add_partition_date: bool = True,
+        cleaning_fn=None,
+    ) -> (pl.DataFrame, pl.DataFrame):
+        """
+        Upsert (update/insert) data with deduplication
+
+        Args:
+            manifest_df: DataFrame with all files, where processed_at=null for unprocessed files
+            analytics_df: Existing analytics data (can be None/empty)
+            dedup_keys: Columns to use as unique keys for deduplication
+            date_column: Column name for determining latest record
+            add_partition_date: Whether to extract date from partition path
+
+        Returns:
+            Tuple of (deduplicated_analytics_df, updated_manifest_df)
+        """
+
+        # Find unprocessed files
+        unprocessed_files = manifest_df.filter(pl.col("processed_at").is_null())
+
+        if unprocessed_files.height == 0:
+            # No new files to process
+            if self.context:
+                self.context.log.info("No unprocessed files found")
+            return analytics_df if analytics_df is not None else pl.DataFrame(), manifest_df
+
+        if self.context:
+            self.context.log.info(f"Processing {unprocessed_files.height} new files")
+
+        # Read ALL files (since each contains full history)
+        all_tibbles = []
+        processed_paths = []
+
+        for row in manifest_df.to_dicts():
+            try:
+                tibble = self.read_tibble(row["az_path"])
+
+                # Apply custom cleaning or default string cleaning
+                if cleaning_fn:
+                    tibble = cleaning_fn(tibble)
+
+                # Add partition date if requested
+                if add_partition_date:
+                    match = re.search(r"y=(\d{4})/m=(\d{2})/d=(\d{2})", row["az_path"])
+                    if match:
+                        y, m, d = map(int, match.groups())
+                        tibble = tibble.with_columns(pl.lit(datetime(y, m, d)).alias(date_column))
+
+                all_tibbles.append(tibble)
+
+                # Track successfully processed files
+                if row["processed_at"] is None:
+                    processed_paths.append(row["az_path"])
+
+            except Exception as e:
+                if self.context:
+                    self.context.log.error(f"Failed to read {row['az_path']}: {str(e)}")
+                continue
+
+        # Combine all data
+        if all_tibbles:
+            combined_data = pl.concat(all_tibbles)
+
+            # If we have existing analytics data, include it
+            if analytics_df is not None and analytics_df.height > 0:
+                combined_data = pl.concat([analytics_df, combined_data], how="diagonal")
+
+            # Deduplicate: keep record with latest date_column value
+            deduplicated_df = combined_data.sort(date_column, descending=True).unique(subset=dedup_keys, keep="first")
+
+            if self.context:
+                self.context.log.info(f"Deduplicated from {combined_data.height} to {deduplicated_df.height} rows")
+        else:
+            deduplicated_df = analytics_df if analytics_df is not None else pl.DataFrame()
+
+        # Update manifest: set processed_at for newly processed files
+        current_time = datetime.now()
+        updated_manifest = manifest_df.with_columns(
+            pl.when(pl.col("az_path").is_in(processed_paths))
+            .then(pl.lit(current_time))
+            .otherwise(pl.col("processed_at"))
+            .alias("processed_at")
+        )
+        deduplicated_df = deduplicated_df.with_columns(date_column=pl.col(date_column).cast(pl.Date))
+        return deduplicated_df, updated_manifest
+
+    def prepare_manifest(self, raw_path: str, manifest_path: str) -> pl.DataFrame:
+        """
+        Prepare manifest by comparing raw files with existing manifest
+        Ensures all files are listed with their processing status
+        """
+        # Get all files from raw path
+        all_files = self.list_paths(raw_path)
+
+        # Get existing manifest
+        existing_manifest = self._manifest(manifest_path)
+
+        if existing_manifest.height == 0:
+            # No existing manifest, all files are unprocessed
+            return all_files.with_columns(pl.lit(None).alias("processed_at"))
+
+        # Left join to preserve all files, with processing status from manifest
+        manifest = all_files.join(
+            existing_manifest.select(["az_path", "file_size", "processed_at"]), on=["az_path", "file_size"], how="left"
+        )
+
+        return manifest
 
     def _parse_az_path(self, az_path: str) -> tuple:
 
@@ -96,7 +227,15 @@ class DataLake:
         downloaded_data = file_client.download_file()
         return downloaded_data.readall()
 
-    def read_tibble(self, az_path: str, include_az_path: bool = False, **kwargs) -> pl.DataFrame:
+    def read_tibble(
+        self, az_path: str, raise_if_missing: bool = False, include_az_path: bool = False, **kwargs
+    ) -> pl.DataFrame:
+
+        # Check if file exists first when raise_if_missing is False
+        if not raise_if_missing and not self.az_path_exists(az_path):
+            if self.context_check:
+                self.context.log.warning(f"File does not exist: {az_path}. Returning empty DataFrame.")
+            return pl.DataFrame()
 
         if self.context_check:
             self.context.log.info(f"Reading data from Azure path: {az_path}")

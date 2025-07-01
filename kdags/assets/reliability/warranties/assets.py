@@ -5,14 +5,14 @@ import polars as pl
 from datetime import datetime
 
 
-@dg.asset(group_name="reliability")
+@dg.asset()
 def reference_warranties(context: dg.AssetExecutionContext):
     msgraph = MSGraph(context)
     df = msgraph.read_tibble(DATA_CATALOG["warranties"]["reference_path"])
     return df
 
 
-@dg.asset(group_name="reliability")
+@dg.asset()
 def reference_psg_requests(context: dg.AssetExecutionContext):
     msgraph = MSGraph(context)
     df = msgraph.read_tibble(DATA_CATALOG["psg_requests"]["reference_path"])
@@ -28,7 +28,7 @@ def reference_psg_requests(context: dg.AssetExecutionContext):
 #     return df
 
 
-@dg.asset(group_name="reliability")
+@dg.asset()
 def mutate_warranties(
     context: dg.AssetExecutionContext,
     component_changeouts: pl.DataFrame,
@@ -90,7 +90,6 @@ def mutate_warranties(
 
 @dg.asset(
     description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-    group_name="readr",
 )
 def warranties(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)

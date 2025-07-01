@@ -13,7 +13,7 @@ class ReadRawOilAnalysisConfig(dg.Config):
     days_lookback: int = 30
 
 
-@dg.asset(group_name="maintenance")
+@dg.asset()
 def raw_oil_analysis(
     context: dg.AssetExecutionContext,
     config: ReadRawOilAnalysisConfig,
@@ -143,7 +143,7 @@ def process_oil_analysis(raw_oil_analysis):
     return df
 
 
-@dg.asset(group_name="maintenance")
+@dg.asset()
 def mutate_oil_analysis(context: dg.AssetExecutionContext, raw_oil_analysis: pl.DataFrame):
     process_df = process_oil_analysis(raw_oil_analysis)
     oil_analysis_analytics_path = DATA_CATALOG["oil_analysis"]["analytics_path"]

@@ -15,18 +15,21 @@ components:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/patched_component_changeouts.xlsx
   component_history:
     analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_HISTORY/component_history.parquet
-    publish_path: "sp://KCHCLGR00058/___/Historial Componentes.xlsx"
+    publish_path: "sp://KCHCLGR00058/___/COMPONENTES/Historial Componentes.xlsx"
   component_reparations:
     analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_REPARATIONS/component_reparations.parquet
-    publish_path: "sp://KCHCLGR00058/___/Reparación Componentes.xlsx"
+    publish_path: "sp://KCHCLGR00058/___/REPARACION/Reparación Componentes.xlsx"
 maintenance:
   oil_analysis:
     raw_path: az://bhp-raw-data/LUBE_ANALYST/SCAAE
     analytics_path: az://bhp-analytics-data/MAINTENANCE/OIL_ANALYSIS/oil_analysis.parquet
     publish_path: "sp://KCHCLGR00058/___/MANTENIMIENTO/Historial Muestras Aceite.xlsx"
+  work_schedule:
+    raw_path: az://bhp-raw-data/FIORI/WORK_SCHEDULE
   work_order_history:
-#    raw_path: az://bhp-raw-data/FIORI/Work Orders.xlsx
-    analytics_path: az://bhp-analytics-data/MAINTENANCE/work_order_history.parquet
+    raw_path: az://bhp-raw-data/FIORI/WORK_ORDER_HISTORY
+    manifest_path: az://bhp-process-data/STATE/FIORI/WORK_ORDER_HISTORY/manifest.parquet
+    analytics_path: az://bhp-analytics-data/MAINTENANCE/WORK_ORDER_HISTORY/work_order_history.parquet
     publish_path: "sp://KCHCLGR00058/___/MANTENIMIENTO/Historial Órdenes Trabajo.xlsx"
 reparation:
   so_report:
@@ -40,6 +43,10 @@ reparation:
   quotations:
     analytics_path: az://bhp-analytics-data/REPARATION/quotations.parquet
     publish_path: "sp://KCHCLGR00058/___/REPARACION/Presupuestos.xlsx"
+  sd_docs:
+    analytics_path: az://bhp-process-data/RESO/DOCUMENTS/sd.parquet
+  mt_docs:
+    analytics_path: az://bhp-process-data/RESO/DOCUMENTS/mt.parquet
 reference:
   pcp_repair_costs:
     raw_path: az://bhp-raw-data/REFERENCE/pcp_repair_costs.xlsx
@@ -48,6 +55,7 @@ reference:
 reliability:
   component_fleet:
     analytics_path: az://bhp-analytics-data/RELIABILITY/component_fleet.parquet
+    publish_path: "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/FlottenMeister.xlsx"
   # INPUTS REFERENCIA
   warranties:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/warranties.xlsx
@@ -59,7 +67,7 @@ reliability:
   psg_requests:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/psg_requests.xlsx
   ep:
-    reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/ep.xlsx
+    reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/CAEX/ANTECEDENTES/Análisis Cambios Componentes.xlsx
     analytics_path: az://bhp-analytics-data/RELIABILITY/EP/ep.parquet
     publish_path: "sp://KCHCLGR00058/___/CONFIABILIDAD/Estado Pago.xlsx"
   tidy_ep:
@@ -70,4 +78,5 @@ reliability:
     analytics_path: az://bhp-analytics-data/RELIABILITY/COMPONENT_STATES/component_states.parquet
   icc:
     analytics_path: az://bhp-analytics-data/RELIABILITY/ICC/icc.parquet
+    publish_path: "sp://KCHCLGR00058/___/CONFIABILIDAD/Informes Cambios Componentes.xlsx"
 

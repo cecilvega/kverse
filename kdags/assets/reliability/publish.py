@@ -1,10 +1,10 @@
 import dagster as dg
 import polars as pl
 from kdags.resources.tidyr import DataLake, MSGraph
-from kdags.config import DATA_CATALOG
+from kdags.config import DATA_CATALOG, TIDY_NAMES, tidy_tibble
 
 
-@dg.asset
+@dg.asset()
 def publish_ep(context: dg.AssetExecutionContext, ep: pl.DataFrame):
     msgraph = MSGraph(context)
     df = ep.clone()
@@ -73,4 +73,16 @@ def publish_ep(context: dg.AssetExecutionContext, ep: pl.DataFrame):
         sp_path=DATA_CATALOG["tidy_ep"]["publish_path"],
     )
 
+    return df
+
+
+@dg.asset(compute_kind="publish")
+def publish_icc(context: dg.AssetExecutionContext, icc: pl.DataFrame):
+    msgraph = MSGraph(context)
+
+    df = icc.rename(TIDY_NAMES, strict=False).pipe(tidy_tibble, context)
+    msgraph.upload_tibble(
+        tibble=df,
+        sp_path=DATA_CATALOG["icc"]["publish_path"],
+    )
     return df

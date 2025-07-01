@@ -1,5 +1,5 @@
 import dagster as dg
-from kdags.jobs import component_history_job, harvest_so_report_job, publish_data_job, oil_analysis_job
+from kdags.jobs import component_history_job, harvest_so_report_job, publish_data_job, oil_analysis_job, fiori_job
 
 # === DOCS ===
 publish_data_schedule = dg.ScheduleDefinition(
@@ -14,6 +14,14 @@ ep_schedule = dg.ScheduleDefinition(
     name="ep_schedule",
     job=component_history_job,
     cron_schedule="0 0 * * FRI",  # daily at 9:00 and 21:00
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+fiori_schedule = dg.ScheduleDefinition(
+    name="fiori_schedule",
+    job=fiori_job,
+    cron_schedule="0 0 * * THU",  # daily at 9:00 and 21:00
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )

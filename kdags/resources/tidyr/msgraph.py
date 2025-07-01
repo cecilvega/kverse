@@ -267,7 +267,7 @@ class MSGraph:
 
         return upload_result
 
-    def read_tibble(self, sp_path: str, **kwargs) -> pd.DataFrame:
+    def read_tibble(self, sp_path: str, **kwargs) -> pl.DataFrame:
         """
         Read tabular data from SharePoint using sp_path. Automatically detects file type.
 

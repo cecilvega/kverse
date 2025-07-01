@@ -10,7 +10,7 @@ from kdags.resources.tidyr import DataLake, MSGraph, MasterData
 from kdags.config import DATA_CATALOG, TIDY_NAMES, tidy_tibble
 
 
-@dg.asset(group_name="reparation", compute_kind="publish")
+@dg.asset(compute_kind="publish")
 def publish_component_reparations(context: dg.AssetExecutionContext, component_reparations: pl.DataFrame):
     msgraph = MSGraph(context)
 
@@ -18,12 +18,12 @@ def publish_component_reparations(context: dg.AssetExecutionContext, component_r
     df = df.rename(TIDY_NAMES, strict=False).pipe(tidy_tibble, context)
     msgraph.upload_tibble(
         tibble=df,
-        sp_path=DATA_CATALOG["component_reparation"]["publish_path"],
+        sp_path=DATA_CATALOG["component_reparations"]["publish_path"],
     )
     return df
 
 
-@dg.asset(group_name="reparation", compute_kind="publish")
+@dg.asset(compute_kind="publish")
 def publish_quotations(context: dg.AssetExecutionContext, quotations: pl.DataFrame):
     msgraph = MSGraph(context)
 

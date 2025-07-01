@@ -11,7 +11,7 @@ COMPLETED_UPDATE_WINDOW_DAYS = 90  # Update completed SOs for 90 days after clos
 MIN_UPDATE_INTERVAL_DAYS = 10  # Don't update same SO more than once per 10 days
 
 
-@dg.asset(group_name="reparation")
+@dg.asset()
 def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
 
     so_df = so_report.clone()

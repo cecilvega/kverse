@@ -6,7 +6,6 @@ from kdags.resources.tidyr import DataLake, MSGraph
 
 
 @dg.asset(
-    group_name="maintenance",
     description="Uploads maintenance report PDFs from Data Lake to SharePoint organized by equipment",
     compute_kind="standalone",
 )

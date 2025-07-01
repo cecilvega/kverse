@@ -6,141 +6,29 @@ from pathlib import Path
 import dagster as dg
 import polars as pl
 
-from kdags.assets.reliability.icc.utils import parse_filename
+from kdags.assets.reliability.icc.utils import parse_filename, get_shift_dates, extract_technical_report_data
 from kdags.config import DATA_CATALOG
-from kdags.resources.tidyr import DataLake
+from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.resources.tidyr import MasterData
 
 
-def get_shift_dates():
-    # --- Configuration ---
-    start_date = date(2020, 1, 1)
-    end_date = date(2030, 12, 31)
-
-    # Reference point: Wednesday, April 9, 2025 starts an 'M' shift week.
-    ref_date_wednesday = date(2025, 4, 9)
-    ref_shift_label = "M"
-    other_shift_label = "N"
-
-    # Get the absolute ordinal day number for the reference Wednesday
-    ref_ordinal_wednesday = ref_date_wednesday.toordinal()
-    # --- End Configuration ---
-
-    # 1. Generate all dates
-    df = pl.DataFrame({"date": pl.date_range(start_date, end_date, interval="1d", eager=True)})
-
-    # 2. Calculate ISO Year and Week
-    df = df.with_columns(iso_year=pl.col("date").dt.iso_year(), iso_week=pl.col("date").dt.week())
-
-    # 3. Calculate shift label - Using Mon=1 convention for weekday()
-
-    # 3a. Calculate offset days to subtract to get to previous Wednesday (assuming Wed=3)
-    df = df.with_columns(days_to_subtract=(pl.col("date").dt.weekday() - 3 + 7) % 7)
-
-    # 3b. Calculate the shift week start date
-    df = df.with_columns(shift_week_start=pl.col("date") - pl.duration(days=pl.col("days_to_subtract")))
-
-    # 3c. Calculate the absolute ordinal for the shift week start date
-    df = df.with_columns(
-        shift_start_ordinal=pl.col("shift_week_start").map_elements(lambda d: d.toordinal(), return_dtype=pl.Int64)
-    )
-
-    # 3d. Calculate week difference using absolute ordinals
-    df = df.with_columns(week_difference_ord=(pl.col("shift_start_ordinal") - ref_ordinal_wednesday) // 7)
-
-    # 3e. Assign shift based on ordinal week difference parity
-    df = df.with_columns(
-        icc_date=(pl.col("iso_year").cast(pl.String) + "-W" + pl.col("iso_week").cast(pl.String).str.zfill(2)),
-        work_shift=pl.when(pl.col("week_difference_ord") % 2 == 0)
-        .then(pl.lit(ref_shift_label))  # Even diff -> 'M'
-        .otherwise(pl.lit(other_shift_label)),  # Odd diff -> 'N'
-    )
-
-    # 4. Select final columns
-    final_df = df.select(["date", "icc_date", "work_shift"])
-    return final_df
-
-
-def filter_cc_icc(component_changeouts):
-    taxonomy_df = MasterData.taxonomy()
-    components_df = (
-        MasterData.components()
-        .filter(pl.col("subcomponent_main").is_not_null())
-        .select(["component_name", "subcomponent_name"])
-    )
-    df = component_changeouts.clone()
-
-    # Filter rows
-    df = df.filter(pl.col("changeout_date") >= datetime(2024, 9, 26))
-
-    # Get component_name and subcomponent_name from component_code and position_code
-    df = df.join(taxonomy_df, on=["component_name", "subcomponent_name", "position_name"], how="left").drop_nulls(
-        subset=["component_code"]
-    )
-
-    df = df.with_columns(
-        [
-            pl.col("position_code").cast(pl.Int64),
-            pl.col("equipment_hours").cast(pl.Float64).round(0).cast(pl.Int64),
-            pl.col("component_hours").cast(pl.Float64).round(0).fill_null(-1).cast(pl.Int64),
-        ]
-    )
-
-    # Sort and drop duplicates
-    df = df.join(components_df, how="inner", on=["component_name", "subcomponent_name"])
-
-    df = df.select(
-        [
-            "equipment_name",
-            "component_name",
-            "component_code",
-            "position_name",
-            "position_code",
-            "changeout_date",
-            "failure_description",
-        ]
-    )
-
-    return df
-
-
 @dg.asset
-def gather_icc_reports(context: dg.AssetExecutionContext):
+def gather_icc(context: dg.AssetExecutionContext):
     # Find all PDF and DOCX files
-    icc_files_all = [
+    icc_files = [
         f
         for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]) / "INFORMES_CAMBIO_DE_COMPONENTE").rglob("*")
-        if ((f.is_file()) & (f.suffix.lower() in [".pdf", ".docx"]) & (f.stem.lower().startswith("icc")))
+        if ((f.is_file()) & (f.suffix.lower() in [".pdf"]) & (f.stem.lower().startswith("icc")))
     ]
-
-    # Group files by stem (filename without extension)
-    files_by_stem = {}
-    for file_path in icc_files_all:
-        stem = file_path.stem.lower()
-        if stem not in files_by_stem:
-            files_by_stem[stem] = []
-        files_by_stem[stem].append(file_path)
-
-    # For each group, prioritize PDF over DOCX
-    icc_files = []
-    for stem, files in files_by_stem.items():
-        pdf_files = [f for f in files if f.suffix.lower() == ".pdf"]
-        if pdf_files:
-            # If PDF exists, use only the PDF file(s)
-            icc_files.extend(pdf_files)
-        else:
-            # If no PDF, use the DOCX file(s)
-            icc_files.extend([f for f in files if f.suffix.lower() == ".docx"])
 
     data = []
     for file_path in icc_files:
         try:
             i_data = {}
 
-            # Desabilitando la extracción de información
-            # # Only extract report data if it's a PDF file
-            # if file_path.suffix.lower() == ".pdf":
-            #     i_data = extract_technical_report_data(file_path)
+            # Only extract report data if it's a PDF file
+            if file_path.suffix.lower() == ".pdf":
+                i_data = extract_technical_report_data(file_path)
 
             # Parse filename for both PDF and DOCX files
             i_data = {**i_data, **parse_filename(file_path)}
@@ -154,82 +42,205 @@ def gather_icc_reports(context: dg.AssetExecutionContext):
             raise e
 
     # Create Polars DataFrame from list of dictionaries
-    icc_df = (
+    df = (
         pl.from_dicts(data)
+        .rename({"equipment_hours": "icc_equipment_hours"})
         .select(
             [
                 "equipment_name",
-                # "equipment_hours",
-                # "report_date",
+                "icc_equipment_hours",
+                "report_date",
                 "changeout_date",
-                "filename",
+                "icc_file_name",
                 "icc_number",
                 "component_code",
                 "position_code",
-                "filepath",
-                "file_type",  # Added file_type column
+                "file_path",
             ]
         )
         .with_columns(changeout_date=pl.col("changeout_date").cast(pl.Date))
     )
 
-    return icc_df
+    return df
 
 
-@dg.asset(group_name="reliability")
-def mutate_icc(context: dg.AssetExecutionContext, component_changeouts, gather_icc_reports):
-    cc_summary = filter_cc_icc(component_changeouts)
-    df = cc_summary.join(
-        gather_icc_reports,
-        on=[
-            "equipment_name",
-            "component_code",
-            "position_code",
-            "changeout_date",
-        ],
-        how="outer",
-    ).sort("changeout_date")
-
-    df = df.join(get_shift_dates(), how="left", left_on="changeout_date", right_on="date").sort(
-        "changeout_date", descending=True
+def main_component_changeouts(component_changeouts: pl.DataFrame):
+    taxonomy_df = MasterData.taxonomy().select(["subcomponent_tag", "position_tag", "component_code", "position_code"])
+    components_df = (
+        MasterData.components()
+        .filter(pl.col("subcomponent_main").is_not_null())
+        .select(["component_name", "subcomponent_name", "subcomponent_tag"])
     )
-    df = df.select(
-        [
-            "icc_date",
-            "work_shift",
-            # Equipment identification
-            "equipment_name",
-            # Component information
-            "component_name",
-            "component_code",
-            "position_name",
-            "position_code",
-            # Dates and events
-            # "report_date",
-            "changeout_date",
-            # Work order information
-            # "customer_work_order",
-            # "icc_number",
-            # File metadata
-            "filename",
-            "file_type",
-            # Additional details
-            "failure_description",
-        ]
+    taxonomy_df = taxonomy_df.join(components_df, how="inner", on="subcomponent_tag")
+    df = (
+        component_changeouts.clone()
+        .filter(pl.col("site_name") == "MEL")
+        .filter(pl.col("changeout_date") >= datetime(2024, 9, 26))
     )
 
-    datalake = DataLake(context)
+    agg_df = (
+        component_changeouts.group_by(
+            [
+                "equipment_name",
+                "component_name",
+                "position_name",
+                "changeout_date",
+            ]
+        )
+        .agg(
+            subcomponent_name=pl.col("subcomponent_name"),
+            component_serial=pl.col("component_serial").alias("component_serial"),
+            installed_component_serial=pl.col("installed_component_serial"),
+        )
+        .with_columns(
+            component_serial=pl.struct([pl.col("subcomponent_name"), pl.col("component_serial")]).map_elements(
+                lambda x: {
+                    name: comp_serial
+                    for name, comp_serial in zip(
+                        x["subcomponent_name"],
+                        x["component_serial"],
+                    )
+                }.__str__()
+            ),
+            installed_component_serial=pl.struct(
+                [pl.col("subcomponent_name"), pl.col("installed_component_serial")]
+            ).map_elements(
+                lambda x: {
+                    name: comp_serial
+                    for name, comp_serial in zip(
+                        x["subcomponent_name"],
+                        x["installed_component_serial"],
+                    )
+                }.__str__()
+            ),
+        )
+        .drop(["subcomponent_name"])
+    )
 
-    datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["icc"]["analytics_path"])
+    # Get component_name and subcomponent_name from component_code and position_code
+    df = (
+        df.join(
+            taxonomy_df,
+            on=["subcomponent_tag", "position_tag"],
+            how="inner",
+        )
+        .with_columns(
+            equipment_hours=pl.col("equipment_hours").cast(pl.Float64).round(0).cast(pl.Int64),
+            component_hours=pl.col("component_hours").cast(pl.Float64).round(0).fill_null(-1).cast(pl.Int64),
+        )
+        .select(
+            [
+                "equipment_name",
+                "component_name",
+                "position_name",
+                "component_code",
+                "position_code",
+                "changeout_date",
+                "equipment_hours",
+                "component_hours",
+            ]
+        )
+        .join(
+            agg_df,
+            how="left",
+            on=[
+                "equipment_name",
+                "component_name",
+                "position_name",
+                "changeout_date",
+            ],
+        )
+    )
 
     return df
 
 
-@dg.asset(
-    group_name="readr",
-    description="Reads the consolidated oil analysis data from the ADLS analytics layer.",
-)
-def icc(context: dg.AssetExecutionContext) -> pl.DataFrame:
-    dl = DataLake(context)
-    df = dl.read_tibble(az_path=DATA_CATALOG["icc"]["analytics_path"])
+@dg.asset()
+def mutate_icc(context: dg.AssetExecutionContext, component_changeouts, gather_icc):
+    datalake = DataLake(context)
+    msgraph = MSGraph(context)
+    reference_df = msgraph.read_tibble(DATA_CATALOG["ep"]["reference_path"])
+    reference_df = reference_df.select(
+        [
+            "equipment_name",
+            "component_name",
+            "position_name",
+            "changeout_date",
+            "component_photos",
+            "icc_ready",
+            "failure_effect",
+        ]
+    )
+
+    cc_summary = main_component_changeouts(component_changeouts)
+    merge_columns = [
+        "equipment_name",
+        "component_code",
+        "position_code",
+        "changeout_date",
+    ]
+    df = cc_summary.join(
+        gather_icc.select([*merge_columns, "report_date", "icc_equipment_hours", "icc_file_name", "file_path"]),
+        on=merge_columns,
+        how="outer",
+        coalesce=True,
+    )
+
+    df = (
+        df.join(get_shift_dates(), how="left", left_on="changeout_date", right_on="date")
+        .sort("changeout_date", descending=True)
+        .join(reference_df, on=["equipment_name", "component_name", "position_name", "changeout_date"], how="left")
+    )
+
+    df = df.with_columns(
+        icc_url=pl.when(pl.col("changeout_date").is_not_null())
+        .then(
+            pl.lit(
+                "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents/01.%20%C3%81REAS%20KCH/1.6%20CONFIABILIDAD/"
+                "CAEX/INFORMES/INFORMES_CAMBIO_DE_COMPONENTE/"
+            )
+            + pl.col("equipment_name")
+            + pl.lit("/")
+            + pl.col("component_name").str.to_uppercase()
+            + pl.lit("/")
+            + pl.col("position_name").str.to_uppercase()
+            + pl.lit("/ICC ")
+            + pl.col("equipment_name")
+            + pl.lit(" ")
+            + pl.col("component_code").cast(pl.String)
+            + pl.col("position_code").cast(pl.String)
+            + pl.lit(" ")
+            + pl.col("changeout_date").dt.to_string(format="%Y-%m-%d")
+            + pl.lit(".pdf")
+        )
+        .otherwise(pl.lit("ICC EXTRAÑO"))
+        .str.replace_all(" ", "%20")
+    ).drop("file_path")
+    df = df.filter(~(pl.col("component_name")).is_in(["cilindro_levante", "cilindro_direccion"]))
+    # df = df.select(
+    #     [
+    #         "icc_week",
+    #         "work_shift",
+    #         # Equipment identification
+    #         "equipment_name",
+    #         # Component information
+    #         "component_name",
+    #         "component_code",
+    #         "position_name",
+    #         "position_code",
+    #         # Dates and events
+    #         "report_date",
+    #         "changeout_date",
+    #         # Work order information
+    #         # "customer_work_order",
+    #         # "icc_number",
+    #         # File metadata
+    #         "icc_file_name",
+    #         # Additional details
+    #         # "failure_description",
+    #     ]
+    # )
+
+    datalake.upload_tibble(tibble=df, az_path=DATA_CATALOG["icc"]["analytics_path"])
+
     return df

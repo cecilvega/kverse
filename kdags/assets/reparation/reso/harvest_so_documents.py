@@ -13,7 +13,7 @@ from kdags.resources.tidyr import DataLake
 from ..reso import *
 
 
-@dg.asset(group_name="reparation")
+@dg.asset(compute_kind="harvest")
 def harvest_so_documents(context: dg.AssetExecutionContext, mutate_so_documents: pl.DataFrame) -> list:
     dl = DataLake(context)
     driver = initialize_driver()

@@ -15,7 +15,7 @@ from kdags.resources.tidyr import DataLake
 from ..reso import *
 
 
-@dg.asset(group_name="reparation")
+@dg.asset()
 def harvest_so_report(context: dg.AssetExecutionContext):
     dl = DataLake(context=context)
     driver = initialize_driver()

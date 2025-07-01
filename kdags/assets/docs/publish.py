@@ -6,7 +6,7 @@ from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.config import DATA_CATALOG
 
 
-@dg.asset(group_name="docs", compute_kind="publish")
+@dg.asset(compute_kind="publish")
 def publish_data_catalog(context: dg.AssetExecutionContext):
     msgraph = MSGraph(context)
     rows = []
@@ -23,7 +23,9 @@ def publish_data_catalog(context: dg.AssetExecutionContext):
     # Create the Polars DataFrame
     df = pl.DataFrame(rows)
     df = df.with_columns(
-        pl.col("publish_path")
+        file_name=pl.col("publish_path").str.extract(r"([^/]*)$", 1),
+        publish_url=pl.col("publish_path")
+        .str.replace(r"/[^/]*$", "")
         .str.replace(
             "sp://KCHCLGR00058",
             "https://globalkomatsu.sharepoint.com/sites/KCHCLGR00058/Shared%20Documents",
@@ -31,13 +33,13 @@ def publish_data_catalog(context: dg.AssetExecutionContext):
         .str.replace(
             "sp://KCHCLSP00022",
             "https://globalkomatsu.sharepoint.com/sites/KCHCLSP00022/Shared%20Documents",
-        )
-        .alias("publish_url")
+        ),
     )
     tibble = df.rename(
         {
-            "asset_group": "Grupo Activo Datos",
+            "asset_group": "Grupo",
             "asset": "Activo Datos",
+            "file_name": "Nombre Archivo",
             "publish_url": "URL Activo Datos",
         }
     ).drop("publish_path")

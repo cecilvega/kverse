@@ -3,8 +3,59 @@ import re
 from datetime import datetime
 import pandas as pd
 import warnings
+import polars as pl
+from datetime import date
 
 warnings.filterwarnings("ignore", message="CropBox missing from /Page, defaulting to MediaBox")
+
+
+def get_shift_dates():
+    # --- Configuration ---
+    start_date = date(2020, 1, 1)
+    end_date = date(2030, 12, 31)
+
+    # Reference point: Wednesday, April 9, 2025 starts an 'M' shift week.
+    ref_date_wednesday = date(2025, 4, 9)
+    ref_shift_label = "M"
+    other_shift_label = "N"
+
+    # Get the absolute ordinal day number for the reference Wednesday
+    ref_ordinal_wednesday = ref_date_wednesday.toordinal()
+    # --- End Configuration ---
+
+    # 1. Generate all dates
+    df = pl.DataFrame({"date": pl.date_range(start_date, end_date, interval="1d", eager=True)})
+
+    # 2. Calculate ISO Year and Week
+    df = df.with_columns(iso_year=pl.col("date").dt.iso_year(), iso_week=pl.col("date").dt.week())
+
+    # 3. Calculate shift label - Using Mon=1 convention for weekday()
+
+    # 3a. Calculate offset days to subtract to get to previous Wednesday (assuming Wed=3)
+    df = df.with_columns(days_to_subtract=(pl.col("date").dt.weekday() - 3 + 7) % 7)
+
+    # 3b. Calculate the shift week start date
+    df = df.with_columns(shift_week_start=pl.col("date") - pl.duration(days=pl.col("days_to_subtract")))
+
+    # 3c. Calculate the absolute ordinal for the shift week start date
+    df = df.with_columns(
+        shift_start_ordinal=pl.col("shift_week_start").map_elements(lambda d: d.toordinal(), return_dtype=pl.Int64)
+    )
+
+    # 3d. Calculate week difference using absolute ordinals
+    df = df.with_columns(week_difference_ord=(pl.col("shift_start_ordinal") - ref_ordinal_wednesday) // 7)
+
+    # 3e. Assign shift based on ordinal week difference parity
+    df = df.with_columns(
+        icc_week=(pl.col("iso_year").cast(pl.String) + "-W" + pl.col("iso_week").cast(pl.String).str.zfill(2)),
+        work_shift=pl.when(pl.col("week_difference_ord") % 2 == 0)
+        .then(pl.lit(ref_shift_label))  # Even diff -> 'M'
+        .otherwise(pl.lit(other_shift_label)),  # Odd diff -> 'N'
+    )
+
+    # 4. Select final columns
+    final_df = df.select(["date", "icc_week", "work_shift"])
+    return final_df
 
 
 def parse_horometer_value(value_str):
@@ -154,22 +205,22 @@ def format_date(date_str):
     raise ValueError(f"Could not parse date '{date_str}' - expected format dd-mm-yyyy or dd-mm-yy")
 
 
-def parse_filename(filepath):
+def parse_filename(file_path):
     """
     Parse filename to extract equipment number, ICC number, component code, and date.
 
     Args:
-        filepath: Path object of the file
+        file_path: Path object of the file
 
     Returns:
         Dict with extracted information
     """
-    filename = filepath.stem  # Get filename without extension
+    file_name = file_path.stem  # Get filename without extension
 
     # Initialize extraction results
     result = {
-        "filepath": str(filepath),
-        "filename": filename,
+        "file_path": str(file_path),
+        "icc_file_name": file_name,
         "equipment_name": None,
         "icc_number": None,
         "component_code": None,
@@ -179,19 +230,19 @@ def parse_filename(filepath):
     }
 
     # Try to extract date (testing both YYYY-MM-DD and DD-MM-YYYY formats)
-    date_match_yyyy_first = re.search(r"(\d{4}-\d{2}-\d{2})", filename)
-    date_match_dd_first = re.search(r"(\d{2}-\d{2}-\d{4})", filename)
+    date_match_yyyy_first = re.search(r"(\d{4}-\d{2}-\d{2})", file_name)
+    date_match_dd_first = re.search(r"(\d{2}-\d{2}-\d{4})", file_name)
 
     if date_match_yyyy_first:
         result["changeout_date"] = datetime.strptime(date_match_yyyy_first.group(1), "%Y-%m-%d")
         # Remove date from filename for other pattern matching
-        filename_without_date = filename.replace(date_match_yyyy_first.group(1), "").strip()
+        filename_without_date = file_name.replace(date_match_yyyy_first.group(1), "").strip()
     elif date_match_dd_first:
         result["changeout_date"] = datetime.strptime(date_match_dd_first.group(1), "%d-%m-%Y")
         # Remove date from filename for other pattern matching
-        filename_without_date = filename.replace(date_match_dd_first.group(1), "").strip()
+        filename_without_date = file_name.replace(date_match_dd_first.group(1), "").strip()
     else:
-        filename_without_date = filename
+        filename_without_date = file_name
 
     # Try to extract TK number (equipment number)
     tk_match = re.search(r"TK(\d{3})", filename_without_date, re.IGNORECASE)

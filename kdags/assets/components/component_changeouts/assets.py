@@ -12,7 +12,7 @@ from kdags.schemas.planning.component_changeouts import COMPONENT_CHANGEOUTS_SCH
 from kdags.config import *
 
 
-@dg.asset(group_name="components")
+@dg.asset()
 def raw_component_changeouts_spence(context):
     msgraph = MSGraph(context=context)
     file_content = msgraph.read_bytes(
@@ -40,7 +40,7 @@ def raw_component_changeouts_spence(context):
     return df
 
 
-@dg.asset(group_name="components")
+@dg.asset()
 def raw_component_changeouts_mel(context):
     msgraph = MSGraph(context=context)
     file_content = msgraph.read_bytes(
@@ -55,7 +55,7 @@ def raw_component_changeouts_mel(context):
     return df
 
 
-@dg.asset(group_name="components")
+@dg.asset()
 def patched_component_changeouts(context):
     msgraph = MSGraph(context)
     df = (
@@ -162,7 +162,6 @@ def process_component_changeouts(df: pl.DataFrame, site_name: str):
 
 
 @dg.asset(
-    group_name="components",
     metadata={
         "dagster/column_schema": dg.TableSchema(
             columns=[

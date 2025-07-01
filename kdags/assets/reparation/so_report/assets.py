@@ -78,7 +78,7 @@ def fix_naming():
             )
 
 
-@dg.asset(group_name="reparation")
+@dg.asset()
 # Add context back for logging
 def raw_so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     fix_naming()
@@ -172,7 +172,7 @@ def process_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataF
     return df
 
 
-@dg.asset(group_name="reparation")
+@dg.asset()
 def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFrame) -> pl.DataFrame:
 
     df = raw_so_report.clone()  # Use the input parameter name
@@ -212,7 +212,7 @@ def mutate_so_report(context: dg.AssetExecutionContext, raw_so_report: pl.DataFr
     return df
 
 
-@dg.asset(group_name="readr")
+@dg.asset()
 def so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
     df = dl.read_tibble(az_path=DATA_CATALOG["so_report"]["analytics_path"])

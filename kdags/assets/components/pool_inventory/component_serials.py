@@ -3,7 +3,7 @@ from kdags.resources.tidyr import MasterData, DataLake
 import polars as pl
 
 
-@dg.asset(group_name="planning")
+@dg.asset()
 def component_serials(component_changeouts: pl.DataFrame):
     """Obtener las series únicas de los componentes principales del pool a monitorear"""
     # Válido para MEL solamente

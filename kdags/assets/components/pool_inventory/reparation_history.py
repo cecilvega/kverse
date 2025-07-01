@@ -3,7 +3,7 @@ from kdags.resources.tidyr import MasterData, DataLake
 import polars as pl
 
 
-@dg.asset(group_name="reliability")
+@dg.asset()
 def mutate_reparation_history(so_report: pl.DataFrame):
     df = (
         so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA")

@@ -169,7 +169,6 @@ def filter_component_changeouts(component_changeouts: pl.DataFrame) -> pl.DataFr
 
 
 @dg.asset(
-    group_name="components",
     description=(
         "Calculates the percentage of component changeouts that were filtered out "
         "before being matched to reparation status. Currently returns the raw changeout data."

@@ -28,7 +28,7 @@ from .so_details_utils import (
 )
 
 
-@dg.asset(group_name="reparation", compute_kind="harvest")
+@dg.asset(compute_kind="harvest")
 def harvest_so_details(
     context: dg.AssetExecutionContext, select_so_to_update: pl.DataFrame, raw_so_quotations, raw_so_documents
 ) -> list:

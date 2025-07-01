@@ -6,7 +6,7 @@ from kdags.resources.tidyr import DataLake
 import polars as pl
 
 
-@dg.asset(group_name="reparation")
+@dg.asset()
 def raw_so_documents(context: dg.AssetExecutionContext):
     dl = DataLake(context)
     # try:
@@ -17,7 +17,7 @@ def raw_so_documents(context: dg.AssetExecutionContext):
     return df
 
 
-@dg.asset(group_name="reparation", compute_kind="mutate")
+@dg.asset(compute_kind="mutate")
 def mutate_so_documents(context: dg.AssetExecutionContext, raw_so_documents: pl.DataFrame, so_report: pl.DataFrame):
     dl = DataLake(context)
     downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(

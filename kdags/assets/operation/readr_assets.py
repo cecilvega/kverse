@@ -7,7 +7,7 @@ from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.config import DATA_CATALOG
 
 
-@dg.asset(group_name="operation", compute_kind="readr")
+@dg.asset(compute_kind="readr")
 def komtrax_smr(context: dg.AssetExecutionContext):
     dl = DataLake(context)
     df = dl.read_tibble(DATA_CATALOG["komtrax_smr"]["analytics_path"])

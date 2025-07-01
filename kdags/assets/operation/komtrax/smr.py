@@ -69,7 +69,7 @@ def raw_smr(context: dg.AssetExecutionContext):
     return smr_df
 
 
-@dg.asset(group_name="operation", compute_kind="mutate")
+@dg.asset(compute_kind="mutate")
 def mutate_smr(context: dg.AssetExecutionContext, raw_smr: pl.DataFrame):
     dl = DataLake(context)
     # Date range

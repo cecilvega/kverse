@@ -4,7 +4,7 @@ from kdags.config import DATA_CATALOG
 from kdags.resources.tidyr import DataLake, MasterData
 
 
-@dg.asset(group_name="reparation", compute_kind="mutate")
+@dg.asset(compute_kind="mutate")
 def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: pl.DataFrame):
     df = (
         so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA").filter(

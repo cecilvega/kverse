@@ -11,6 +11,7 @@ from kdags.schedules import (
     oil_analysis_schedule,
     publish_data_schedule,
     ep_schedule,
+    fiori_schedule,
 )
 from kdags.sensors import so_report_sensor, quotations_sensor
 from kdags.jobs import (
@@ -31,9 +32,10 @@ from kdags.jobs import (
     so_report_job,
     harvest_so_details_job,
     harvest_so_documents_job,
+    reso_documents_job,
     # === MAINTENANCE ===
     icc_job,
-    work_orders_job,
+    fiori_job,
     pm_history_job,
     op_file_idx_job,
     # === OPERATION ===
@@ -58,11 +60,11 @@ warnings.filterwarnings(
 __all__ = ["kdefs"]
 
 
-operation_assets = dg.load_assets_from_package_module(operation)
-maintenance_assets = dg.load_assets_from_package_module(maintenance)
-components_assets = dg.load_assets_from_package_module(components)
-reliability_assets = dg.load_assets_from_package_module(reliability)
-reparation_assets = dg.load_assets_from_package_module(reparation)
+operation_assets = dg.load_assets_from_package_module(operation, group_name="operation")
+maintenance_assets = dg.load_assets_from_package_module(maintenance, group_name="maintenance")
+components_assets = dg.load_assets_from_package_module(components, group_name="components")
+reliability_assets = dg.load_assets_from_package_module(reliability, group_name="reliability")
+reparation_assets = dg.load_assets_from_package_module(reparation, group_name="reparation")
 docs_assets = dg.load_assets_from_package_module(docs)
 
 all_assets = dg.with_source_code_references(
@@ -86,19 +88,18 @@ all_assets = dg.link_code_references_to_git(
     ),
 )
 
-from pathlib import Path
 
-if Path.home().__str__() in ["C:\\Users\\u1309372"]:
+schedules = [
+    component_history_schedule,
+    harvest_so_report_schedule,
+    oil_analysis_schedule,
+    publish_data_schedule,
+    ep_schedule,
+    fiori_schedule,
+]
+
+if Path.home().__str__() not in ["C:\\Users\\vales"]:
     schedules = []
-else:
-    schedules = [
-        # === COMPONENTS ===
-        component_history_schedule,
-        harvest_so_report_schedule,
-        oil_analysis_schedule,
-        publish_data_schedule,
-        ep_schedule,
-    ]
 
 kdefs = dg.Definitions(
     assets=all_assets,
@@ -120,9 +121,10 @@ kdefs = dg.Definitions(
         # === REPARATION ===
         so_report_job,
         harvest_so_details_job,
+        reso_documents_job,
         harvest_so_documents_job,
         # === MAINTENANCE ===
-        work_orders_job,
+        fiori_job,
         pm_history_job,
         # === OPERATION ===
         op_file_idx_job,

@@ -1,13 +1,17 @@
 import dagster as dg
 import polars as pl
 
-from kdags.config import DATA_CATALOG
-from kdags.resources.tidyr import DataLake, MasterData
+from kdags.config import DATA_CATALOG, TIDY_NAMES, tidy_tibble
+from kdags.resources.tidyr import DataLake, MasterData, MSGraph
 
 
-@dg.asset(group_name="reliability", compute_kind="mutate")
+@dg.asset(compute_kind="mutate")
 def mutate_component_fleet(
-    context: dg.AssetExecutionContext, component_changeouts: pl.DataFrame, component_history: pl.DataFrame
+    context: dg.AssetExecutionContext,
+    component_changeouts: pl.DataFrame,
+    component_history: pl.DataFrame,
+    component_reparations: pl.DataFrame,
+    mutate_part_reparations: pl.DataFrame,
 ) -> pl.DataFrame:
     dl = DataLake(context)
     smr_df = (
@@ -128,5 +132,44 @@ def mutate_component_fleet(
     #     on="subcomponent_tag",
     # )
 
+    # Agregarle contadores de reparación
+    merge_columns = ["service_order", "component_serial"]
+    df = df.join(
+        component_reparations.filter(pl.col("repair_recency_rank") == 0).select(
+            [
+                *merge_columns,
+                "reception_date",
+                "repair_count",
+                "repair_recency_rank",
+                "cumulative_component_hours",
+            ]
+        ),
+        how="left",
+        on=merge_columns,
+    )
+    df = df.with_columns(total_component_hours=pl.col("cumulative_component_hours")+ pl.when(pl.col("cumulative_component_hours")>0).then(pl.col("cumulative_component_hours")).otherwise(pl.col("cumulative_component_hours")))
+
+
+
+
+
+
+
+    # Agregar lo de las partes
+    dl.read_tibble(DATA_CATALOG["component_fleet"]["analytics_path"])
+
     dl.upload_tibble(df, DATA_CATALOG["component_fleet"]["analytics_path"])
+    return df
+
+
+@dg.asset(compute_kind="publish")
+def publish_component_fleet(context: dg.AssetExecutionContext, mutate_component_fleet: pl.DataFrame):
+    msgraph = MSGraph(context)
+
+    df = mutate_component_fleet.clone()
+    df = df.rename(TIDY_NAMES, strict=False).pipe(tidy_tibble, context)
+    msgraph.upload_tibble(
+        tibble=df,
+        sp_path=DATA_CATALOG["component_fleet"]["publish_path"],
+    )
     return df

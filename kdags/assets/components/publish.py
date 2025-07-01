@@ -4,9 +4,9 @@ from kdags.resources.tidyr import DataLake, MSGraph, MasterData
 from kdags.config import DATA_CATALOG, TIDY_NAMES, tidy_tibble
 
 
-@dg.asset(group_name="components", compute_kind="publish")
+@dg.asset(compute_kind="publish")
 def publish_component_history(
-    context: dg.AssetExecutionContext, component_history: pl.DataFrame, so_quotations: pl.DataFrame
+    context: dg.AssetExecutionContext, component_history: pl.DataFrame, so_quotations: pl.DataFrame, icc: pl.DataFrame
 ):
     msgraph = MSGraph(context)
 
@@ -33,6 +33,14 @@ def publish_component_history(
         )
         .sort("changeout_date")
     )
+
+    merge_columns = ["equipment_name", "component_name", "position_name", "changeout_date"]
+    df = df.join(
+        icc.select([*merge_columns, "icc_file_name", "icc_url"]),
+        how="left",
+        on=merge_columns,
+    )
+
     df = df.rename(TIDY_NAMES, strict=False).pipe(tidy_tibble, context)
     msgraph.upload_tibble(
         tibble=df,
