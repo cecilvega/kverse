@@ -166,21 +166,56 @@ def apply_backfill_strategy(long_df):
     return pl.DataFrame(result)
 
 
-
-
-
 @dg.asset(compute_kind="mutate")
 def mutate_part_reparations(context: dg.AssetExecutionContext, component_reparations: pl.DataFrame):
     dl = DataLake(context)
-    docs_df = dl.read_tibble(DATA_CATALOG["mt_docs"]["analytics_path"])
-    df = docs_df.filter(pl.col("part_serial") != "").join(
+    mt_df = dl.read_tibble(DATA_CATALOG["mt_docs"]["analytics_path"])
+    mt_df = mt_df.filter(pl.col("part_serial") != "").join(
         component_reparations.select(["service_order", "component_serial", "reception_date", "component_hours"]),
         on=["service_order", "component_serial"],
         how="left",
     )
 
-    df = df.pipe(apply_backfill_strategy)
-    df = df.filter(pl.col("part_serial").is_not_null()).sort(["part_serial", "reception_date"])
+    mt_df = mt_df.pipe(apply_backfill_strategy)
+    mt_df = (
+        mt_df.filter(pl.col("part_serial").is_not_null())
+        .sort(["part_serial", "reception_date"])
+        .unique(
+            subset=["component_serial", "reception_date", "part_name", "part_serial"],
+            maintain_order=True,
+            keep="last",
+        )
+    )
+
+    sd_df = dl.read_tibble(DATA_CATALOG["sd_docs"]["analytics_path"])
+    sd_df = sd_df.filter(pl.col("part_serial") != "").join(
+        component_reparations.select(["service_order", "component_serial", "reception_date", "component_hours"]),
+        on=["service_order", "component_serial"],
+        how="left",
+    )
+    print(sd_df.columns)
+    sd_df = sd_df.select(
+        [
+            "service_order",
+            "component_serial",
+            "part_serial",
+            "part_name",
+            "component_hours",
+            "reception_date",
+            "document_type",
+        ]
+    ).pipe(apply_backfill_strategy)
+    sd_df = (
+        sd_df.filter(pl.col("part_serial").is_not_null())
+        .sort(["part_serial", "reception_date"])
+        .unique(
+            subset=["component_serial", "reception_date", "part_name", "part_serial"],
+            maintain_order=True,
+            keep="last",
+        )
+    )
+
+    df = pl.concat([mt_df, sd_df], how="diagonal")
 
     # Calculate metrics without double-counting
     df = df.with_columns(
