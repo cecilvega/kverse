@@ -4,6 +4,51 @@ from kdags.config import DATA_CATALOG
 from kdags.resources.tidyr import DataLake, MasterData
 import re
 
+SUBPARTS_MAPPING = {
+    "subcomponent_tag": [
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "0980",
+        "5A30",
+    ],
+    "subpart_name": [
+        "coupling_plate",
+        "driveshaft",
+        "high_speed_gear_a",
+        "high_speed_gear_b",
+        "high_speed_gear_c",
+        "low_speed_gear_12hr",
+        "low_speed_gear_3hr",
+        "low_speed_gear_6hr",
+        "low_speed_gear_9hr",
+        "ring_gear",
+        "sun_pinion",
+        "vastago",
+    ],
+    "part_name": [
+        "coupling_plate",
+        "driveshaft",
+        "high_speed_gear",
+        "high_speed_gear",
+        "high_speed_gear",
+        "low_speed_gear",
+        "low_speed_gear",
+        "low_speed_gear",
+        "low_speed_gear",
+        "ring_gear",
+        "sun_pinion",
+        "vastago",
+    ],
+}
+
 
 def clean_part_serial(value):
     """
@@ -187,12 +232,48 @@ def clean_part_serial(value):
 
 
 def apply_backfill_strategy(df):
-    return df.filter(pl.col("document_type") == "final_report")
+    return df
+    # return df.filter(pl.col("document_type") == "final_report")
+
+
+@dg.asset
+def parts_base(component_reparations) -> pl.DataFrame:
+    document_types = ["preliminary_report", "final_report"]
+    cr_columns = ["subcomponent_tag", "component_serial", "service_order", "reception_date"]
+    df = component_reparations.clone().select(cr_columns)
+    df = pl.concat(
+        [
+            df.filter(pl.col("subcomponent_tag") == "0980").join(
+                pl.DataFrame(SUBPARTS_MAPPING).filter(pl.col("subcomponent_tag") == "0980").drop("subcomponent_tag"),
+                how="cross",
+            ),
+            df.filter(pl.col("subcomponent_tag") == "5A30").join(
+                pl.DataFrame(SUBPARTS_MAPPING).filter(pl.col("subcomponent_tag") == "5A30").drop("subcomponent_tag"),
+                how="cross",
+            ),
+        ],
+        how="diagonal",
+    )
+    df = df.join(pl.DataFrame({"document_type": document_types}), how="cross").sort(
+        [
+            "subcomponent_tag",
+            "component_serial",
+            "subpart_name",
+            "service_order",
+            "reception_date",
+            "document_type",
+        ],
+        descending=[True, True, True, True, True, False],
+    )
+    return df
 
 
 @dg.asset(compute_kind="mutate")
-def mutate_part_reparations(context: dg.AssetExecutionContext, component_reparations: pl.DataFrame):
+def mutate_part_reparations(
+    context: dg.AssetExecutionContext, component_reparations: pl.DataFrame, parts_base: pl.DataFrame
+):
     dl = DataLake(context)
+
     mt_df = dl.read_tibble(DATA_CATALOG["mt_docs"]["analytics_path"])
     mt_df = mt_df.join(
         component_reparations.select(["service_order", "component_serial", "reception_date", "component_hours"]),
