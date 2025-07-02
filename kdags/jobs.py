@@ -36,7 +36,7 @@ tabulate_quotations_job = dg.define_asset_job(
 
 component_fleet_job = dg.define_asset_job(
     name="component_fleet_job",
-    selection=dg.AssetSelection.assets("publish_component_fleet").upstream(),
+    selection=dg.AssetSelection.assets("publish_component_fleet", "fleet_risk_analysis").upstream(),
     description="...",
 )
 
