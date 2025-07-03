@@ -189,7 +189,7 @@ def trace_part_lifecycle(
 
 
 @dg.asset(compute_kind="mutate")
-def track_component_repairs_lifecycle(context: dg.AssetExecutionContext, pivot_parts: pl.DataFrame) -> pl.DataFrame:
+def part_repairs_lifecycle(context: dg.AssetExecutionContext, pivot_parts: pl.DataFrame) -> pl.DataFrame:
     """
     Enhanced tracking that accumulates hours across a part's entire lifecycle.
     """
@@ -249,11 +249,11 @@ def track_component_repairs_lifecycle(context: dg.AssetExecutionContext, pivot_p
 
         # Create result row
         result_row = row.copy()
-        result_row["lifecycle_hours"] = lifecycle_hours
-        result_row["lifecycle_repairs"] = lifecycle_repairs
-        result_row["repair_status"] = repair_status
-        result_row["movement_count"] = len(movement_history)
-        result_row["movement_history"] = str(movement_history)  # Convert to string for DataFrame
+        result_row["part_lifecycle_hours"] = lifecycle_hours
+        result_row["part_lifecycle_repairs"] = lifecycle_repairs
+        result_row["part_repair_status"] = repair_status
+        result_row["part_movement_count"] = len(movement_history)
+        result_row["part_movement_history"] = str(movement_history)  # Convert to string for DataFrame
 
         results.append(result_row)
 
@@ -261,9 +261,7 @@ def track_component_repairs_lifecycle(context: dg.AssetExecutionContext, pivot_p
 
 
 @dg.asset(compute_kind="mutate")
-def mutate_part_reparations(
-    context: dg.AssetExecutionContext, track_component_repairs_lifecycle: pl.DataFrame
-) -> pl.DataFrame:
+def mutate_part_reparations(context: dg.AssetExecutionContext, part_repairs_lifecycle: pl.DataFrame) -> pl.DataFrame:
     """
     Create a comprehensive summary for all part serials with recency ranking.
 
@@ -274,7 +272,7 @@ def mutate_part_reparations(
     """
     dl = DataLake(context)
     # First, add the recency rank within each component/part combination
-    df = track_component_repairs_lifecycle.clone()
+    df = part_repairs_lifecycle.clone()
     df_with_rank = df.with_columns(
         [
             # Create unified part_serial column (prefer final over initial)
@@ -304,42 +302,13 @@ def mutate_part_reparations(
                 pl.col("component_serial").unique().alias("components_visited"),
                 pl.col("component_serial").n_unique().alias("num_components_visited"),
                 # Date range
-                pl.col("reception_date").min().alias("first_seen_date"),
-                pl.col("reception_date").max().alias("last_seen_date"),
-                # Current status (where rank = 0)
-                pl.when(pl.col("part_repair_recency_rank") == 0)
-                .then(pl.col("component_serial"))
-                .otherwise(None)
-                .drop_nulls()
-                .first()
-                .alias("currently_mounted_on"),
                 # Lifecycle stats
-                pl.col("lifecycle_hours").max().alias("total_lifecycle_hours"),
-                pl.col("lifecycle_repairs").max().alias("total_repairs"),
-                pl.col("movement_count").max().alias("total_movements"),
+                pl.col("part_lifecycle_hours").max().alias("total_lifecycle_hours"),
+                pl.col("part_lifecycle_repairs").max().alias("total_repairs"),
+                pl.col("part_movement_count").max().alias("total_movements"),
                 # Part identification
                 pl.col("part_name").first().alias("part_name"),
                 pl.col("subpart_name").first().alias("subpart_name"),
-                # Service order history
-                pl.col("service_order").unique().sort().alias("service_order_history"),
-                pl.col("service_order").n_unique().alias("total_service_orders"),
-                # Count of each repair status type
-                pl.col("repair_status")
-                .filter(pl.col("repair_status") == "REPAIRED_SAME_PART")
-                .count()
-                .alias("count_repaired_same"),
-                pl.col("repair_status")
-                .filter(pl.col("repair_status") == "PART_SWAPPED")
-                .count()
-                .alias("count_part_swapped"),
-                pl.col("repair_status")
-                .filter(pl.col("repair_status") == "PART_REMOVED")
-                .count()
-                .alias("count_part_removed"),
-                pl.col("repair_status")
-                .filter(pl.col("repair_status") == "NEW_PART_INSTALLED")
-                .count()
-                .alias("count_new_installed"),
             ]
         )
         .filter(pl.col("part_serial").is_not_null())
@@ -347,15 +316,7 @@ def mutate_part_reparations(
 
     # Join back with the ranked data to include all details
     comprehensive_summary = df_with_rank.join(
-        part_history.select(
-            [
-                "part_serial",
-                "currently_mounted_on",
-                "total_lifecycle_hours",
-                "total_repairs",
-                "num_components_visited",
-            ]
-        ),
+        part_history,
         on="part_serial",
         how="left",
     ).sort(["part_serial", "component_serial", "part_repair_recency_rank"])

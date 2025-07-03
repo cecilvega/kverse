@@ -55,7 +55,10 @@ reference:
 reliability:
   component_fleet:
     analytics_path: az://bhp-analytics-data/RELIABILITY/component_fleet.parquet
-    publish_path: "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/New FlottenMeister.xlsx"
+    publish_path: "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/Components FlottenMeister.xlsx"
+  parts_fleet:
+    analytics_path: az://bhp-analytics-data/RELIABILITY/parts_fleet.parquet
+    publish_path: "sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/CONFIABILIDAD/Parts FlottenMeister.xlsx"
   # INPUTS REFERENCIA
   warranties:
     reference_path: sp://KCHCLSP00022/01. ÁREAS KCH/1.6 CONFIABILIDAD/JEFE_CONFIABILIDAD/REFERENCE/warranties.xlsx
