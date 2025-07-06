@@ -34,7 +34,7 @@ def extract_patterns(filepath):
     data_patterns = {
         "EFFECTIVE_GRADE": {"pattern": r"egdata", "source": "GE"},
         "TORQUE_SWING": {"pattern": r"trqswdata", "source": "GE"},
-        "MINE": {"pattern": r"serial_", "source": "GE"},
+        "MINE_SERIAL": {"pattern": r"serial_", "source": "GE"},
         "PROFILE": {"pattern": r"profile_", "source": "GE"},
         "COUNTER": {"pattern": r"counter_", "source": "GE"},
         "TRIP_MONITOR": {"pattern": "rtripdata", "source": "GE"},
@@ -44,6 +44,7 @@ def extract_patterns(filepath):
         "PLM4": {"pattern": r"haulcycle", "source": "PLM"},
         "FAULT": {"pattern": r"fault0", "source": "VHMS"},
         "TREND_DATA": {"pattern": r"/trend0\.csv$", "source": "VHMS"},
+        "PAYLOAD3": {"pattern": r"/payload3\.csv$", "source": "VHMS"},
     }
 
     # Extract date pattern
@@ -130,7 +131,7 @@ def spawn_op_file_idx(list_op_file_idx):
     df["partition_date"] = df.apply(lambda x: convert_date_format(x["extracted_date"], x["date_pattern"]), axis=1)
     df = pl.from_pandas(df)
     DataLake().upload_tibble(
-        az_path="abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet",
+        az_path="az://bhp-analytics-data/OPERATION/op_file_idx.parquet",
         tibble=df,
     )
 
@@ -140,5 +141,5 @@ def spawn_op_file_idx(list_op_file_idx):
 @dg.asset
 def read_op_file_idx():
     dl = DataLake()
-    df = dl.read_tibble("abfs://bhp-analytics-data/OPERATION/op_file_idx.parquet")
+    df = dl.read_tibble("az://bhp-analytics-data/OPERATION/op_file_idx.parquet")
     return df
