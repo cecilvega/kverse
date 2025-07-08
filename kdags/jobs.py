@@ -137,7 +137,7 @@ pm_history_job = dg.define_asset_job(
 )
 
 fiori_job = dg.define_asset_job(
-    name="work_orders_job",
+    name="fiori_job",
     selection=dg.AssetSelection.assets("mutate_notifications").upstream(),
     description="Archivo con todas las OT's Fiori",
 )

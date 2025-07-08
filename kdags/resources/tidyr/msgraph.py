@@ -109,114 +109,37 @@ class MSGraph:
         content = drive_item.get_content().execute_query().value
         return content
 
-    def upload_tibble(
-        self,
-        tibble,
-        sp_path: str,
-        sheet_name: str = "Sheet1",
-    ) -> dict:
+    def _write_formatted_excel(self, df_pd: pd.DataFrame, sheet_name: str = "Sheet1") -> BytesIO:
         """
-        Uploads a DataFrame to SharePoint as a consistently formatted Excel file,
-        using a base table style, Komatsu Gloria Blue header, max column width,
-        and text wrapping for long columns.
-        Always overwrites the destination file using the refactored graph_client.upload_file.
-
-        Applies auto-column width (up to a max), text wrapping, and freezes the header row.
-        Uses the sp_path format and propagates errors.
-
-        Args:
-            graph_client (MSGraph): An initialized instance of the MSGraph class
-                                    (handles authentication and upload).
-            sp_path (str): SharePoint resource path including filename
-                           (e.g., "sp://KCHCLSP00022/Shared Documents/Reports/MyReport.xlsx").
-            tibble: DataFrame to upload (pandas or polars).
-            sheet_name (str): Name for the Excel sheet. Defaults to "Sheet1".
-
-        Returns:
-            dict: Result of the upload operation from the MSGraph class's upload_file method.
-
-        Raises:
-            TypeError: If df is not a pandas or Polars DataFrame.
-            ValueError: If sp_path format is invalid or does not end with .xlsx.
-            Exception: Propagates exceptions from the MSGraph upload call.
+        Writes a pandas DataFrame to a formatted Excel file in a BytesIO buffer.
         """
-        # --- Input Validation ---
-        self.context_check = isinstance(self.context, dg.AssetExecutionContext)
-        if self.context_check:
-            self.context.log.info(f"Writing {tibble.height} rows, {tibble.width} columns to {sp_path}")
-        assert not tibble.is_empty()
-        if not sp_path.startswith("sp://"):
-            raise ValueError(f"Invalid sp_path format: {sp_path}. Expected format: sp://<site_id>/<file_path>")
-        path_part = sp_path.split("/", 3)[-1]
-        file_ext = os.path.splitext(path_part)[1]
-        if not file_ext.lower() == ".xlsx":
-            raise ValueError("The file path part of sp_path must end with .xlsx for formatted Excel output.")
-
-        if hasattr(tibble, "to_pandas") and not isinstance(tibble, pd.DataFrame):
-            df_pd = tibble.to_pandas()
-        elif isinstance(tibble, pd.DataFrame):
-            df_pd = tibble
-        else:
-            raise TypeError("Input 'df' must be a pandas DataFrame or convertible to one (like Polars).")
-
         buffer = BytesIO()
-
-        # --- Create Formatted Excel using XlsxWriter ---
         with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-            workbook = writer.book  # Get workbook early for format definitions
+            workbook = writer.book
 
-            # Define base data format (applied if no wrapping needed)
-            base_data_format = workbook.add_format({"valign": "vcenter"})  # Example: vertical align center
-
-            # Define wrapped data format (applied if column exceeds max width)
+            base_data_format = workbook.add_format({"valign": "vcenter"})
             wrapped_data_format = workbook.add_format({"text_wrap": True, "valign": "top"})
 
+            header_format = workbook.add_format(
+                {
+                    "bold": True,
+                    "text_wrap": False,
+                    "valign": "vcenter",
+                    "fg_color": _KOMATSU_GLORIA_BLUE,
+                    "font_color": _KOMATSU_WHITE,
+                    "border": 1,
+                    "border_color": "#CCCCCC",
+                }
+            )
+
             if not df_pd.empty:
-                # Write data without pandas header, start from row 1
                 df_pd.to_excel(writer, sheet_name=sheet_name, index=False, header=False, startrow=1)
-            else:
-                worksheet = workbook.add_worksheet(sheet_name)
-                # Define header format even for empty df header case
-                header_format = workbook.add_format(
-                    {
-                        "bold": True,
-                        "text_wrap": False,
-                        "valign": "vcenter",
-                        "fg_color": _KOMATSU_GLORIA_BLUE,
-                        "font_color": _KOMATSU_WHITE,
-                        "border": 1,
-                        "border_color": "#CCCCCC",
-                    }
-                )
-                if not df_pd.columns.empty:
-                    for col_num, value in enumerate(df_pd.columns.values):
-                        worksheet.write(0, col_num, value, header_format)
+                worksheet = writer.sheets[sheet_name]
 
-            # Access the worksheet object
-            worksheet = writer.sheets[sheet_name]
-
-            # --- Apply Consistent Formatting (only if DataFrame is not empty) ---
-            if not df_pd.empty:
-                # Define the Komatsu header format for overriding
-                header_format = workbook.add_format(
-                    {
-                        "bold": True,
-                        "text_wrap": False,
-                        "valign": "vcenter",
-                        "fg_color": _KOMATSU_GLORIA_BLUE,
-                        "font_color": _KOMATSU_WHITE,
-                        "border": 1,
-                        "border_color": "#CCCCCC",
-                    }
-                )
-
-                # 1. Add an Excel Table structure WITH a base style
                 (max_row, max_col) = df_pd.shape
                 column_settings = [{"header": str(column)} for column in df_pd.columns]
-                if max_col < 1:
-                    max_col = 1
                 table_range = f"A1:{chr(ord('A') + max_col - 1)}{max_row + 1}"
-                clean_sheet_name = "".join(c if c.isalnum() else "_" for c in sheet_name)
+                clean_sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in " _-")
                 table_name = f"{clean_sheet_name}_Table"
 
                 worksheet.add_table(
@@ -228,41 +151,87 @@ class MSGraph:
                     },
                 )
 
-                # 2. Auto-adjust columns' width with max limit and wrapping
                 for idx, col in enumerate(df_pd.columns):
                     series = df_pd[col]
                     header_len = len(str(col))
-                    # Calculate max length of data strings
                     max_data_len = series.astype(str).map(len).max()
                     if pd.isna(max_data_len):
                         max_data_len = 0
-                    # Calculate desired width
+
                     calculated_width = max(header_len, int(max_data_len)) + _DEFAULT_AUTO_WIDTH_PADDING
 
-                    # Check against max width
                     if calculated_width > _MAX_COLUMN_WIDTH:
-                        # Apply max width and wrapped format to the column
                         worksheet.set_column(idx, idx, _MAX_COLUMN_WIDTH, wrapped_data_format)
                     else:
-                        # Apply calculated width and base format (or None)
-                        worksheet.set_column(idx, idx, calculated_width, base_data_format)  # Use base format
+                        worksheet.set_column(idx, idx, calculated_width, base_data_format)
 
-                # 3. Apply custom Komatsu header format OVER the table style/column format
                 for col_num, value in enumerate(df_pd.columns.values):
-                    worksheet.write(0, col_num, value, header_format)  # Override header format
+                    worksheet.write(0, col_num, value, header_format)
 
-                # 4. Freeze the Header Row (fixed behavior)
                 if _DEFAULT_FREEZE_HEADER:
-                    worksheet.freeze_panes(1, 0)  # Freeze row below the header
+                    worksheet.freeze_panes(1, 0)
+            else:
+                worksheet = workbook.add_worksheet(sheet_name)
+                if not df_pd.columns.empty:
+                    for col_num, value in enumerate(df_pd.columns.values):
+                        worksheet.write(0, col_num, value, header_format)
 
-        # --- Upload to SharePoint ---
         buffer.seek(0)
-        content = buffer.getvalue()
+        return buffer
 
-        # Use the refactored upload_file method which accepts sp_path and content
+    def save_tibble_locally(self, tibble, local_path: str, sheet_name: str = "Sheet1"):
+        """
+        Generates a formatted Excel file from a tibble and saves it to a local disk path.
+
+        Args:
+            tibble: The DataFrame (pandas or Polars) to save.
+            local_path (str): The local file path to save the Excel file to (e.g., "C:/Users/YourUser/Documents/report.xlsx").
+            sheet_name (str): The name of the sheet in the Excel file.
+        """
+        # 1. Validate and convert the input tibble to a pandas DataFrame
+        if hasattr(tibble, "to_pandas") and not isinstance(tibble, pd.DataFrame):
+            df_pd = tibble.to_pandas()
+        elif isinstance(tibble, pd.DataFrame):
+            df_pd = tibble
+        else:
+            raise TypeError("Input 'tibble' must be a pandas or Polars DataFrame.")
+
+        # 2. Use the existing function to create the Excel file in a memory buffer
+        excel_buffer = self._write_formatted_excel(df_pd, sheet_name)
+
+        # 3. Write the buffer's content to the specified local file path
+
+        with open(local_path, "wb") as f:
+            f.write(excel_buffer.getvalue())
+
+    def upload_tibble(
+        self,
+        tibble,
+        sp_path: str,
+        sheet_name: str = "Sheet1",
+    ) -> dict:
+        """
+        Uploads a DataFrame to SharePoint as a consistently formatted Excel file.
+        """
+        if self.context_check:
+            self.context.log.info(f"Writing {tibble.height} rows, {tibble.width} columns to {sp_path}")
+
+        assert not tibble.is_empty(), "Input tibble cannot be empty."
+        if not sp_path.lower().endswith(".xlsx"):
+            raise ValueError("The file path part of sp_path must end with .xlsx.")
+
+        if hasattr(tibble, "to_pandas") and not isinstance(tibble, pd.DataFrame):
+            df_pd = tibble.to_pandas()
+        elif isinstance(tibble, pd.DataFrame):
+            df_pd = tibble
+        else:
+            raise TypeError("Input 'tibble' must be a pandas or Polars DataFrame.")
+
+        excel_buffer = self._write_formatted_excel(df_pd, sheet_name)
+
         upload_result = self.upload_file(
             sp_path=sp_path,
-            content=content,
+            content=excel_buffer.getvalue(),
         )
 
         return upload_result

@@ -25,6 +25,7 @@ def clean_notifications(df: pl.DataFrame) -> pl.DataFrame:
         "Notification": "notification",
         "Notification Description": "notification_description",
         "Created By": "created_by",
+        "Changed By": "changed_by",
         "Changed On": "changed_on",
         "Notification Completion Date": "notification_completion_date",
         "Notification Status": "notification_status",
@@ -92,7 +93,7 @@ def mutate_notifications(
         manifest_df=notifications_manifest,
         analytics_df=notifications,
         dedup_keys=dedup_keys,
-        date_column="partition_date",
+        date_column="changed_on",
         add_partition_date=True,
         cleaning_fn=clean_notifications,
     )
