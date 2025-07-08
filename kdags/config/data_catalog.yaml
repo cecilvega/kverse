@@ -8,7 +8,7 @@ operation:
 components:
   component_changeouts:
     reference_path:
-      spence: sp://KCHCLSP00060/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx
+      spence: sp://KCHCLSP00060/Registro Planificación de Faenas/1.- Gestión de Componentes/2.- Spence/1.- Planilla Control cambio de componentes/Planilla control cambio componentes/NUEVA PLANILLA DE CONTROL CAMBIO DE COMPONENTES SPENCE.xlsx
       mel: sp://KCHCLSP00022/01. ÁREAS KCH/1.3 PLANIFICACION/01. Gestión pool de componentes/01. Control Cambio Componentes/PLANILLA DE CONTROL CAMBIO DE COMPONENTES.xlsx
     analytics_path: az://bhp-analytics-data/COMPONENTS/COMPONENT_CHANGEOUTS/component_changeouts.parquet
   patched_component_changeouts:
@@ -26,10 +26,10 @@ maintenance:
     publish_path: "sp://KCHCLGR00058/___/MANTENIMIENTO/Historial Muestras Aceite.xlsx"
   work_schedule:
     raw_path: az://bhp-raw-data/FIORI/WORK_SCHEDULE
-  work_order_history:
-    raw_path: az://bhp-raw-data/FIORI/WORK_ORDER_HISTORY
-    manifest_path: az://bhp-process-data/STATE/FIORI/WORK_ORDER_HISTORY/manifest.parquet
-    analytics_path: az://bhp-analytics-data/MAINTENANCE/WORK_ORDER_HISTORY/work_order_history.parquet
+  notifications:
+    raw_path: az://bhp-raw-data/FIORI/NOTIFICATIONS
+    manifest_path: az://bhp-process-data/STATE/FIORI/NOTIFICATIONS/manifest.parquet
+    analytics_path: az://bhp-analytics-data/MAINTENANCE/NOTIFICATIONS/notifications.parquet
     publish_path: "sp://KCHCLGR00058/___/MANTENIMIENTO/Historial Órdenes Trabajo.xlsx"
 reparation:
   so_report:

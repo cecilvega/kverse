@@ -5,9 +5,9 @@ from kdags.config import DATA_CATALOG
 
 
 @dg.asset(compute_kind="publish")
-def publish_work_order_history(context: dg.AssetExecutionContext, work_order_history: pl.DataFrame):
+def publish_notifications(context: dg.AssetExecutionContext, notifications: pl.DataFrame):
     msgraph = MSGraph(context)
-    df = work_order_history
+    df = notifications
 
     msgraph.upload_tibble(
         tibble=df,

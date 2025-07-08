@@ -1,6 +1,6 @@
 # --- Default imports ---
 # --- Selenium imports ---
-from datetime import date
+from datetime import date, timedelta
 
 import dagster as dg
 import polars as pl
@@ -63,6 +63,13 @@ def select_so_to_update(raw_so_quotations, so_report: pl.DataFrame):
         (
             ~pl.col("component_status").is_in(["Delivered", "Repaired"])
             & (pl.col("days_since_update") > MIN_UPDATE_INTERVAL_DAYS)
+            & pl.col("reso_closing_date").is_null()
+        )
+        | (
+            ~pl.col("component_status").is_in(["Delivered", "Repaired"])
+            & (pl.col("days_since_update") > MIN_UPDATE_INTERVAL_DAYS)
+            & pl.col("reso_closing_date").is_not_null()
+            & (pl.col("reso_closing_date") > date.today() - timedelta(365 * 4))
         )
         |
         # Rule 3: Select recently completed SOs (within update window) that haven't been updated recently

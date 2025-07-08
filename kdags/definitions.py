@@ -5,46 +5,9 @@ from dagster._core.definitions.metadata.source_code import AnchorBasedFilePathMa
 
 
 from kdags.assets import maintenance, reparation, operation, components, reliability, docs
-from kdags.schedules import (
-    component_history_schedule,
-    harvest_so_report_schedule,
-    oil_analysis_schedule,
-    publish_data_schedule,
-    ep_schedule,
-    fiori_schedule,
-)
-from kdags.sensors import so_report_sensor, quotations_sensor
-from kdags.jobs import (
-    # === DOCS ===
-    oil_analysis_job,
-    docs_job,
-    # === RELIABILITY ===
-    component_fleet_job,
-    pool_inventory_job,
-    ep_job,
-    warranties_job,
-    quotations_job,
-    component_reparations_job,
-    tabulate_quotations_job,
-    component_history_job,
-    # === PLANNING ===
-    # === REPARATION ===
-    so_report_job,
-    harvest_so_details_job,
-    harvest_so_documents_job,
-    reso_documents_job,
-    # === MAINTENANCE ===
-    icc_job,
-    fiori_job,
-    pm_history_job,
-    op_file_idx_job,
-    # === OPERATION ===
-    komtrax_job,
-    plm_job,
-    ge_job,
-    harvest_so_report_job,
-    publish_data_job,
-)
+from kdags.schedules import schedules
+from kdags.sensors import sensors
+from kdags.jobs import jobs
 import warnings
 
 warnings.filterwarnings("ignore", category=Warning, module="dagster._core.definitions.metadata.source_code")
@@ -89,51 +52,13 @@ all_assets = dg.link_code_references_to_git(
 )
 
 
-schedules = [
-    component_history_schedule,
-    harvest_so_report_schedule,
-    oil_analysis_schedule,
-    publish_data_schedule,
-    ep_schedule,
-    fiori_schedule,
-]
-
 if Path.home().__str__() not in ["C:\\Users\\vales"]:
     schedules = []
+    sensors = []
 
 kdefs = dg.Definitions(
     assets=all_assets,
-    jobs=[
-        # === COMPONENTS ===
-        component_reparations_job,
-        harvest_so_report_job,
-        warranties_job,
-        # === DOCS ===
-        docs_job,
-        tabulate_quotations_job,
-        # === RELIABILITY ===
-        component_fleet_job,
-        component_history_job,
-        pool_inventory_job,
-        ep_job,
-        quotations_job,
-        icc_job,
-        # === REPARATION ===
-        so_report_job,
-        harvest_so_details_job,
-        reso_documents_job,
-        harvest_so_documents_job,
-        # === MAINTENANCE ===
-        fiori_job,
-        pm_history_job,
-        # === OPERATION ===
-        op_file_idx_job,
-        plm_job,
-        ge_job,
-        oil_analysis_job,
-        komtrax_job,
-        publish_data_job,
-    ],
+    jobs=jobs,
     schedules=schedules,
-    sensors=[so_report_sensor, quotations_sensor],
+    sensors=sensors,
 )

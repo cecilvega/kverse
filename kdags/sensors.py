@@ -1,6 +1,8 @@
 import dagster as dg
 from dagster import DefaultSensorStatus
 
+__all__ = ["sensors"]
+
 
 @dg.asset_sensor(
     asset_key=dg.AssetKey("harvest_so_report"),
@@ -19,6 +21,8 @@ def so_report_sensor(context: dg.SensorEvaluationContext):
 def quotations_sensor(context: dg.SensorEvaluationContext):
     return dg.RunRequest()
 
+
+sensors = [so_report_sensor, quotations_sensor]
 
 # @dg.asset_sensor(
 #     asset_key=dg.AssetKey("harvest_reso_job"),

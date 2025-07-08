@@ -11,7 +11,7 @@ import polars as pl
 @dg.asset
 def list_op_file_idx():
 
-    base_path = Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/DDMM"
+    base_path = Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/DDMM/Datos MEL"
 
     files = [f for f in Path(base_path).rglob("*")]
     df = [f for f in files if "." in str(f).split("/")[-1]]
@@ -131,7 +131,7 @@ def spawn_op_file_idx(list_op_file_idx):
     df["partition_date"] = df.apply(lambda x: convert_date_format(x["extracted_date"], x["date_pattern"]), axis=1)
     df = pl.from_pandas(df)
     DataLake().upload_tibble(
-        az_path="az://bhp-analytics-data/OPERATION/op_file_idx.parquet",
+        az_path="az://bhp-analytics-data/OPERATION/filtered_op_file_idx.parquet",
         tibble=df,
     )
 
@@ -141,5 +141,5 @@ def spawn_op_file_idx(list_op_file_idx):
 @dg.asset
 def read_op_file_idx():
     dl = DataLake()
-    df = dl.read_tibble("az://bhp-analytics-data/OPERATION/op_file_idx.parquet")
+    df = dl.read_tibble("az://bhp-analytics-data/OPERATION/filtered_op_file_idx.parquet")
     return df

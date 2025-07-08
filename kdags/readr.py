@@ -13,7 +13,7 @@ import dagster as dg
 from kdags.assets.components.readr_assets import component_history, component_changeouts
 
 # === MAINTENANCE ===
-from kdags.assets.maintenance.readr_assets import oil_analysis, work_order_history
+from kdags.assets.maintenance.readr_assets import oil_analysis, notifications
 from kdags.assets.operation.ge.events.pipeline import read_events
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 
@@ -48,7 +48,7 @@ class Readr:
 
     # === MAINTENANCE ===
     oil_analysis: dg.AssetsDefinition = oil_analysis
-    work_order_history: dg.AssetsDefinition = work_order_history
+    notifications: dg.AssetsDefinition = notifications
     pm_history: dg.AssetsDefinition = read_pm_history
 
     # === OPERATION ===

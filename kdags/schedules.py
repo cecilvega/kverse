@@ -1,5 +1,15 @@
 import dagster as dg
-from kdags.jobs import component_history_job, harvest_so_report_job, publish_data_job, oil_analysis_job, fiori_job
+from kdags.jobs import (
+    component_history_job,
+    harvest_so_report_job,
+    publish_data_job,
+    oil_analysis_job,
+    fiori_job,
+    harvest_so_details_job,
+)
+
+__all__ = ["schedules"]
+
 
 # === DOCS ===
 publish_data_schedule = dg.ScheduleDefinition(
@@ -39,7 +49,15 @@ component_history_schedule = dg.ScheduleDefinition(
 harvest_so_report_schedule = dg.ScheduleDefinition(
     name="harvest_so_report_schedule",
     job=harvest_so_report_job,
-    cron_schedule="0 7 * * *",
+    cron_schedule="0 6 * * *",
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+harvest_so_details_schedule = dg.ScheduleDefinition(
+    name="harvest_so_details_schedule",
+    job=harvest_so_details_job,
+    cron_schedule="45 6 * * *",
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
@@ -53,3 +71,14 @@ oil_analysis_schedule = dg.ScheduleDefinition(
     execution_timezone="America/Santiago",
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
+
+
+schedules = [
+    component_history_schedule,
+    harvest_so_report_schedule,
+    oil_analysis_schedule,
+    publish_data_schedule,
+    ep_schedule,
+    fiori_schedule,
+    harvest_so_details_schedule,
+]

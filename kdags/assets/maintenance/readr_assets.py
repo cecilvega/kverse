@@ -8,9 +8,9 @@ from kdags.config import DATA_CATALOG
 
 
 @dg.asset(compute_kind="readr")
-def work_order_history(context: dg.AssetExecutionContext):
+def notifications(context: dg.AssetExecutionContext):
     dl = DataLake(context)
-    df = dl.read_tibble(DATA_CATALOG["work_order_history"]["analytics_path"], raise_if_missing=False)
+    df = dl.read_tibble(DATA_CATALOG["notifications"]["analytics_path"], raise_if_missing=False)
     return df
 
 

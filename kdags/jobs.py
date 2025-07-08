@@ -1,11 +1,14 @@
 import dagster as dg
 
+__all__ = ["jobs"]
+
+
 # === DOCS ===
 publish_data_job = dg.define_asset_job(
     name="publish_data_job",
     selection=dg.AssetSelection.assets(
         "publish_data_catalog",
-        # "publish_work_order_history",
+        # "publish_notifications",
         # "publish_oil_analysis",
         # "publish_component_history",
         # "publish_component_reparations",
@@ -135,7 +138,7 @@ pm_history_job = dg.define_asset_job(
 
 fiori_job = dg.define_asset_job(
     name="work_orders_job",
-    selection=dg.AssetSelection.assets("mutate_work_order_history").upstream(),
+    selection=dg.AssetSelection.assets("mutate_notifications").upstream(),
     description="Archivo con todas las OT's Fiori",
 )
 
@@ -170,3 +173,35 @@ ge_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets("mutate_raw_events").upstream(),
     description="GE Eventos",
 )
+
+jobs = [
+    # === COMPONENTS ===
+    component_reparations_job,
+    harvest_so_report_job,
+    warranties_job,
+    # === DOCS ===
+    docs_job,
+    tabulate_quotations_job,
+    # === RELIABILITY ===
+    component_fleet_job,
+    component_history_job,
+    pool_inventory_job,
+    ep_job,
+    quotations_job,
+    icc_job,
+    # === REPARATION ===
+    so_report_job,
+    harvest_so_details_job,
+    reso_documents_job,
+    harvest_so_documents_job,
+    # === MAINTENANCE ===
+    fiori_job,
+    pm_history_job,
+    # === OPERATION ===
+    op_file_idx_job,
+    plm_job,
+    ge_job,
+    oil_analysis_job,
+    komtrax_job,
+    publish_data_job,
+]
