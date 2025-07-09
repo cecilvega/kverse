@@ -3,7 +3,9 @@ from io import BytesIO
 import dagster as dg
 import pandas as pd
 import polars as pl
-from kdags.resources.tidyr import DataLake, MSGraph
+from kdags.resources.tidyr import DataLake, MSGraph, MasterData
+
+
 from kdags.config import DATA_CATALOG
 
 
@@ -21,32 +23,8 @@ def clean_notifications(df: pl.DataFrame) -> pl.DataFrame:
             for col in string_cols
         ]
     )
-    COLUMNS_MAP = {
-        "Notification": "notification",
-        "Notification Description": "notification_description",
-        "Created By": "created_by",
-        "Changed By": "changed_by",
-        "Changed On": "changed_on",
-        "Notification Completion Date": "notification_completion_date",
-        "Notification Status": "notification_status",
-        "Technical Object": "technical_object",
-        "Sort Field": "equipment_name",
-        "Priority": "priority",
-        "Order Status": "order_status",
-        "Plant of Main Work Center": "site_name",
-    }
-    df = df.rename(
-        COLUMNS_MAP,
-    ).select(list(COLUMNS_MAP.values()))
-    df = df.with_columns(
-        site_name=pl.when(pl.col("site_name").str.to_lowercase().str.contains("escondida mine"))
-        .then(pl.lit("MEL"))
-        .when(pl.col("site_name").str.to_lowercase().str.contains("spence"))
-        .then(pl.lit("SPENCE"))
-        .otherwise(pl.col("site_name")),
-        technical_object=pl.col("technical_object").str.extract(r"^([^(]+)", 1).str.strip_chars(),
-        order_type=pl.col("order_type").str.replace(r"Work Order \(([^)]+)\) \(([PM]\w+)\)", r"$2 - $1"),
-    )
+
+    df = df.filter(pl.col("Sort Field").is_in(MasterData.equipments()["equipment_name"].unique()))
     return df
 
 
@@ -86,16 +64,44 @@ def mutate_notifications(
     analytics_path = DATA_CATALOG["notifications"]["analytics_path"]
 
     # Define deduplication strategy
-    dedup_keys = ["notification"]  # Adjust based on your actual column names
+    dedup_keys = ["Notification"]  # Adjust based on your actual column names
 
     # Upsert with deduplication
     deduplicated_df, updated_manifest = dl.upsert_tibble(
         manifest_df=notifications_manifest,
         analytics_df=notifications,
         dedup_keys=dedup_keys,
-        date_column="changed_on",
+        date_column="partition_date",
         add_partition_date=True,
         cleaning_fn=clean_notifications,
+    )
+
+    COLUMNS_MAP = {
+        "Notification": "notification",
+        "Notification Description": "notification_description",
+        "Notification Date": "notification_date",
+        "Created By": "created_by",
+        "Changed By": "changed_by",
+        "Changed On": "changed_on",
+        "Notification Completion Date": "notification_completion_date",
+        "Notification Status": "notification_status",
+        "Technical Object": "technical_object",
+        "Sort Field": "equipment_name",
+        "Priority": "priority",
+        "Order Status": "order_status",
+        "Plant of Main Work Center": "site_name",
+    }
+    deduplicated_df = deduplicated_df.rename(
+        COLUMNS_MAP,
+    ).select(list(COLUMNS_MAP.values()))
+    deduplicated_df = deduplicated_df.with_columns(
+        site_name=pl.when(pl.col("site_name").str.to_lowercase().str.contains("escondida mine"))
+        .then(pl.lit("MEL"))
+        .when(pl.col("site_name").str.to_lowercase().str.contains("spence"))
+        .then(pl.lit("SPENCE"))
+        .otherwise(pl.col("site_name")),
+        technical_object=pl.col("technical_object").str.extract(r"^([^(]+)", 1).str.strip_chars(),
+        notification_status=pl.col("notification_status").str.replace(r"\s*\(\d+\)$", ""),
     )
 
     # Apply work_order specific cleaning AFTER upsert

@@ -90,6 +90,7 @@ class DataLake:
 
         for row in manifest_df.to_dicts():
             try:
+
                 tibble = self.read_tibble(row["az_path"])
 
                 # Apply custom cleaning or default string cleaning

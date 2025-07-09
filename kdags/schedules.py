@@ -6,6 +6,7 @@ from kdags.jobs import (
     oil_analysis_job,
     fiori_job,
     harvest_so_details_job,
+    harvest_so_documents_job,
 )
 
 __all__ = ["schedules"]
@@ -62,6 +63,15 @@ harvest_so_details_schedule = dg.ScheduleDefinition(
     default_status=dg.DefaultScheduleStatus.RUNNING,
 )
 
+harvest_so_documents_schedule = dg.ScheduleDefinition(
+    name="harvest_so_documents_schedule",
+    job=harvest_so_documents_job,
+    cron_schedule="30 7 * * *",
+    execution_timezone="America/Santiago",
+    default_status=dg.DefaultScheduleStatus.RUNNING,
+)
+
+
 # === MAINTENANCE ===
 
 oil_analysis_schedule = dg.ScheduleDefinition(
@@ -81,4 +91,5 @@ schedules = [
     ep_schedule,
     fiori_schedule,
     harvest_so_details_schedule,
+    harvest_so_documents_schedule,
 ]

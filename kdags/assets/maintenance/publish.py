@@ -3,15 +3,15 @@ import polars as pl
 from kdags.resources.tidyr import DataLake, MSGraph
 from kdags.config import DATA_CATALOG
 
-# Only materialize once daily at a specific time
-policy = dg.AutoMaterializePolicy.eager().with_rules(
-    dg.AutoMaterializeRule.materialize_on_cron("0 20 * * *", timezone="US/Central")
-)
+# # Only materialize once daily at a specific time
+# policy = dg.AutoMaterializePolicy.eager().with_rules(
+#     dg.AutoMaterializeRule.materialize_on_cron("0 20 * * *", timezone="US/Central")
+# )
 
 
 @dg.asset(
     compute_kind="publish",
-    auto_materialize_policy=policy,
+    # auto_materialize_policy=policy,
 )
 def publish_notifications(context: dg.AssetExecutionContext, notifications: pl.DataFrame):
     msgraph = MSGraph(context)
