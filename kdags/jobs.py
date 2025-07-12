@@ -170,7 +170,7 @@ oil_analysis_job = dg.define_asset_job(
 
 ge_job = dg.define_asset_job(
     name="ge_job",
-    selection=dg.AssetSelection.assets("mutate_raw_events").upstream(),
+    selection=dg.AssetSelection.assets("mutate_events").upstream(),
     description="GE Eventos",
 )
 

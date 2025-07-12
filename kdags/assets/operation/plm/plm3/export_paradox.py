@@ -22,12 +22,11 @@ def get_alarms_path(df, partition_date):
 
 
 @dg.asset
-def export_plm3(context, read_op_file_idx: pl.DataFrame):
+def export_plm3(context, operation_manifest: pl.DataFrame):
     data_list = (
-        read_op_file_idx.filter(pl.col("data_type") == "PLM3")
+        operation_manifest.filter(pl.col("data_type") == "PLM3")
         .rename({"filepath": "zip_path"})
         .select(["zip_path", "partition_date"])
-        # .head(100)
         .to_dicts()
     )
 
@@ -39,8 +38,8 @@ def export_plm3(context, read_op_file_idx: pl.DataFrame):
         except Exception as e:
             print("Error processing", zip_path)
             haul_df, alarms_df = pl.DataFrame(), pl.DataFrame()
-        base_path = Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/bhp-raw-data"
-
+        # base_path = Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/bhp-raw-data"
+        base_path = Path(r"C:\Users\andmn\PycharmProjects\bhp-process-data")
         if not haul_df.is_empty():
             haul_path = base_path / get_haul_path(haul_df, partition_date)
             haul_path.parent.mkdir(parents=True, exist_ok=True)

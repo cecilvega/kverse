@@ -66,9 +66,7 @@ def mutate_plm3_haul(context: dg.AssetExecutionContext) -> pl.DataFrame:
         "peak_sprung_load_time",
     ]
     filepaths = [
-        f
-        for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/bhp-raw-data/PLM3/HAUL").rglob("*")
-        if f.is_file()
+        f for f in Path(r"C:\Users\andmn\PycharmProjects\bhp-process-data\PLM3\HAUL").rglob("*") if f.is_file()
     ]
     frames = []
     for filepath in filepaths:
@@ -90,16 +88,15 @@ def mutate_plm3_haul(context: dg.AssetExecutionContext) -> pl.DataFrame:
         .filter(pl.col("record_dt") >= datetime(2020, 10, 1))
         .sort(["equipment_name", "record_dt"])
     )
-
+    df.write_parquet(r"C:\Users\andmn\PycharmProjects\haul.parquet")
+    df.write_csv(r"C:\Users\andmn\PycharmProjects\haul.csv")
     return df
 
 
 @dg.asset
 def mutate_plm3_alarms(context: dg.AssetExecutionContext) -> pl.DataFrame:
     filepaths = [
-        f
-        for f in (Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/bhp-raw-data/PLM3/ALARMS").rglob("*")
-        if f.is_file()
+        f for f in Path(r"C:\Users\andmn\PycharmProjects\bhp-process-data\PLM3\ALARMS").rglob("*") if f.is_file()
     ]
     frames = []
     for filepath in filepaths:
@@ -127,6 +124,9 @@ def mutate_plm3_alarms(context: dg.AssetExecutionContext) -> pl.DataFrame:
         .filter(pl.col("record_start_dt") >= datetime(2020, 10, 1))
         .sort(["equipment_name", "record_start_dt", "record_end_dt"])
     )
+
+    df.write_parquet(r"C:\Users\andmn\PycharmProjects\alarms.parquet")
+    df.write_csv(r"C:\Users\andmn\PycharmProjects\alarms.csv")
     return df
 
 

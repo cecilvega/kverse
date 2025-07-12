@@ -14,7 +14,7 @@ from kdags.assets.components.readr_assets import component_history, component_ch
 
 # === MAINTENANCE ===
 from kdags.assets.maintenance.readr_assets import oil_analysis, notifications
-from kdags.assets.operation.ge.events.pipeline import read_events
+
 from kdags.assets.maintenance.fiori.pm_history import read_pm_history
 
 
@@ -24,10 +24,9 @@ from kdags.assets.reliability.readr_assets import icc
 # from kdags.assets.planning.pool_inventory.assets import component_lifeline
 
 # === OPERATION ===
-from kdags.assets.operation.readr_assets import komtrax_smr
-from kdags.assets.operation.operation_files_idx import read_op_file_idx
+from kdags.assets.operation.readr_assets import komtrax_smr, read_events, read_fault, read_haul
+from kdags.assets.operation.operation_files_idx import operation_manifest
 from kdags.assets.operation.plm.alarms import read_alarms
-from kdags.assets.operation.plm.haul import read_haul
 
 
 # === REPARATION ===
@@ -52,13 +51,14 @@ class Readr:
     pm_history: dg.AssetsDefinition = read_pm_history
 
     # === OPERATION ===
-    op_file_idx: dg.AssetsDefinition = read_op_file_idx
+    op_file_idx: dg.AssetsDefinition = operation_manifest
     komtrax_smr: dg.AssetsDefinition = komtrax_smr
 
     haul: dg.AssetsDefinition = read_haul
     alarms: dg.AssetsDefinition = read_alarms
 
     events: dg.AssetsDefinition = read_events
+    fault: dg.AssetsDefinition = read_fault
 
     # === REPARATION ===
 
