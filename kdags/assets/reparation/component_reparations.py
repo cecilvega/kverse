@@ -5,10 +5,17 @@ from kdags.resources.tidyr import DataLake, MasterData
 
 
 @dg.asset(compute_kind="mutate")
-def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: pl.DataFrame):
+def mutate_component_reparations(
+    context: dg.AssetExecutionContext, so_report: pl.DataFrame, component_history: pl.DataFrame
+):
     df = (
-        so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA").filter(
-            pl.col("equipment_model").str.contains("960E")
+        so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA")
+        .filter(pl.col("equipment_model").str.contains("960E"))
+        .with_columns(
+            [
+                pl.col(c).str.replace_all(r"\s+", " ").str.strip_chars()
+                for c in ["main_component", "component_serial", "component"]
+            ]
         )
         # TODO: Evaluar que realizar con las garantías de fábrica
         # Sacar las garantías de fábrica porque duplican el contador por mientras, evaluar que hacer posteriormente
@@ -22,6 +29,8 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
                     "main_component": "WHEEL TRANSMISSION",
                     "subcomponent_tag": "0980",
                     "component": [
+                        "WHEEL TRANSMISSION 960E-2",
+                        "WHEEL TRANSMISSION 960E-1",
                         "MOTOR MECHANIC 960E-2",
                         "MOTOR MECHANIC 960E-1",
                         "WHEEL TRANSMISSION 930E-4",
@@ -79,25 +88,16 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
         "0",
     ]
     df = (
-        df.with_columns(
-            [
-                pl.col(c).str.replace_all(r"\s+", " ").str.strip_chars()
-                for c in ["main_component", "component_serial", "component"]
-            ]
-        )
-        .filter(~pl.col("component_serial").is_in(invalid_component_serials))
-        .with_columns(
+        df.filter(~pl.col("component_serial").is_in(invalid_component_serials)).with_columns(
             component_hours=pl.col("component_hours")
             # First, handle null/non-numeric values
             .str.strip_chars()  # Remove leading/trailing spaces
             # Replace known non-numeric values with empty string
             .str.replace_all(f"^({'|'.join(non_numeric_values)})$", "")
             # Remove text suffixes and special characters
-            .str.replace_all(
-                r"\s*(hrs|Hrs|hrs aprox|/ PRUEBAS).*$", ""
-            ).str.replace_all(  # Remove hour indicators and anything after
+            .str.replace_all(r"\s*(hrs|Hrs|hrs aprox|/ PRUEBAS).*$", "").str.replace_all(
                 r"[()]", ""
-            )  # Remove parentheses
+            )  # Remove hour indicators and anything after  # Remove parentheses
             # Handle ranges (take first number)
             .str.replace_all(r"^(\d+)-\d+$", "$1")
             # Handle thousand separators
@@ -118,6 +118,29 @@ def mutate_component_reparations(context: dg.AssetExecutionContext, so_report: p
         # .filter(pl.col("component_hours") != 0)
         # .with_columns(repair_count=pl.col("component_serial").count().over("component_serial"))
     )
+    df = df.with_columns(component_hours=pl.col("component_hours").fill_null(pl.lit(0)))
+
+    df = (
+        component_history.filter((pl.col("subcomponent_tag") == "0980") & (pl.col("equipment_name").str.contains("TK")))
+        .filter(pl.col("service_order").is_not_null())
+        .select(
+            [
+                "equipment_name",
+                "subcomponent_tag",
+                "position_tag",
+                "changeout_date",
+                "component_serial",
+                "service_order",
+                "component_hours",
+            ]
+        )
+        .join(
+            df, on=["component_serial", "service_order", "subcomponent_tag"], how="full", coalesce=True, suffix="_reso"
+        )
+        .with_columns(component_hours=pl.col("component_hours").fill_null(pl.col("component_hours_reso")))
+    )
+
+    # df = df.filter(pl.col("component_hours").is_not_null())
     df = df.sort(["component_serial", "reception_date"]).with_columns(
         [
             # Repair count (cumulative/increasing)

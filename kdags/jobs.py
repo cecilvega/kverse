@@ -59,7 +59,7 @@ harvest_so_report_job = dg.define_asset_job(
 )
 so_report_job = dg.define_asset_job(
     name="so_report_job",
-    selection=dg.AssetSelection.assets("mutate_so_report").upstream(),
+    selection=dg.AssetSelection.assets("mutate_so_report", "mutate_component_reparations").upstream(),
     description="Component Status RESO",
 )
 harvest_so_documents_job = dg.define_asset_job(
@@ -145,13 +145,13 @@ fiori_job = dg.define_asset_job(
 
 # === OPERATION ===
 
-komtrax_job = dg.define_asset_job(
-    name="komtrax_job",
-    selection=dg.AssetSelection.assets("mutate_smr").upstream(),
-    description="Procesamiento Komtrax DW",
-)
+# komtrax_job = dg.define_asset_job(
+#     name="komtrax_job",
+#     selection=dg.AssetSelection.assets("mutate_smr").upstream(),
+#     description="Procesamiento Komtrax DW",
+# )
 
-op_file_idx_job = dg.define_asset_job(
+manifest_ = dg.define_asset_job(
     name="op_file_idx_job", selection=dg.AssetSelection.assets("spawn_op_file_idx").upstream()
 )
 
@@ -198,10 +198,10 @@ jobs = [
     fiori_job,
     pm_history_job,
     # === OPERATION ===
-    op_file_idx_job,
+    # op_file_idx_job,
     plm_job,
     ge_job,
     oil_analysis_job,
-    komtrax_job,
+    # komtrax_job,
     publish_data_job,
 ]

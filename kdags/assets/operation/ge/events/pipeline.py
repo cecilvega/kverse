@@ -9,10 +9,10 @@ from .reader import read_csv_events
 
 
 @dg.asset
-def read_raw_events(context: dg.AssetExecutionContext, operation_manifest) -> pl.DataFrame:
+def read_raw_events(context: dg.AssetExecutionContext, ddm_manifest) -> pl.DataFrame:
     # Fix This part
     event_files = (
-        operation_manifest.filter(pl.col("data_type") == "EVENTS")
+        ddm_manifest.filter(pl.col("data_type") == "EVENTS")
         .with_columns(filestem=pl.col("filepath").str.extract(r"([^/\\]+)(?:\.[^.]*)?$", 1))
         .filter(
             (pl.col("filestem").str.contains("events", literal=True))

@@ -142,7 +142,7 @@ class DataLake:
         deduplicated_df = deduplicated_df.with_columns(date_column=pl.col(date_column).cast(pl.Date))
         return deduplicated_df, updated_manifest
 
-    def prepare_manifest(self, raw_path: str, manifest_path: str) -> pl.DataFrame:
+    def prepare_manifest(self, manifest: pl.DataFrame, raw_path: str) -> pl.DataFrame:
         """
         Prepare manifest by comparing raw files with existing manifest
         Ensures all files are listed with their processing status
@@ -150,19 +150,19 @@ class DataLake:
         # Get all files from raw path
         all_files = self.list_paths(raw_path)
 
-        # Get existing manifest
-        existing_manifest = self._manifest(manifest_path)
+        if manifest.is_empty():
+            manifest = pl.DataFrame({"az_path": [], "file_size": [], "last_modified": [], "processed_at": []})
 
-        if existing_manifest.height == 0:
+        if manifest.height == 0:
             # No existing manifest, all files are unprocessed
             return all_files.with_columns(pl.lit(None).alias("processed_at"))
 
         # Left join to preserve all files, with processing status from manifest
-        manifest = all_files.join(
-            existing_manifest.select(["az_path", "file_size", "processed_at"]), on=["az_path", "file_size"], how="left"
+        df = all_files.join(
+            manifest.select(["az_path", "file_size", "processed_at"]), on=["az_path", "file_size"], how="left"
         )
 
-        return manifest
+        return df
 
     def _parse_az_path(self, az_path: str) -> tuple:
 

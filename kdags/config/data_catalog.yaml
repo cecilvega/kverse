@@ -2,8 +2,9 @@ docs:
   publish_catalog:
     publish_path: "sp://KCHCLGR00058/___/Catálogo Datos.xlsx"
 operation:
-  komtrax_smr:
-    process_path: az://bhp-process-data/KOMTRAX/smr.parquet
+  ddm:
+    manifest_path: az://bhp-process-data/STATE/DDM/manifest.parquet
+  smr:
     analytics_path: az://bhp-process-data/OPERATION/smr.parquet
 components:
   component_changeouts:

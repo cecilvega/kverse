@@ -6,7 +6,6 @@ from datetime import date, datetime, timedelta
 import numpy as np
 
 
-@dg.asset
 def raw_smr(context: dg.AssetExecutionContext):
     dl = DataLake(context)
     smr_df = dl.read_tibble(DATA_CATALOG["komtrax_smr"]["process_path"])
@@ -69,7 +68,6 @@ def raw_smr(context: dg.AssetExecutionContext):
     return smr_df
 
 
-@dg.asset(compute_kind="mutate")
 def mutate_smr(context: dg.AssetExecutionContext, raw_smr: pl.DataFrame):
     dl = DataLake(context)
     # Date range

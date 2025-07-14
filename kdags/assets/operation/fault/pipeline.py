@@ -9,9 +9,9 @@ from .reader import read_csv_fault
 
 
 @dg.asset
-def read_raw_fault(context: dg.AssetExecutionContext, operation_manifest) -> pl.DataFrame:
+def read_raw_fault(context: dg.AssetExecutionContext, ddm_manifest) -> pl.DataFrame:
     # Fix This part
-    event_files = operation_manifest.filter(pl.col("data_type") == "FAULT")
+    event_files = ddm_manifest.filter(pl.col("data_type") == "FAULT")
 
     event_files = event_files.select(["filepath", "equipment_name"]).to_dicts()
     tibbles = []

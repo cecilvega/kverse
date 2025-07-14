@@ -24,8 +24,8 @@ from kdags.assets.reliability.readr_assets import icc
 # from kdags.assets.planning.pool_inventory.assets import component_lifeline
 
 # === OPERATION ===
-from kdags.assets.operation.readr_assets import komtrax_smr, read_events, read_fault, read_haul
-from kdags.assets.operation.operation_files_idx import operation_manifest
+from kdags.assets.operation.readr_assets import smr, read_events, read_fault, read_haul
+from kdags.assets.operation.manifest_ddm import ddm_manifest
 from kdags.assets.operation.plm.alarms import read_alarms
 
 
@@ -51,8 +51,8 @@ class Readr:
     pm_history: dg.AssetsDefinition = read_pm_history
 
     # === OPERATION ===
-    op_file_idx: dg.AssetsDefinition = operation_manifest
-    komtrax_smr: dg.AssetsDefinition = komtrax_smr
+    op_file_idx: dg.AssetsDefinition = ddm_manifest
+    smr: dg.AssetsDefinition = smr
 
     haul: dg.AssetsDefinition = read_haul
     alarms: dg.AssetsDefinition = read_alarms

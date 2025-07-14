@@ -14,17 +14,19 @@ from .constants import *
 def get_year_and_new_path(az_path: str, datalake_instance):
 
     print(f"Processing: {az_path}")
+    headers_df = datalake_instance.read_tibble(az_path, infer_schema_length=0)
+    actual_col = "Reception Date" if "Reception Date" in headers_df.columns else "Receiption Date"
 
     df_excel = datalake_instance.read_tibble(
         az_path,
-        columns=["Reception Date"],
+        columns=[actual_col],
         # sheet_name='YourSheet' # Add if needed
     )
 
-    if not isinstance(df_excel["Reception Date"].dtype, (pl.Date, pl.Datetime)):
-        df_excel = df_excel.with_columns(pl.col("Reception Date").str.strptime(pl.Datetime, strict=False).cast(pl.Date))
+    if not isinstance(df_excel[actual_col].dtype, (pl.Date, pl.Datetime)):
+        df_excel = df_excel.with_columns(pl.col(actual_col).str.strptime(pl.Datetime, strict=False).cast(pl.Date))
 
-    unique_years = df_excel.get_column("Reception Date").dt.year().drop_nulls().unique().to_list()
+    unique_years = df_excel.get_column(actual_col).dt.year().drop_nulls().unique().to_list()
 
     # === Condition Check ===
     # Check the logical condition: exactly one unique year
@@ -105,7 +107,10 @@ def raw_so_report(context: dg.AssetExecutionContext) -> pl.DataFrame:
     paths_to_read = latest_paths_df["az_path"].to_list()
 
     tibbles = [
-        datalake.read_tibble(az_path=p, columns=SELECTED_RAW_COLUMNS, infer_schema_length=0) for p in paths_to_read
+        datalake.read_tibble(az_path=p, infer_schema_length=0)
+        .rename({"Receiption Date": "Reception Date", "Work Order": "Service Order"}, strict=False)
+        .select(SELECTED_RAW_COLUMNS)
+        for p in paths_to_read
     ]
     if not tibbles:
         return pl.DataFrame()

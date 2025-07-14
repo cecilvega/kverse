@@ -17,14 +17,18 @@ class MasterData:
     CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parents[1] / "config"
 
     @classmethod
-    def retired_components(cls) -> pl.DataFrame:
-        """
-        Load retired component data from retired_components.yaml.
-        """
-        filepath = cls.CONFIG_DIR / "retired_components.yaml"
-        with open(filepath, "r") as f:
-            data = yaml.safe_load(f)
-        df = pl.DataFrame(data).filter(pl.col("is_retired") == True)
+    def component_serials(cls) -> pl.DataFrame:
+
+        filepath = cls.CONFIG_DIR / "component_serials.yaml"
+        data = yaml.safe_load(open(filepath, "r"))
+
+        # 2. Use a list comprehension to transform the data 🚀
+        # This creates a list of dictionaries, adding the serial number into each one.
+        records = [{"component_serial": serial, **attributes} for serial, attributes in data.items()]
+
+        # 3. Create the Polars DataFrame
+        df = pl.DataFrame(records)
+
         return df
 
     @classmethod

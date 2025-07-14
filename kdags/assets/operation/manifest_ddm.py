@@ -8,6 +8,8 @@ import re
 import polars as pl
 from datetime import datetime
 
+from ...config import DATA_CATALOG
+
 # Data patterns mapping - order matters for PLM patterns
 DATA_PATTERNS = {
     # PLM (Order is important: more specific PLM4 comes first)
@@ -44,7 +46,7 @@ def extract_filename_equipment_name(path):
 def extract_filename_equipment_serial(path):
     """Extract serial number from folder path - only matches folders with pattern A##### (A + 5 digits)"""
     # Split the path to get individual components
-    path_parts = path.split(os.sep)
+    path_parts = path.split("/")
 
     # Check each part to see if it's a folder matching exactly A + 5 digits
     for part in path_parts:
@@ -80,45 +82,38 @@ def extract_data_pattern(filepath):
     return {"data_type": "unknown", "data_source": "unknown"}
 
 
-@dg.asset
-def list_operation_files():
-    """Process operation files and create indexed dataframe with equipment mapping"""
+@dg.asset(compute_kind="mutate")
+def mutate_ddm_manifest(context, ddm_manifest: pl.DataFrame):
+    dl = DataLake(context)
+    df = dl.list_paths("az://bhp-ingest-data")
 
-    # Get base path and list files
-    # base_path = (
-    #     Path(os.environ["ONEDRIVE_LOCAL_PATH"]).parent / "BHPDATA/DDMM/Datos MEL"
-    # )
-    base_path = r"C:\Users\andmn\Downloads\Datos MEL"
-
-    files = [f for f in Path(base_path).rglob("*")]
-    df = [f for f in files if "." in str(f).split("/")[-1]]
-    df = [f for f in df if ((str(f).lower().endswith(".csv")) | (str(f).lower().endswith(".zip")))]
-    df = [f for f in df if f.stat().st_size > 0]  # Remove 0-byte files
-
-    # Create initial dataframe directly with polars
-    df = pl.DataFrame({"filepath": [str(s) for s in df]})
-
-    # Add suffix using polars expressions
-
-    df = df.with_columns(suffix=pl.col("filepath").str.split(".").list.last().str.to_lowercase())
-
+    df = df.with_columns(filename=pl.col("az_path").str.split("/").list.get(-1)).with_columns(
+        filesuffix=pl.col("filename").str.split(".").list.get(-1).str.to_lowercase(),
+        filestem=pl.col("filename").str.split(".").list.get(0),
+    )
+    df = df.filter(pl.col("filesuffix").is_in(["csv", "zip"])).filter(pl.col("file_size") > 0)
     # Extract equipment name from filepath
     df = df.with_columns(
-        filename_equipment_name=pl.col("filepath").map_elements(extract_filename_equipment_name, return_dtype=pl.Utf8)
+        filename_equipment_name=pl.col("az_path").map_elements(extract_filename_equipment_name, return_dtype=pl.Utf8)
     )
 
     # Extract serial number from filepath
     df = df.with_columns(
-        filename_equipment_serial=pl.col("filepath").map_elements(
+        filename_equipment_serial=pl.col("az_path").map_elements(
             extract_filename_equipment_serial, return_dtype=pl.Utf8
         )
     )
 
     # Apply date pattern extraction
-    df = df.with_columns(partition_date=pl.col("filepath").map_elements(extract_date_pattern, return_dtype=pl.Utf8))
+    df = df.with_columns(partition_date=pl.col("az_path").map_elements(extract_date_pattern, return_dtype=pl.Utf8))
 
     # Apply data pattern extraction and expand dict to columns
-    df = df.with_columns(data_info=pl.col("filepath").map_elements(extract_data_pattern, return_dtype=pl.Struct))
+    df = df.with_columns(
+        data_info=pl.col("az_path").map_elements(
+            extract_data_pattern,
+            return_dtype=pl.Struct([pl.Field("data_type", pl.String), pl.Field("data_source", pl.String)]),
+        )
+    )
 
     # Extract data_type and data_source from the struct
     df = df.with_columns(
@@ -150,19 +145,24 @@ def list_operation_files():
     # Drop intermediate columns
     df = df.drop(["_equipment_name"])
 
-    # # Upload to data lake
-    # DataLake().upload_tibble(
-    #     az_path="az://bhp-analytics-data/OPERATION/filtered_op_file_idx.parquet",
-    #     tibble=df,
-    # )
-    df.write_parquet(r"C:\Users\andmn\PycharmProjects\operation_manifest.parquet")
+    # Left join to preserve all files, with processing status from manifest
+    if not ddm_manifest.is_empty():
+        df = df.join(
+            ddm_manifest.select(["az_path", "file_size", "processed_at"]), on=["az_path", "file_size"], how="left"
+        )
+    else:
+        df = df.with_columns(pl.lit(None).alias("processed_at"))
+
+    dl.upload_tibble(df, DATA_CATALOG["ddm"]["manifest_path"])
 
     return df
 
 
-@dg.asset
-def operation_manifest():
-    df = pl.read_parquet(r"C:\Users\andmn\PycharmProjects\operation_manifest.parquet")
-    # dl = DataLake()
-    # df = dl.read_tibble("az://bhp-analytics-data/OPERATION/filtered_op_file_idx.parquet")
+@dg.asset(compute_kind="readr")
+def ddm_manifest(context: dg.AssetExecutionContext):
+    dl = DataLake(context)
+    df = dl.read_tibble(DATA_CATALOG["ddm"]["manifest_path"])
+    if df.is_empty():
+        df = pl.DataFrame({"az_path": [], "file_size": [], "last_modified": [], "processed_at": []})
+
     return df

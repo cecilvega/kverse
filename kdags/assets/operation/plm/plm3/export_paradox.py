@@ -22,9 +22,9 @@ def get_alarms_path(df, partition_date):
 
 
 @dg.asset
-def export_plm3(context, operation_manifest: pl.DataFrame):
+def export_plm3(context, ddm_manifest: pl.DataFrame):
     data_list = (
-        operation_manifest.filter(pl.col("data_type") == "PLM3")
+        ddm_manifest.filter(pl.col("data_type") == "PLM3")
         .rename({"filepath": "zip_path"})
         .select(["zip_path", "partition_date"])
         .to_dicts()

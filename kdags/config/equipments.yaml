@@ -3,252 +3,301 @@ SV082:
   equipment_serial: 12098
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK284:
   equipment_model: 930E-4
   equipment_serial: A30516
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK285:
   equipment_model: 930E-4
   equipment_serial: A30517
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK286:
   equipment_model: 930E-4
   equipment_serial: A30528
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK289:
   equipment_model: 930E-4
   equipment_serial: A30529
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK291:
   equipment_model: 930E-4
   equipment_serial: A30675
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK292:
   equipment_model: 930E-4
   equipment_serial: A30676
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK320:
   equipment_model: 960E
   equipment_serial: A30003
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK322:
   equipment_model: 960E
   equipment_serial: A30006
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK396:
   equipment_model: 960E
   equipment_serial: A30039
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK397:
   equipment_model: 960E
   equipment_serial: A30040
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK398:
   equipment_model: 960E
   equipment_serial: A30041
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK399:
   equipment_model: 960E
   equipment_serial: A30042
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK847:
   equipment_model: 960E
   equipment_serial: A30044
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK848:
   equipment_model: 960E
   equipment_serial: A30045
   site_name: MEL
   operating: True
+  delivery_date: "2019-01-01"
 TK849:
   equipment_model: 960E
   equipment_serial: A30046
   site_name: MEL
   operating: True
+  delivery_date: 2019-01-01
 TK850:
   equipment_model: 960E
   equipment_serial: A30048
   site_name: MEL
   operating: True
+  delivery_date: 2019-01-01
 TK851:
   equipment_model: 960E
   equipment_serial: A30049
   site_name: MEL
   operating: True
+  delivery_date: 2019-01-01
 TK852:
   equipment_model: 960E
   equipment_serial: A30050
   site_name: MEL
   operating: True
-TK853:
-  equipment_model: 960E
-  equipment_serial: A30051
-  site_name: MEL
-  operating: True
-
+  delivery_date: 2019-01-01
+#TK853:
+#  equipment_model: 960E
+#  equipment_serial: A30051
+#  site_name: MEL
+#  operating: True
+#  delivery_date: "2019-01-01"
 TK854:
   equipment_model: 960E
   equipment_serial: A30052
   site_name: MEL
   operating: True
+  delivery_date: 2019-01-01
 TK855:
   equipment_model: 960E
   equipment_serial: A30053
   site_name: MEL
   operating: True
+  delivery_date: 2019-01-01
 TK856:
   equipment_model: 960E
   equipment_serial: A30054
   site_name: MEL
   operating: True
+  delivery_date: 2019-01-01
 TK857:
   equipment_model: "960E"
   equipment_serial: "A30055"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK858:
   equipment_model: "960E"
   equipment_serial: "A30058"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK859:
   equipment_model: "960E"
   equipment_serial: "A30074"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK860:
   equipment_model: "960E"
   equipment_serial: "A30075"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK861:
   equipment_model: "960E"
   equipment_serial: "A30076"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK862:
   equipment_model: "960E"
   equipment_serial: "A30077"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK863:
   equipment_model: "960E"
   equipment_serial: "A30078"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK864:
   equipment_model: "960E"
   equipment_serial: "A30079"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK865:
   equipment_model: "960E"
   equipment_serial: "A30080"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK866:
   equipment_model: "960E"
   equipment_serial: "A30081"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK867:
   equipment_model: "960E"
   equipment_serial: "A30082"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK868:
   equipment_model: "960E"
   equipment_serial: "A30083"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK869:
   equipment_model: "960E"
   equipment_serial: "A30089"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK870:
   equipment_model: "960E"
   equipment_serial: "A30090"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK871:
   equipment_model: "960E"
   equipment_serial: "A30091"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK872:
   equipment_model: "960E"
   equipment_serial: "A30093"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK873:
   equipment_model: "960E"
   equipment_serial: "A30094"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK874:
   equipment_model: "960E"
   equipment_serial: "A30095"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK875:
   equipment_model: "960E"
   equipment_serial: "A30098"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK876:
   equipment_model: "960E"
   equipment_serial: "A30099"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK877:
   equipment_model: "960E"
   equipment_serial: "A30100"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK878:
   equipment_model: "960E"
   equipment_serial: "A30101"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK879:
   equipment_model: "960E"
   equipment_serial: "A30102"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK880:
   equipment_model: "960E"
   equipment_serial: "A30103"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK881:
   equipment_model: "960E"
   equipment_serial: "A30104"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK882:
   equipment_model: "960E"
   equipment_serial: "A30105"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 TK883:
   equipment_model: "960E"
   equipment_serial: "A30106"
   site_name: "MEL"
   operating: True
+  delivery_date: "2019-01-01"
 CEX42:
   equipment_model: "980E-5"
   equipment_serial: "A50030"

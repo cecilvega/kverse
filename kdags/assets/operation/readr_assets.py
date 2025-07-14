@@ -8,9 +8,9 @@ from kdags.config import DATA_CATALOG
 
 
 @dg.asset(compute_kind="readr")
-def komtrax_smr(context: dg.AssetExecutionContext):
+def smr(context: dg.AssetExecutionContext):
     dl = DataLake(context)
-    df = dl.read_tibble(DATA_CATALOG["komtrax_smr"]["analytics_path"])
+    df = dl.read_tibble(DATA_CATALOG["smr"]["analytics_path"])
     return df
 
 

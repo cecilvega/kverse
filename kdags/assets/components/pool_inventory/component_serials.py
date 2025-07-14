@@ -8,7 +8,7 @@ def component_serials(component_changeouts: pl.DataFrame):
     """Obtener las series únicas de los componentes principales del pool a monitorear"""
     # Válido para MEL solamente
     retired_components = (
-        MasterData.retired_components()
+        MasterData.component_serials()
         .filter(pl.col("is_retired"))
         .with_columns(retired_date=pl.col("retired_date").str.to_date())
     )
