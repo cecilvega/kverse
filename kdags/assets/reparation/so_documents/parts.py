@@ -133,17 +133,18 @@ def clean_part_serial(value):
 def parts_base(component_reparations) -> pl.DataFrame:
     document_types = ["preliminary_report", "final_report"]
     cr_columns = ["subcomponent_tag", "component_serial", "service_order", "reception_date"]
-    df = component_reparations.clone().select(cr_columns)
+    df = (
+        component_reparations.clone()
+        .select(cr_columns)
+        .join(MasterData.component_serials().select(["component_serial"]), how="inner", on="component_serial")
+    )
+
     df = pl.concat(
         [
             df.filter(pl.col("subcomponent_tag") == "0980").join(
                 pl.DataFrame(SUBPARTS_MAPPING).filter(pl.col("subcomponent_tag") == "0980").drop("subcomponent_tag"),
                 how="cross",
-            ),
-            df.filter(pl.col("subcomponent_tag") == "5A30").join(
-                pl.DataFrame(SUBPARTS_MAPPING).filter(pl.col("subcomponent_tag") == "5A30").drop("subcomponent_tag"),
-                how="cross",
-            ),
+            )
         ],
         how="diagonal",
     )
@@ -165,11 +166,10 @@ def parts_base(component_reparations) -> pl.DataFrame:
 def raw_parts(context: dg.AssetExecutionContext, parts_base: pl.DataFrame) -> pl.DataFrame:
     dl = DataLake(context)
     mt_df = dl.read_tibble(DATA_CATALOG["mt_docs"]["analytics_path"])
-    sd_df = dl.read_tibble(DATA_CATALOG["sd_docs"]["analytics_path"])
+
     df = pl.concat(
         [
             mt_df.with_columns(subcomponent_tag=pl.lit("0980")),
-            sd_df.with_columns(subcomponent_tag=pl.lit("5A30")),
         ],
         how="diagonal",
     )
@@ -244,7 +244,7 @@ def pivot_parts(context: dg.AssetExecutionContext, component_reparations: pl.Dat
             "subpart_name",
         ],
         how="full",
-        validate="1:1",
+        # validate="1:1",
         coalesce=True,
     ).join(
         component_reparations.group_by(["subcomponent_tag", "component_serial", "service_order"]).agg(

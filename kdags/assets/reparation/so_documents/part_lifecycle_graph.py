@@ -241,9 +241,9 @@ def part_repairs_lifecycle(context: dg.AssetExecutionContext, pivot_parts: pl.Da
                 else:
                     repair_status = "PART_SWAPPED"
             elif initial and not final:
-                repair_status = "PART_REMOVED"
+                repair_status = "UNKNOWN_FINAL_PART"
             elif not initial and final:
-                repair_status = "NEW_PART_INSTALLED"
+                repair_status = "UNKNOWN_INITIAL_PART"
         else:
             repair_status = "NO_SERIAL_DATA"
 

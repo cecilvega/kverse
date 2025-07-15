@@ -131,6 +131,7 @@ def mutate_component_reparations(
                 "changeout_date",
                 "component_serial",
                 "service_order",
+                "reception_date",
                 "component_hours",
             ]
         )
@@ -159,6 +160,12 @@ def mutate_component_reparations(
             .over(["component_serial", "subcomponent_tag", "main_component"])
             .alias("cumulative_component_hours"),
         ]
+    )
+
+    # TODO: SACAR ESTA WEA
+    df = df.join(so_report.select(["service_order", "reception_date"]).unique(), how="left", on="service_order")
+    df = df.with_columns(reception_date=pl.col("reception_date").fill_null(pl.col("reception_date_right"))).drop(
+        "reception_date_right"
     )
     dl = DataLake(context=context)
 
