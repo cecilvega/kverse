@@ -235,14 +235,21 @@ def part_repairs_lifecycle(context: dg.AssetExecutionContext, pivot_parts: pl.Da
             )
 
             # Determine repair status
+
             if initial and final:
                 if initial == final:
+                    # REPAIRED_SAME_PART: Occurs when initial_part_serial and final_part_serial exist and are identical. The same physical part was re-installed
                     repair_status = "REPAIRED_SAME_PART"
                 else:
+                    # PART_SWAPPED: Occurs when initial_part_serial and final_part_serial exist and are different. A new part replaced an old one.
                     repair_status = "PART_SWAPPED"
             elif initial and not final:
+                # UNKNOWN_FINAL_PART: Occurs when a part was installed (initial_part_serial has a value)
+                # but the record does not show what part was removed (final_part_serial is empty/None).
                 repair_status = "UNKNOWN_FINAL_PART"
             elif not initial and final:
+                # UNKNOWN_INITIAL_PART: Occurs when a part was removed (final_part_serial has a value)
+                # but the record does not show what part was installed (initial_part_serial is empty/None).
                 repair_status = "UNKNOWN_INITIAL_PART"
         else:
             repair_status = "NO_SERIAL_DATA"
