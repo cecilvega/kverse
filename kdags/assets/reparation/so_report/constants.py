@@ -31,7 +31,10 @@ RAW_COL_LOAD_FINAL_REPORT_REVISED = "Load Final Report [Revised]"
 RAW_COL_SAP_CLOSING_DATE = "SAP Closing Date"
 RAW_COL_QUOTATION_STATUS = "Quotation Status"
 RAW_COL_RESO_REPAIR_REASON = "Repair Reason"
-
+RAW_COL_WAREHOUSE_RECEPTION_DATE = "Reception Component Warehouse"
+# RAW_COL_PARTS_REQUEST_DATE = "Date Request Parts Order"
+# RAW_COL_PARTS_APPROVAL_DATE = "Date Request Parts Order"
+# RAW_COL_PARTS_APPROVAL_DATE = "Date Load Parts Order"
 
 # -----------------------------------------------------------------------------
 # Standardized Column Names (used in the final DataFrame)
@@ -68,7 +71,7 @@ COL_LOAD_FINAL_REPORT_REVISED = "load_final_report_revised"
 COL_SAP_CLOSING_DATE = "sap_closing_date"
 COL_QUOTATION_STATUS = "quotation_status"
 COL_RESO_REPAIR_REASON = "reso_repair_reason"  # Added definition
-
+COL_WAREHOUSE_RECEPTION_DATE = "warehouse_reception_date"
 
 # -----------------------------------------------------------------------------
 # List of raw columns selected from the source
@@ -105,6 +108,7 @@ SELECTED_RAW_COLUMNS = [
     RAW_COL_SAP_CLOSING_DATE,
     RAW_COL_QUOTATION_STATUS,  # Added
     RAW_COL_RESO_REPAIR_REASON,  # Added
+    RAW_COL_WAREHOUSE_RECEPTION_DATE,
 ]
 
 # -----------------------------------------------------------------------------
@@ -143,6 +147,7 @@ COLUMN_MAPPING = {
     RAW_COL_SAP_CLOSING_DATE: COL_SAP_CLOSING_DATE,
     RAW_COL_QUOTATION_STATUS: COL_QUOTATION_STATUS,  # Added mapping
     RAW_COL_RESO_REPAIR_REASON: COL_RESO_REPAIR_REASON,  # Added mapping
+    RAW_COL_WAREHOUSE_RECEPTION_DATE: COL_WAREHOUSE_RECEPTION_DATE,
 }
 # Columns to convert to integer after cleaning
 INT_CONVERSION_COLUMNS = [
@@ -167,6 +172,7 @@ DATE_CONVERSION_COLUMNS = [
     COL_LOAD_FINAL_REPORT_REVISED,
     COL_SAP_CLOSING_DATE,
     COL_RESO_CLOSING_DATE,
+    COL_WAREHOUSE_RECEPTION_DATE,
 ]
 
 # Columns to convert to numeric/float (example, adjust as needed)

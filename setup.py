@@ -37,6 +37,7 @@ setup(
         "shap",
         "xgboost",
         "pyodbc",
+        "reportlab",
     ],
     extras_require={"dev": ["dagster-webserver", "pytest"]},
 )
