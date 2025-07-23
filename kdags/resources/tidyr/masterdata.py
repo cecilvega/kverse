@@ -17,6 +17,69 @@ class MasterData:
     CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parents[1] / "config"
 
     @classmethod
+    def parts_patch(cls) -> pl.DataFrame:
+
+        filepath = cls.CONFIG_DIR / "PARTS_PATCH.yaml"
+        data = yaml.safe_load(open(filepath, "r"))
+
+        records = []
+        for component_serial, component_data in data.items():
+            service_order = component_data.get("service_order")
+
+            # Everything except service_order is a part
+            for key, value in component_data.items():
+                if key != "service_order" and isinstance(value, dict):
+                    part_name = key
+
+                    # Check if this part has a direct final_part_serial (non-nested)
+                    if "final_part_serial" in value:
+                        records.append(
+                            {
+                                "component_serial": component_serial,
+                                "service_order": service_order,
+                                "part_name": part_name,
+                                "subpart_name": part_name,
+                                "final_part_serial": value["final_part_serial"],
+                                "initial_part_serial": value.get("initial_part_serial"),
+                            }
+                        )
+                    else:
+                        # Handle nested subparts
+                        for subpart_name, subpart_data in value.items():
+                            if isinstance(subpart_data, dict) and "final_part_serial" in subpart_data:
+                                records.append(
+                                    {
+                                        "component_serial": component_serial,
+                                        "service_order": service_order,
+                                        "part_name": part_name,
+                                        "subpart_name": subpart_name,
+                                        "final_part_serial": subpart_data["final_part_serial"],
+                                        "initial_part_serial": subpart_data.get("initial_part_serial"),
+                                    }
+                                )
+        return pl.DataFrame(records)
+
+    @classmethod
+    def parts(cls) -> pl.DataFrame:
+
+        filepath = cls.CONFIG_DIR / "parts.yaml"
+        data = yaml.safe_load(open(filepath, "r"))
+
+        # Transform the data into the desired structure
+        records = []
+        for component_serial, parts_dict in data.items():
+            for part_name, part_info in parts_dict.items():
+                if isinstance(part_info, dict) and "subparts" in part_info:
+                    for subpart_name in part_info["subparts"]:
+                        records.append(
+                            {"subcomponent_tag": component_serial, "part_name": part_name, "subpart_name": subpart_name}
+                        )
+        # 3. Create the Polars DataFrame
+        df = pl.DataFrame(records)
+
+        return df
+
+    @classmethod
     def component_serials(cls) -> pl.DataFrame:
 
         filepath = cls.CONFIG_DIR / "component_serials.yaml"
@@ -27,7 +90,7 @@ class MasterData:
         records = [{"component_serial": serial, **attributes} for serial, attributes in data.items()]
 
         # 3. Create the Polars DataFrame
-        df = pl.DataFrame(records)
+        df = pl.DataFrame(records).with_columns(retrofit_date=pl.col("retrofit_date").str.to_date("%d-%m-%Y"))
 
         return df
 
@@ -45,7 +108,7 @@ class MasterData:
         assert config_path.exists(), f"Components config file not found at {config_path}"
 
         # Load the YAML data
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8-sig") as f:
             data = yaml.safe_load(f)
 
         # Create DataFrame and process the data

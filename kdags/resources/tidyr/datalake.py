@@ -310,6 +310,49 @@ class DataLake:
 
         return az_path
 
+    def upload_bytes(self, data: bytes, az_path: str) -> str:
+        """
+        Upload bytes directly to Azure Data Lake Storage
+
+        Args:
+            data: Bytes to upload
+            az_path: Destination path in format "az://container/path/to/file.ext"
+
+        Returns:
+            str: The destination az_path if successful
+        """
+        if self.context_check:
+            self.context.log.info(f"Uploading {len(data)} bytes to {az_path}")
+
+        # Parse the destination az_path
+        container, file_path = self._parse_az_path(az_path)
+
+        # Get file system client
+        file_system_client = self.client.get_file_system_client(container)
+
+        # Ensure directory exists
+        directory_path = "/".join(file_path.split("/")[:-1])
+        if directory_path:
+            directory_client = file_system_client.get_directory_client(directory_path)
+            directory_client.create_directory()
+
+        # Get file client
+        file_client = file_system_client.get_file_client(file_path)
+
+        # Create or overwrite the file
+        file_client.create_file()
+
+        # Upload the data
+        file_client.append_data(data, 0, len(data))
+
+        # Flush to finalize the file
+        file_client.flush_data(len(data))
+
+        if self.context_check:
+            self.context.log.info(f"Successfully uploaded to {az_path}")
+
+        return az_path
+
     def upload_file(self, source_url: str, destination_az_path: str) -> str:
 
         # Download from HTTP URL
@@ -493,7 +536,15 @@ class DataLake:
         return filtered_df
 
     def delete_files(self, az_paths: list) -> dict:
+        """
+        Delete multiple files sequentially (no threading)
 
+        Args:
+            az_paths: List of Azure paths to delete
+
+        Returns:
+            dict: Results with counts and errors
+        """
         results = {"total": len(az_paths), "successful": 0, "failed": 0, "errors": []}
 
         for az_path in az_paths:
@@ -502,9 +553,163 @@ class DataLake:
                 file_system_client = self.get_file_system_client(f"az://{container}")
                 file_client = file_system_client.get_file_client(file_path)
                 file_client.delete_file()
+
                 results["successful"] += 1
+
+                if self.context_check:
+                    self.context.log.info(f"Deleted: {az_path}")
+
             except Exception as e:
                 results["failed"] += 1
                 results["errors"].append({"az_path": az_path, "error": str(e)})
 
         return results
+
+    def list_parallel_paths(
+        self, az_path: str, only_recent: bool = False, days_lookback: int = 30, cutoff_date: datetime = None
+    ) -> pl.DataFrame:
+        """
+        Optimized listing that's ALWAYS faster by listing year partitions in parallel
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        container, base_path = self._parse_az_path(az_path)
+        file_system_client = self.get_file_system_client(f"az://{container}")
+
+        # Step 1: Discover year partitions (fast - only top level)
+        year_partitions = []
+        try:
+            for item in file_system_client.get_paths(path=base_path, recursive=False):
+                if item.is_directory and item.name.split("/")[-1].startswith("y="):
+                    try:
+                        year = int(item.name.split("/")[-1].split("=")[1])
+                        year_partitions.append((year, item.name))
+                    except ValueError:
+                        continue
+        except Exception as e:
+            # No partitions found, fall back to regular listing
+            return self.list_paths(az_path, recursive=True)
+
+        if not year_partitions:
+            return self.list_paths(az_path, recursive=True)
+
+        # Step 2: Filter years if only_recent
+        if only_recent:
+            if cutoff_date is None:
+                cutoff_date = datetime.now()
+            min_year = (cutoff_date - timedelta(days=days_lookback)).year
+            year_partitions = [(y, p) for y, p in year_partitions if y >= min_year]
+
+        if self.context_check:
+            self.context.log.info(f"Listing {len(year_partitions)} year partitions in parallel")
+
+        # Step 3: List each year partition in PARALLEL (this is the optimization!)
+        def list_year_partition(year_info):
+            year, year_path = year_info
+            year_files = []
+            try:
+                # Create a new client for thread safety
+                thread_client = DataLakeServiceClient.from_connection_string(self._conn_str)
+                thread_fs_client = thread_client.get_file_system_client(container)
+
+                for item in thread_fs_client.get_paths(path=year_path, recursive=True):
+                    if not item.is_directory:
+                        year_files.append(
+                            {
+                                "az_path": f"az://{container}/{item.name}",
+                                "file_size": item.content_length,
+                                "last_modified": item.last_modified,
+                            }
+                        )
+            except Exception as e:
+                if self.context_check:
+                    self.context.log.warning(f"Error listing year {year}: {str(e)}")
+
+            return year_files
+
+        # Process all years in parallel
+        all_files = []
+        with ThreadPoolExecutor(max_workers=min(10, len(year_partitions))) as executor:
+            futures = {executor.submit(list_year_partition, yp): yp[0] for yp in year_partitions}
+
+            for future in as_completed(futures):
+                year_files = future.result()
+                all_files.extend(year_files)
+
+        # Convert to DataFrame
+        if not all_files:
+            return pl.DataFrame({"az_path": [], "file_size": [], "last_modified": []})
+
+        df = pl.DataFrame(all_files)
+
+        # Apply date filter if needed
+        if only_recent:
+            min_date = cutoff_date - timedelta(days=days_lookback)
+            df = df.filter((pl.col("last_modified") >= min_date) & (pl.col("last_modified") <= cutoff_date))
+
+        return df
+
+    def read_tibbles(self, az_paths: list, max_workers: int = 10, how: str = "diagonal") -> pl.DataFrame:
+        """
+        Read multiple tibbles in parallel and concatenate them
+
+        Args:
+            az_paths: List of Azure paths to read (or can be a DataFrame with 'az_path' column)
+            max_workers: Number of parallel workers
+            how: How to concatenate ('diagonal' or 'vertical')
+
+        Returns:
+            Concatenated DataFrame
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        # Handle input - convert DataFrame to list if needed
+        if isinstance(az_paths, pl.DataFrame):
+            az_paths = az_paths["az_path"].to_list()
+        elif isinstance(az_paths, dict) and "az_path" in az_paths:
+            az_paths = az_paths["az_path"]
+
+        if not az_paths:
+            return pl.DataFrame()
+
+        # Function to read a single tibble with error handling
+        def read_single_tibble(path):
+            try:
+                df = self.read_tibble(path)
+                return df, path, None
+            except Exception as e:
+                return None, path, str(e)
+
+        # Read all tibbles in parallel
+        tibbles = []
+        errors = []
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all read tasks
+            future_to_path = {executor.submit(read_single_tibble, path): path for path in az_paths}
+
+            # Collect results as they complete
+            for future in as_completed(future_to_path):
+                df, path, error = future.result()
+                if df is not None and not df.is_empty():
+                    tibbles.append(df)
+                elif error:
+                    errors.append({"path": path, "error": error})
+
+        # # Log summary
+        # if self.context_check:
+        #     self.context.log.info(f"Successfully read {len(tibbles)}/{len(az_paths)} files")
+        #     if errors:
+        #         self.context.log.warning(f"Failed to read {len(errors)} files")
+
+        # Concatenate all tibbles
+        if tibbles:
+            try:
+                combined_df = pl.concat(tibbles, how=how)
+                return combined_df
+            except Exception as e:
+                # if self.context_check:
+                #     self.context.log.error(f"Failed to concatenate dataframes: {str(e)}")
+                raise
+        else:
+            return pl.DataFrame()

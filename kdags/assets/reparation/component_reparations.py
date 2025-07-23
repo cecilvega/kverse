@@ -6,10 +6,10 @@ from kdags.resources.tidyr import DataLake, MasterData
 
 @dg.asset(compute_kind="mutate")
 def mutate_component_reparations(
-    context: dg.AssetExecutionContext, so_report: pl.DataFrame, component_history: pl.DataFrame
+    context: dg.AssetExecutionContext, mutate_so_report: pl.DataFrame, mutate_component_history: pl.DataFrame
 ):
     df = (
-        so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA")
+        mutate_so_report.filter(pl.col("site_name") == "MINERA ESCONDIDA")
         .filter(pl.col("equipment_model").str.contains("960E"))
         .with_columns(
             [
@@ -121,7 +121,9 @@ def mutate_component_reparations(
     df = df.with_columns(component_hours=pl.col("component_hours").fill_null(pl.lit(0)))
 
     df = (
-        component_history.filter((pl.col("subcomponent_tag") == "0980") & (pl.col("equipment_name").str.contains("TK")))
+        mutate_component_history.filter(
+            (pl.col("subcomponent_tag") == "0980") & (pl.col("equipment_name").str.contains("TK"))
+        )
         .filter(pl.col("service_order").is_not_null())
         .select(
             [
@@ -163,7 +165,7 @@ def mutate_component_reparations(
     )
 
     # TODO: SACAR ESTA WEA
-    df = df.join(so_report.select(["service_order", "reception_date"]).unique(), how="left", on="service_order")
+    df = df.join(mutate_so_report.select(["service_order", "reception_date"]).unique(), how="left", on="service_order")
     df = df.with_columns(reception_date=pl.col("reception_date").fill_null(pl.col("reception_date_right"))).drop(
         "reception_date_right"
     )

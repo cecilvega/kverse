@@ -26,8 +26,8 @@ component_history_job = dg.define_asset_job(
     name="component_history_job",
     selection=dg.AssetSelection.assets("mutate_component_changeouts").upstream()
     | dg.AssetSelection.assets("mutate_so_report").upstream()
-    | dg.AssetSelection.assets("mutate_component_history").upstream()
-    | dg.AssetSelection.assets("mutate_icc").upstream(),
+    | dg.AssetSelection.assets("mutate_component_reparations").upstream()
+    | dg.AssetSelection.assets("mutate_component_history").upstream(),
     description="Cambios de componente",
 )
 
@@ -83,7 +83,7 @@ quotations_job = dg.define_asset_job(
 
 reso_documents_job = dg.define_asset_job(
     name="reso_documents_job",
-    selection=dg.AssetSelection.assets("mutate_mt_docs").upstream(),
+    selection=dg.AssetSelection.assets("process_all_mt_reports").upstream(),
 )
 
 
@@ -115,7 +115,8 @@ warranties_job = dg.define_asset_job(
 
 icc_job = dg.define_asset_job(
     name="icc_job",
-    selection=dg.AssetSelection.assets("mutate_icc").upstream(),
+    selection=dg.AssetSelection.assets("mutate_icc").upstream()
+    | dg.AssetSelection.assets("spawn_icc_reports").upstream(),
     tags={"source": "icc"},
 )
 

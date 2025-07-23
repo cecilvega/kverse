@@ -30,6 +30,17 @@ def so_documents(context: dg.AssetExecutionContext) -> pl.DataFrame:
 
 
 @dg.asset(compute_kind="readr")
+def mt_documents(context: dg.AssetExecutionContext) -> pl.DataFrame:
+    dl = DataLake()  # context=context
+    # df = dl.read_tibble(az_path=DATA_CATALOG["mt_docs"]["analytics_path"])
+    docs_files = dl.list_parallel_paths(
+        "az://bhp-process-data/RESO/DOCUMENTS/MOTOR_TRACCION",
+    )["az_path"].to_list()
+    df = dl.read_tibbles(docs_files)
+    return df
+
+
+@dg.asset(compute_kind="readr")
 def quotations(context: dg.AssetExecutionContext) -> pl.DataFrame:
     dl = DataLake(context=context)
     df = dl.read_tibble(az_path=DATA_CATALOG["quotations"]["analytics_path"])

@@ -265,29 +265,53 @@ def _extract_table(pdf_bytes, table_title: str, table_columns: list):
     return section_data if section_data["found"] else None
 
 
-def extract_tables(context, reports: list, table_title: str, table_columns: list) -> list:
+def process_single_report(report, context, table_configs):
     """
-    Extract the conclusions section from a technical report.
-    Returns only section_number, pages, and raw_content.
+    Process one report for multiple table extractions.
+
+    table_configs: list of dicts with 'title' and 'columns' keys
+    Returns: dict with results for each table
     """
     dl = DataLake(context)
+
+    # Read PDF once
+    try:
+        pdf_bytes = dl.read_bytes(report["az_path"])
+    except Exception as e:
+        context.log.warning(f"Failed to read {report['az_path']}: {e}")
+        return None
+
+    # Extract all tables from the same bytes
+    results = {"report": report}
+
+    for config in table_configs:
+        table = _extract_table(pdf_bytes, table_title=config["title"], table_columns=config["columns"])
+        results[config["key"]] = table
+
+    return results
+
+
+def extract_tables(context, reports: list, table_title: str, table_columns: list, pdf_contents: dict = None) -> list:
+    """
+    pdf_contents: Optional dict mapping az_path -> bytes. If provided, uses these instead of reading.
+    """
+    dl = DataLake(context) if not pdf_contents else None
     tables = []
+
     for record in reports:
         try:
-            # Extract metadata
             service_order = record["service_order"]
             component_serial = record["component_serial"]
             az_path = record["az_path"]
 
-            # Read PDF content
-            content = dl.read_bytes(az_path)
+            # Use provided bytes or read from storage
+            if pdf_contents and az_path in pdf_contents:
+                content = pdf_contents[az_path]
+            else:
+                content = dl.read_bytes(az_path)
 
-            # Extract conclusions section
-            table = _extract_table(
-                content,
-                table_title=table_title,
-                table_columns=table_columns,
-            )
+            # Rest remains the same...
+            table = _extract_table(content, table_title=table_title, table_columns=table_columns)
 
             # FIX: Check if table is None before accessing properties
             if table and table.get("found"):
@@ -355,6 +379,104 @@ def reports_to_tibble(records_list: list) -> pl.DataFrame:
     df = pl.DataFrame(all_rows)
     base_cols = ["service_order", "component_serial", "section_number", "pages"]
     return df.select([c for c in base_cols + sorted(set(df.columns) - set(base_cols)) if c in df.columns])
+
+
+def extract_tibble_from_single_report(context, report: dict, table_configs: list):
+    """
+    Extract multiple tables from a SINGLE report (no parallelization needed)
+
+    Args:
+        report: Single report dict with service_order, component_serial, az_path
+        table_configs: List of table configurations
+
+    Returns:
+        Dict of DataFrames, one for each table config
+    """
+    dl = DataLake(context)
+
+    # Read PDF once
+    try:
+        pdf_bytes = dl.read_bytes(report["az_path"])
+    except Exception as e:
+        context.log.warning(f"Failed to read {report['az_path']}: {e}")
+        # Return empty DataFrames for each config
+        return {config["key"]: pl.DataFrame() for config in table_configs}
+
+    # Extract all tables from the same bytes
+    results = {}
+
+    for config in table_configs:
+        # Extract table
+        table = _extract_table(pdf_bytes, table_title=config["title"], table_columns=config["columns"])
+
+        # Convert to DataFrame
+        if table and table.get("found"):
+            # Create record with extracted data
+            record = {
+                "service_order": report["service_order"],
+                "component_serial": report["component_serial"],
+                "section_number": table.get("number", ""),
+                "pages": (
+                    f"{table['start_page']}-{table['end_page']}"
+                    if table.get("end_page") != table.get("start_page")
+                    else str(table.get("start_page", ""))
+                ),
+                "raw_content": table.get("content", []),
+            }
+
+            # Convert to tibble
+            df = reports_to_tibble([record])
+
+            # Add extraction status
+            if df.height > 0:
+                df = df.with_columns(extraction_status=pl.lit("success"))
+            else:
+                # No data rows found
+                df = pl.DataFrame(
+                    {
+                        "service_order": [report["service_order"]],
+                        "component_serial": [report["component_serial"]],
+                        "section_number": [""],
+                        "pages": [""],
+                        "extraction_status": ["not_found"],
+                    }
+                )
+        else:
+            # Table not found
+            df = pl.DataFrame(
+                {
+                    "service_order": [report["service_order"]],
+                    "component_serial": [report["component_serial"]],
+                    "section_number": [""],
+                    "pages": [""],
+                    "extraction_status": ["not_found"],
+                }
+            )
+
+        # Apply column filtering
+        if df.height > 0:
+            base_cols = [
+                "service_order",
+                "component_serial",
+                "section_number",
+                "pages",
+                "index",
+                "extraction_status",
+            ]
+
+            # Find matching columns
+            normalized_target_cols = [normalize_text(c).lower() for c in config["columns"]]
+            matched_data_cols = [
+                df_col for df_col in df.columns if normalize_text(df_col).lower() in normalized_target_cols
+            ]
+
+            # Select columns that exist
+            final_cols = base_cols + matched_data_cols
+            df = df.select([col for col in final_cols if col in df.columns])
+
+        results[config["key"]] = df
+
+    return results
 
 
 def extract_tibble_from_report(context, reports: list, table_title: str, table_columns: list):

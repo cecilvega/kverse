@@ -10,16 +10,20 @@
       main: True
       ep: True
       tag: "0980"
+      label: "Transmisión"
     - name: motor_electrico
       code: ME
       ep: True
       tag: "0971"
+      label: "Motor Eléctrico"
     - name: freno_servicio_trasero
       ep: False
       tag: "2E00"
+      label: "Freno Servicio Trasero"
     - name: freno_estacionamiento
       ep: False
       tag: "2F00"
+      label: "Freno Estacionamiento"
 - component_name: modulo_potencia
   component_code: MP
   position_name:
@@ -31,15 +35,19 @@
       main: True
       ep: True
       tag: "0940"
+      label: "Alternador Principal"
     - name: motor
       ep: False
       tag: "A000"
+      label: "Motor"
     - name: subframe
       ep: False
       tag: "4750"
+#      label: "SubFrame"
     - name: radiador
       ep: False
       tag: "0310"
+      label: "Radiador"
 - component_name: cilindro_direccion
   component_code: CD
   position_name:
@@ -52,6 +60,7 @@
       main: True
       ep: True
       tag: "H1X0"
+      label: "Cilindro Dirección"
 - component_name: blower_parrilla
   component_code: BP
   position_name:
@@ -64,6 +73,7 @@
       main: True
       ep: True
       tag: "0967"
+      label: "Blower Parilla"
 - component_name: conjunto_maza_suspension
   component_code: CMS
   position_name:
@@ -76,12 +86,15 @@
       main: True
       ep: True
       tag: "5A30"
+      label: "Suspensión Delantera"
     - name: maza
       ep: False
       tag: "2AA2"
+      label: "Maza"
     - name: freno_servicio_delantero
       ep: False
       tag: "2D00"
+      label: "Freno Servicio Delantero"
 - component_name: cilindro_levante
   component_code: CL
   position_name:
@@ -94,6 +107,7 @@
       main: True
       ep: True
       tag: "H1J0"
+      label: "Cilindro Levante"
 - component_name: suspension_trasera
   component_code: ST
   position_name:
@@ -106,3 +120,4 @@
       main: True
       ep: True
       tag: "5A40"
+      label: "Suspensión Trasera"

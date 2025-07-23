@@ -18,7 +18,7 @@ def raw_so_documents(context: dg.AssetExecutionContext):
 @dg.asset(compute_kind="mutate")
 def mutate_so_documents(context: dg.AssetExecutionContext, raw_so_documents: pl.DataFrame, so_report: pl.DataFrame):
     dl = DataLake(context)
-    downloaded_documents = dl.list_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(
+    downloaded_documents = dl.list_parallel_paths("az://bhp-raw-data/RESO/DOCUMENTS").select(
         ["az_path", "last_modified", "file_size"]
     )
     df = raw_so_documents.clone()

@@ -2,6 +2,7 @@
 import dagster as dg
 import polars as pl
 import requests
+from kdags.resources.tidyr import MasterData
 
 # --- Selenium imports ---
 from selenium.webdriver.support.ui import WebDriverWait
@@ -25,11 +26,15 @@ def harvest_so_documents(context: dg.AssetExecutionContext, mutate_so_documents:
     context.log.info("Login RESO+ successful.")
     click_presupuesto(driver, wait)
 
-    service_orders_data = (
-        mutate_so_documents.filter(pl.col("last_modified").is_null())
-        .select(["service_order", "component_serial"])
-        .to_dicts()
-    )
+    df = mutate_so_documents.clone()
+    df = df.filter(
+        (pl.col("file_size") == 0) | (pl.col("file_size").is_null()) | pl.col("last_modified").is_null()
+    ).unique("az_path")
+    # TODO: PARTIAL REMOVE
+    df = df.filter(pl.col("component_serial").is_in(MasterData.component_serials()["component_serial"].to_list()))
+
+    service_orders_data = df.to_dicts()
+
     processed_sos_successfully = []
     MAX_SO_ATTEMPTS = 2  # Total attempts: 1 initial + 1 retry
 

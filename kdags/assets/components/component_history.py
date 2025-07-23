@@ -179,7 +179,7 @@ def mutate_component_history(
 ) -> pl.DataFrame:
 
     cc_df = mutate_component_changeouts.clone()
-    so_report_df = mutate_so_report.clone()
+    so_report_df = mutate_so_report.clone().filter(pl.col("warranty_type") != "Factory Warranty")
     component_changeouts_filtered_df = filter_component_changeouts(cc_df)
 
     component_changeouts_initial_join_df = component_changeouts_initial_join(

@@ -163,9 +163,8 @@ def parts_base(component_reparations) -> pl.DataFrame:
 
 
 @dg.asset
-def raw_parts(context: dg.AssetExecutionContext, parts_base: pl.DataFrame) -> pl.DataFrame:
-    dl = DataLake(context)
-    mt_df = dl.read_tibble(DATA_CATALOG["mt_docs"]["analytics_path"])
+def raw_parts(context: dg.AssetExecutionContext, parts_base: pl.DataFrame, mt_documents: pl.DataFrame) -> pl.DataFrame:
+    mt_df = mt_documents.clone()
 
     df = pl.concat(
         [

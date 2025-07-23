@@ -1,0 +1,201 @@
+W11120007:
+  service_order: 14150557
+  low_speed_gear:
+    low_speed_gear_3hr:
+      final_part_serial: LSG3_14150557
+    low_speed_gear_6hr:
+      final_part_serial: LSG6_14150557
+    low_speed_gear_9hr:
+      final_part_serial: LSG9_14150557
+    low_speed_gear_12hr:
+      final_part_serial: LSG12_14150557
+  high_speed_gear:
+    high_speed_gear_a:
+      final_part_serial: 11112485
+    high_speed_gear_b:
+      final_part_serial: 11071631
+  solar_pinion:
+    final_part_serial: 1807032
+#    high_speed_gear_c:
+#      final_part_serial: LSG3_14150557
+W11120008:
+  service_order: 13011820
+  low_speed_gear:
+    low_speed_gear_3hr:
+      final_part_serial: LSG3_13011820
+    low_speed_gear_6hr:
+      final_part_serial: LSG6_13011820
+    low_speed_gear_9hr:
+      final_part_serial: LSG9_13011820
+    low_speed_gear_12hr:
+      final_part_serial: LSG12_13011820
+  ring_gear:
+    initial_part_serial: 1102014
+    final_part_serial: 1102014
+  sun_pinion:
+    initial_part_serial: 1109011
+    final_part_serial: 1109011
+  coupling_plate:
+    initial_part_serial: 902003
+    final_part_serial: 902003
+  high_speed_gear:
+    high_speed_gear_a:
+      initial_part_serial: 11071160
+      final_part_serial: 11071160
+    high_speed_gear_b:
+      initial_part_serial: 1104067
+      final_part_serial: 1104067
+    high_speed_gear_c:
+      initial_part_serial: 11071112
+      final_part_serial: 11071112
+W11100008:
+  service_order: 14136826
+  low_speed_gear:
+    low_speed_gear_3hr:
+      final_part_serial: 1201039
+    low_speed_gear_6hr:
+      final_part_serial: 1201038
+    low_speed_gear_9hr:
+      final_part_serial: 1201037
+    low_speed_gear_12hr:
+      final_part_serial: 1201040
+  high_speed_gear:
+    high_speed_gear_a:
+      final_part_serial: 1101351
+    high_speed_gear_b:
+      final_part_serial: 1104710
+    high_speed_gear_c:
+      final_part_serial: 1104818
+  ring_gear:
+    final_part_serial: 111239
+  sun_pinion:
+    final_part_serial: 1109017
+  coupling_plate:
+    final_part_serial: 901014
+WX1609Y005T:
+  service_order: 14144237
+  low_speed_gear:
+    low_speed_gear_3hr:
+      final_part_serial: LSG3_14144237
+    low_speed_gear_6hr:
+      final_part_serial: LSG6_14144237
+    low_speed_gear_9hr:
+      final_part_serial: LSG9_14144237
+    low_speed_gear_12hr:
+      final_part_serial: LSG12_14144237
+  high_speed_gear:
+    high_speed_gear_a:
+      initial_part_serial: HSGA_14144237
+      final_part_serial: HSGA_14144237
+    high_speed_gear_b:
+      initial_part_serial: HSGB_14144237
+      final_part_serial: HSGB_14144237
+    high_speed_gear_c:
+      initial_part_serial: HSGC_14144237
+      final_part_serial: HSGC_14144237
+  ring_gear:
+    initial_part_serial: RG_14144237
+    final_part_serial: RG_14144237
+  sun_pinion:
+    initial_part_serial: SP_14144237
+    final_part_serial: SP_14144237
+  coupling_plate:
+    initial_part_serial: CP_14144237
+    final_part_serial: CP_14144237
+  driveshaft:
+    initial_part_serial: DS_14144237
+    final_part_serial: DS_14144237
+
+W12020025:
+  service_order: 14135630
+  low_speed_gear:
+    low_speed_gear_3hr:
+      final_part_serial: 1204061
+    low_speed_gear_6hr:
+      final_part_serial: 14136202
+    low_speed_gear_9hr:
+      final_part_serial: 1204063
+    low_speed_gear_12hr:
+      final_part_serial: 14136202
+  high_speed_gear:
+    high_speed_gear_a:
+      final_part_serial: 1101148
+    high_speed_gear_b:
+      final_part_serial: 11071190
+    high_speed_gear_c:
+      final_part_serial: 11071358
+  ring_gear:
+    final_part_serial: 1204301
+  sun_pinion:
+    final_part_serial: 1203089
+  coupling_plate:
+    final_part_serial: 1204301
+
+WX14020005T:
+  service_order: 14124335
+  low_speed_gear:
+    low_speed_gear_3hr:
+      initial_part_serial: 1209001
+      final_part_serial: 1209001
+    low_speed_gear_6hr:
+      initial_part_serial: 1209004
+      final_part_serial: 1209004
+    low_speed_gear_9hr:
+      initial_part_serial: 1209002
+      final_part_serial: 1209002
+    low_speed_gear_12hr:
+      initial_part_serial: 1209003
+      final_part_serial: 1209003
+  high_speed_gear:
+    high_speed_gear_a:
+      initial_part_serial: 12121602
+      final_part_serial: 12121602
+    high_speed_gear_b:
+      initial_part_serial: 12121625
+      final_part_serial: 12121625
+    high_speed_gear_c:
+      initial_part_serial: 12121561
+      final_part_serial: 12121561
+  ring_gear:
+    initial_part_serial: GX13080075
+    final_part_serial: GX13080075
+  sun_pinion:
+    initial_part_serial: 1112014
+    final_part_serial: 1112014
+  coupling_plate:
+    initial_part_serial: 1808006
+    final_part_serial: 1808006
+
+W11110015:
+  service_order: 14147441
+  low_speed_gear:
+    low_speed_gear_3hr:
+      final_part_serial: LSG3_14147441
+    low_speed_gear_6hr:
+      final_part_serial: LSG6_14147441
+    low_speed_gear_9hr:
+      final_part_serial: LSG9_14147441
+    low_speed_gear_12hr:
+      final_part_serial: LSG12_14147441
+  high_speed_gear:
+    high_speed_gear_a:
+      initial_part_serial: 1104076
+      final_part_serial: 1104076
+    high_speed_gear_b:
+      initial_part_serial: 1104071
+      final_part_serial: 1104071
+    high_speed_gear_c:
+      initial_part_serial: 1101315
+      final_part_serial: 1101315
+  ring_gear:
+    initial_part_serial: 1511027
+    final_part_serial: 1511027
+  sun_pinion:
+    initial_part_serial: 2207027
+    final_part_serial: 2207027
+  coupling_plate:
+    initial_part_serial: 902683
+    final_part_serial: 902683
+  driveshaft:
+    initial_part_serial: 1108003
+    final_part_serial: 1108003
