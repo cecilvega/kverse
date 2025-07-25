@@ -1,0 +1,24 @@
+0980:
+  ring_gear:
+    subparts:
+      - ring_gear
+  sun_pinion:
+    subparts:
+      - sun_pinion
+  driveshaft:
+    subparts:
+      - driveshaft
+  high_speed_gear:
+    subparts:
+      - high_speed_gear_a
+      - high_speed_gear_b
+      - high_speed_gear_c
+  low_speed_gear:
+    subparts:
+      - low_speed_gear_3hr
+      - low_speed_gear_6hr
+      - low_speed_gear_9hr
+      - low_speed_gear_12hr
+  coupling_plate:
+    subparts:
+      - coupling_plate
